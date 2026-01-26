@@ -31,17 +31,18 @@ app.use('/sync', syncRoutes);
 async function startServer() {
   try {
     await sequelize.authenticate();
-    console.log('Database connected...');
+    console.log('✅ Database connected successfully.');
     
-    // Sync models (Alter in dev to match schema updates)
+    // Sync models
     await sequelize.sync({ alter: true });
-    console.log('Database synced...');
+    console.log('✅ Database schema synced.');
 
-    app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 Server is live on port ${PORT}`);
+      console.log(`🔗 Local link: http://localhost:${PORT}`);
     });
   } catch (err) {
-    console.error('Unable to connect to the database:', err);
+    console.error('❌ Unable to connect to the database:', err);
   }
 }
 

@@ -144,7 +144,12 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
            ));
          }
          
-         if (mounted) Navigator.pop(context);
+         if (mounted) {
+           // Background Sync
+           ref.read(syncServiceProvider).startSync(currentUser.id).catchError((e) => print("Auto-sync failed: $e"));
+           
+           Navigator.pop(context);
+         }
        } catch (e) {
          if (mounted) {
            ScaffoldMessenger.of(context).showSnackBar(

@@ -62,7 +62,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
         id: userId,
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
-        purpose: enteredInviteCode.isNotEmpty ? null : _selectedPurpose,
+        purpose: enteredInviteCode.isNotEmpty ? 'tour' : _selectedPurpose,
         isMe: true,
         isSynced: false,
         updatedAt: DateTime.now(),
@@ -96,8 +96,12 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
       }
     } catch (e) {
       if (mounted) {
+        String errorMsg = e.toString();
+        if (errorMsg.startsWith("Exception: ")) {
+          errorMsg = errorMsg.replaceFirst("Exception: ", "");
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+          SnackBar(content: Text("Error: $errorMsg"), backgroundColor: Colors.red, duration: const Duration(seconds: 5)),
         );
       }
     } finally {
@@ -130,7 +134,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                     child: Icon(Icons.auto_awesome, size: 60, color: Colors.teal.shade700),
                   ),
                   const SizedBox(height: 16),
-                  const Text("SplitShare Pro", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)),
+                  const Text("Tour Manager", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white)),
                   const Text("The Classroom for Expenses", style: TextStyle(fontSize: 16, color: Colors.white70)),
                   const SizedBox(height: 32),
 
@@ -221,7 +225,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                                 ),
                                 child: _isLoading 
                                   ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                  : const Text("Enter SplitShare", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                  : const Text("Start Now", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                               ),
                             ),
                           ],

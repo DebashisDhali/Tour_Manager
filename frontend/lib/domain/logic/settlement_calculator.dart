@@ -1,12 +1,22 @@
 import 'dart:math';
 import '../../data/local/app_database.dart';
 
+class Settlement {
+  final String payerName;
+  final String receiverName;
+  final double amount;
+
+  Settlement({
+    required this.payerName,
+    required this.receiverName,
+    required this.amount,
+  });
+}
+
 class SettlementCalculator {
   
   /// Calculates the optimized settlement plan
-  /// Returns a list of string instructions like "A pays 50 to B"
-  /// In a real app, return a structured object (From, To, Amount)
-  List<String> calculate(List<Expense> expenses, List<ExpenseSplit> splits, List<User> users) {
+  List<Settlement> calculate(List<Expense> expenses, List<ExpenseSplit> splits, List<User> users) {
     // 1. Calculate Balances
     final balances = <String, double>{};
     for (var u in users) {
@@ -39,7 +49,7 @@ class SettlementCalculator {
     debtors.sort((a, b) => a.amount.compareTo(b.amount)); // Ascending (most negative first)
     creditors.sort((a, b) => b.amount.compareTo(a.amount)); // Descending (most positive first)
 
-    final settlements = <String>[];
+    final settlements = <Settlement>[];
     int i = 0; // Debtor ptr
     int j = 0; // Creditor ptr
 
@@ -57,7 +67,11 @@ class SettlementCalculator {
       final debtorName = users.firstWhere((u) => u.id == debtor.userId).name;
       final creditorName = users.firstWhere((u) => u.id == creditor.userId).name;
 
-      settlements.add("$debtorName pays $amount to $creditorName");
+      settlements.add(Settlement(
+        payerName: debtorName,
+        receiverName: creditorName,
+        amount: amount,
+      ));
 
       // Update remaining
       debtor.amount += amount; // Add positive to make less negative

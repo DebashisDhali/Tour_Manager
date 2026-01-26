@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../main.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../data/local/app_database.dart';
 import '../../data/providers/app_providers.dart';
 
@@ -97,10 +98,10 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                       children: [
                         Text(tour.inviteCode!, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 2)),
                         IconButton(
-                          icon: const Icon(Icons.copy, size: 20),
+                          icon: const Icon(Icons.share, size: 20, color: Colors.teal),
                           onPressed: () {
-                            // Copy logic
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code copied!')));
+                            final text = "Join my tour on Tour Manager! Code: ${tour.inviteCode}\n\nDownload the app to manage expenses together.";
+                            Share.share(text);
                           },
                         )
                       ],

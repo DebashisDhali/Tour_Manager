@@ -52,6 +52,7 @@ class SettlementScreen extends ConsumerWidget {
                       tour: tour,
                       users: users,
                       expenses: expenses,
+                      splits: tourSplits,
                       settlementInstructions: instructions,
                     )));
                   },
@@ -143,8 +144,8 @@ class SettlementScreen extends ConsumerWidget {
             }).toList(),
             const SizedBox(height: 24),
 
-            // --- Transactions Section ---
-            _buildSectionTitle("Settlement Plan"),
+            const SizedBox(height: 24),
+            _buildSectionTitle("Settlement Plan | লেনদেন গাইড"),
 
             if (instructions.isEmpty)
               Center(
@@ -157,37 +158,9 @@ class SettlementScreen extends ConsumerWidget {
                   ],
                 ),
               )
-            else
-              ...instructions.map((instruction) {
-                final parts = instruction.split(" pays ");
-                final payer = parts[0];
-                final secondPart = parts[1].split(" to ");
-                final amount = secondPart[0];
-                final receiver = secondPart[1];
-
-                return Card(
-                  elevation: 0,
-                  color: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(color: Colors.teal.shade100),
-                  ),
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      children: [
-                        _buildUserAvatar(payer),
-                        const Expanded(child: Icon(Icons.compare_arrows, color: Colors.teal)),
-                        _buildUserAvatar(receiver),
-                        const SizedBox(width: 20),
-                        Text("${double.parse(amount).toStringAsFixed(0)} ৳", 
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
+            else ...[
+              _buildVisualFlow(instructions),
+            ],
             const SizedBox(height: 80),
           ],
         );
@@ -251,6 +224,7 @@ class SettlementScreen extends ConsumerWidget {
             Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)))),
             const SizedBox(height: 24),
             const Text("হিসাব নিকাশ কিভাবে হয়? 🧠", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.teal)),
+            const Text("How calculations work", style: TextStyle(fontSize: 14, color: Colors.grey)),
             const SizedBox(height: 16),
             Expanded(
               child: ListView(
@@ -312,15 +286,133 @@ class SettlementScreen extends ConsumerWidget {
   }
 
   Widget _buildUserAvatar(String name) {
-
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         CircleAvatar(
+          radius: 18,
           backgroundColor: Colors.teal,
-          child: Text(name[0], style: const TextStyle(color: Colors.white)),
+          child: Text(name[0], style: const TextStyle(color: Colors.white, fontSize: 14)),
         ),
         const SizedBox(height: 4),
+        Text(name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
+      ],
+    );
+  }
+
+  Widget _buildVisualFlow(List<Settlement> instructions) {
+    final groupedByPayer = <String, List<Settlement>>{};
+    for (var s in instructions) {
+      groupedByPayer.putIfAbsent(s.payerName, () => []).add(s);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle("Visual Payment Network | পেমেন্ট গ্রাফ"),
+        ...groupedByPayer.entries.map((entry) {
+          final payer = entry.key;
+          final receivers = entry.value;
+
+          return Card(
+            elevation: 0,
+            margin: const EdgeInsets.only(bottom: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(color: Colors.teal.shade100, width: 1),
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  colors: [Colors.teal.shade50.withOpacity(0.3), Colors.white],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  _buildUserAvatar(payer),
+                  const SizedBox(width: 12),
+                  _buildCustomArrow(),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ...receivers.map((r) => Container(
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade100),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4, offset: const Offset(0, 2)),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  "${r.amount.toStringAsFixed(0)} ৳",
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.teal,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ),
+                              const Icon(Icons.keyboard_arrow_right, size: 16, color: Colors.grey),
+                              const SizedBox(width: 4),
+                              _buildSmallAvatar(r.receiverName),
+                            ],
+                          ),
+                        )),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ],
+    );
+  }
+
+  Widget _buildCustomArrow() {
+    return Column(
+      children: [
+        Container(
+          width: 2,
+          height: 30,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.teal.shade100, Colors.teal],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+          ),
+        ),
+        const Icon(Icons.arrow_drop_down, color: Colors.teal, size: 16),
+      ],
+    );
+  }
+
+  Widget _buildSmallAvatar(String name) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
         Text(name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+        const SizedBox(width: 8),
+        CircleAvatar(
+          radius: 14,
+          backgroundColor: Colors.teal.shade100,
+          child: Text(name[0], style: const TextStyle(color: Colors.teal, fontSize: 10, fontWeight: FontWeight.bold)),
+        ),
       ],
     );
   }

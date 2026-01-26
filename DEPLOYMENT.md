@@ -45,10 +45,15 @@ Server runs on `http://localhost:3000`
    - Add environment variables if using PostgreSQL
 
 3. **Deploy to Railway.app**
-   - Install Railway CLI: `npm i -g @railway/cli`
-   - Login: `railway login`
-   - Initialize: `railway init`
-   - Deploy: `railway up`
+   - **Option A (CLI):**
+     ```bash
+     cd backend
+     railway up
+     ```
+   - **Option B (Dashboard/GitHub):**
+     - Connect your repo
+     - Go to **Settings** > **General**
+     - Set **Root Directory** to `/backend`
 
 ---
 

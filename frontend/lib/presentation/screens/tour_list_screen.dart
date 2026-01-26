@@ -229,38 +229,64 @@ class TourListScreen extends ConsumerWidget {
 
   void _showJoinDialog(BuildContext context, WidgetRef ref, PurposeConfig config) {
     final controller = TextEditingController();
+    bool isLoading = false;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Join ${config.label}'),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            hintText: 'Enter 6-digit Invite Code',
-            border: const OutlineInputBorder(),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('Join ${config.label}'),
+          content: TextField(
+            controller: controller,
+            enabled: !isLoading,
+            decoration: InputDecoration(
+              hintText: 'Enter 6-digit Invite Code',
+              border: const OutlineInputBorder(),
+            ),
+            textCapitalization: TextCapitalization.characters,
           ),
-          textCapitalization: TextCapitalization.characters,
+          actions: [
+            TextButton(
+              onPressed: isLoading ? null : () => Navigator.pop(context), 
+              child: const Text('Cancel')
+            ),
+            FilledButton(
+              onPressed: isLoading ? null : () async {
+                final code = controller.text.trim().toUpperCase();
+                if (code.isEmpty) return;
+
+                setState(() => isLoading = true);
+                try {
+                  final user = await ref.read(currentUserProvider.future);
+                  if (user != null) {
+                    await ref.read(syncServiceProvider).joinByInvite(
+                      code,
+                      user.id,
+                      user.name
+                    );
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Successfully joined!')),
+                      );
+                    }
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error joining: $e'), backgroundColor: Colors.red),
+                    );
+                  }
+                } finally {
+                  if (context.mounted) setState(() => isLoading = false);
+                }
+              },
+              child: isLoading 
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Text('Join Now'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () async {
-              final user = await ref.read(currentUserProvider.future);
-              if (user != null) {
-                await ref.read(syncServiceProvider).joinByInvite(
-                  controller.text.trim().toUpperCase(),
-                  user.id,
-                  user.name
-                );
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Successfully joined!')),
-                );
-              }
-            },
-            child: const Text('Join Now'),
-          ),
-        ],
       ),
     );
   }

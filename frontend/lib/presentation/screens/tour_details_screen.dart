@@ -8,6 +8,7 @@ import '../widgets/add_member_dialog.dart';
 import 'add_expense_screen.dart';
 import 'settlement_screen.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../data/local/app_database.dart';
 import '../../main.dart';
 
@@ -166,12 +167,12 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> {
           ),
           FilledButton.icon(
             onPressed: () {
-              // In a real app, use share_plus package
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code copied to clipboard!')));
+              final text = "Join my tour on Tour Manager! Code: $code\n\nDownload the app to manage expenses together.";
+              Share.share(text);
               Navigator.pop(context);
             },
-            icon: const Icon(Icons.copy),
-            label: const Text('Copy & Share'),
+            icon: const Icon(Icons.share),
+            label: const Text('Share Code'),
           ),
         ],
       ),

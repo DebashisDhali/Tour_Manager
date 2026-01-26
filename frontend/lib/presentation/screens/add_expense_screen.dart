@@ -166,7 +166,13 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         );
 
         await db.addExpenseWithSplits(expense, splits);
-        if (mounted) Navigator.pop(context);
+        
+        if (mounted) {
+           // Background Sync
+           ref.read(syncServiceProvider).startSync(_selectedPayerId!).catchError((e) => print("Auto-sync failed: $e"));
+           
+           Navigator.pop(context);
+        }
     }
   }
 }

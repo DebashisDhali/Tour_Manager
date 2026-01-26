@@ -5,17 +5,14 @@ import 'package:drift/drift.dart';
 import '../local/app_database.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' show Platform;
+import 'package:uuid/uuid.dart';
 
 class SyncService {
   final AppDatabase db;
   final Dio dio;
   
   String get baseUrl {
-      if (kIsWeb) return 'http://localhost:3000';
-      try {
-          if (Platform.isAndroid) return 'http://10.0.2.2:3000';
-      } catch (e) {}
-      return 'http://localhost:3000';
+    return 'https://postgres-production-1ca8.up.railway.app';
   }
 
   SyncService(this.db, this.dio) {
@@ -112,7 +109,34 @@ class SyncService {
              }
           }
 
-          // Sync Expenses & Splits... (omitted for brevity but logic same)
+          // Sync Expenses
+          if (st['Expenses'] != null) {
+            for (final se in st['Expenses']) {
+              await db.into(db.expenses).insert(Expense(
+                id: se['id'],
+                tourId: st['id'],
+                payerId: se['payer_id'],
+                amount: (se['amount'] as num).toDouble(),
+                title: se['title'],
+                category: se['category'],
+                isSynced: true,
+                createdAt: DateTime.parse(se['date']),
+              ), mode: InsertMode.insertOrReplace);
+
+              // Sync Splits
+              if (se['ExpenseSplits'] != null) {
+                for (final ss in se['ExpenseSplits']) {
+                  await db.into(db.expenseSplits).insert(ExpenseSplit(
+                    id: ss['id'] ?? const Uuid().v4(), // Fallback if backend doesn't send ID
+                    expenseId: se['id'],
+                    userId: ss['user_id'],
+                    amount: (ss['amount'] as num).toDouble(),
+                    isSynced: true,
+                  ), mode: InsertMode.insertOrReplace);
+                }
+              }
+            }
+          }
         }
       }
       print("Sync completed.");
@@ -130,12 +154,28 @@ class SyncService {
       });
       
       if (response.statusCode == 200) {
-        print("Joined successfully: ${response.data}");
+        print("Joined successfully on server. Response: ${response.data}");
+        
         // Trigger sync to get the new tour data immediately
-        await startSync(userId);
+        try {
+          print("Starting post-join sync...");
+          await startSync(userId);
+          print("Post-join sync completed successfully.");
+        } catch (syncError) {
+          print("Post-join sync failed: $syncError");
+          // Re-throw so the UI knows there was an issue, 
+          // even if the join itself succeeded on server.
+          throw Exception("Joined group, but failed to download data. Try manual sync. ($syncError)");
+        }
+      } else {
+        throw Exception("Server returned ${response.statusCode}: ${response.data}");
       }
+    } on DioException catch (e) {
+      final msg = e.response?.data?['error'] ?? e.message;
+      print("Join failed (DioError): $msg");
+      throw Exception(msg);
     } catch (e) {
-      print("Join failed: $e");
+      print("Join failed (Generic): $e");
       rethrow;
     }
   }
