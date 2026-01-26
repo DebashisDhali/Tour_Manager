@@ -12,7 +12,7 @@ class SyncService {
   final Dio dio;
   
   String get baseUrl {
-    return 'https://postgres-production-1ca8.up.railway.app';
+    return 'https://tourmanager-production-fbbd.up.railway.app';
   }
 
   SyncService(this.db, this.dio) {
