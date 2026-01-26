@@ -11,11 +11,9 @@ const config = process.env.DATABASE_URL
       }
     }
   : {
-      username: process.env.DB_USER || 'postgres',
-      password: process.env.DB_PASSWORD || 'postgres',
-      database: process.env.DB_NAME || 'tour_expense',
-      host: process.env.DB_HOST || 'localhost',
-      dialect: 'postgres'
+      dialect: 'sqlite',
+      storage: './database.sqlite',
+      logging: false
     };
 
 module.exports = config;
