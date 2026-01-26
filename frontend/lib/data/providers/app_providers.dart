@@ -6,8 +6,8 @@ import '../sync/sync_service.dart';
 import '../../main.dart';
 
 final dioProvider = Provider<Dio>((ref) => Dio(BaseOptions(
-  connectTimeout: const Duration(seconds: 15),
-  receiveTimeout: const Duration(seconds: 15),
+  connectTimeout: const Duration(seconds: 60),
+  receiveTimeout: const Duration(seconds: 60),
 )));
 
 final syncServiceProvider = Provider<SyncService>((ref) {
