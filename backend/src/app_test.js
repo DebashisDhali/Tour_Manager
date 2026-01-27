@@ -1,25 +1,11 @@
 const express = require('express');
-const cors = require('cors');
-
 const app = express();
-const PORT = process.env.PORT || 3000;
-
-app.use(cors());
-app.use(express.json());
+const PORT = 3000; // Hardcoded for test
 
 app.get('/', (req, res) => {
-  res.send('API is Up and Running! DB Connection is pending...');
+  res.send('API is Up and Running on Port 3000!');
 });
 
-// Import Routes
-const userRoutes = require('./routes/userRoutes');
-const tourRoutes = require('./routes/tourRoutes');
-const syncRoutes = require('./routes/syncRoutes');
-
-app.use('/users', userRoutes);
-app.use('/tours', tourRoutes);
-app.use('/sync', syncRoutes);
-
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Test Server is live on port ${PORT}`);
 });
