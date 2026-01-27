@@ -1,6 +1,8 @@
 node_modules
-npm-debug.log
 .git
+.idea
+.vscode
+*.log
+frontend/
 .env
-backend/node_modules
-frontend/node_modules
+database.sqlite
