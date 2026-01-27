@@ -4,7 +4,17 @@ exports.syncData = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
     const { userId, unsyncedData } = req.body;
-    
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    // Ensure the current user exists in the DB (might have been synced before)
+    await User.upsert({ 
+      id: userId,
+      name: 'Unknown User', // Temporary fallback
+      updated_at: new Date()
+    }, { transaction });
+
     // 1. Process Unsynced Data from Client (Push)
     if (unsyncedData) {
       const { tours, users, expenses, splits, payers, settlements } = unsyncedData;
