@@ -9,93 +9,118 @@ exports.syncData = async (req, res) => {
     if (unsyncedData) {
       const { tours, users, expenses, splits, payers, settlements } = unsyncedData;
 
-      if (users) {
-        console.log(`📡 Sync: Pushing ${users.length} users...`);
-        for (const u of users) {
-          await User.upsert({ 
-            id: u.id, 
-            name: u.name, 
-            phone: u.phone,
-            email: u.email,
-            avatar_url: u.avatarUrl,
-            purpose: u.purpose
-          }, { transaction });
-        }
+      // 1. Bulk Upsert Users
+      if (users && users.length > 0) {
+        console.log(`📡 Sync: Bulk pushing ${users.length} users...`);
+        await User.bulkCreate(users.map(u => ({
+          id: u.id,
+          name: u.name,
+          phone: u.phone,
+          email: u.email,
+          avatar_url: u.avatarUrl,
+          purpose: u.purpose,
+          updated_at: new Date()
+        })), { 
+          transaction,
+          updateOnDuplicate: ['name', 'phone', 'email', 'avatar_url', 'purpose', 'updated_at']
+        });
       }
 
-      if (tours) {
+      // 2. Sync Tours (Individual due to association logic)
+      if (tours && tours.length > 0) {
         console.log(`📡 Sync: Pushing ${tours.length} tours...`);
         for (const t of tours) {
-          try {
-            await Tour.upsert({ 
-              id: t.id, 
-              name: t.name, 
-              created_by: t.createdBy, 
-              invite_code: t.inviteCode,
-              start_date: t.startDate, 
-              end_date: t.endDate 
-            }, { transaction });
+          await Tour.upsert({ 
+            id: t.id, 
+            name: t.name, 
+            created_by: t.createdBy, 
+            invite_code: t.inviteCode,
+            start_date: t.startDate, 
+            end_date: t.endDate 
+          }, { transaction });
 
-            // Fetch the instance to be safe
-            const tourInstance = await Tour.findByPk(t.id, { transaction });
-            if (tourInstance && t.createdBy) {
-              const creator = await User.findByPk(t.createdBy, { transaction });
-              if (creator) {
-                await tourInstance.addUser(creator, { transaction });
-              }
-            }
-          } catch (err) {
-            console.error(`Error syncing tour ${t.id}:`, err);
+          const tourInstance = await Tour.findByPk(t.id, { transaction });
+          if (tourInstance && t.createdBy) {
+            const creator = await User.findByPk(t.createdBy, { transaction });
+            if (creator) await tourInstance.addUser(creator, { transaction });
           }
         }
       }
 
-      if (expenses) {
-        for (const e of expenses) {
-          await Expense.upsert({
-            id: e.id,
-            tour_id: e.tourId,
-            payer_id: e.payerId,
-            amount: e.amount,
-            title: e.title,
-            category: e.category,
-            date: e.createdAt
-          }, { transaction });
-        }
+      // 3. Bulk Upsert Expenses
+      if (expenses && expenses.length > 0) {
+        console.log(`📡 Sync: Bulk pushing ${expenses.length} expenses...`);
+        await Expense.bulkCreate(expenses.map(e => ({
+          id: e.id,
+          tour_id: e.tourId,
+          payer_id: e.payerId,
+          amount: e.amount,
+          title: e.title,
+          category: e.category,
+          date: e.createdAt
+        })), { 
+          transaction,
+          updateOnDuplicate: ['amount', 'title', 'category', 'date', 'payer_id']
+        });
       }
 
-      if (splits) {
-        for (const s of splits) {
-          await ExpenseSplit.upsert({
-            id: s.id,
-            expense_id: s.expenseId,
-            user_id: s.userId,
-            amount: s.amount
-          }, { transaction });
-        }
+      // 4. Bulk Upsert Splits
+      if (splits && splits.length > 0) {
+        await ExpenseSplit.bulkCreate(splits.map(s => ({
+          id: s.id,
+          expense_id: s.expenseId,
+          user_id: s.userId,
+          amount: s.amount
+        })), { 
+          transaction,
+          updateOnDuplicate: ['amount']
+        });
       }
 
-      if (payers) {
-        for (const p of payers) {
-          await ExpensePayer.upsert({
-            id: p.id,
-            expense_id: p.expenseId,
-            user_id: p.userId,
-            amount: p.amount
-          }, { transaction });
-        }
+      // 5. Bulk Upsert Payers
+      if (payers && payers.length > 0) {
+        await ExpensePayer.bulkCreate(payers.map(p => ({
+          id: p.id,
+          expense_id: p.expenseId,
+          user_id: p.userId,
+          amount: p.amount
+        })), { 
+          transaction,
+          updateOnDuplicate: ['amount']
+        });
       }
 
-      if (settlements) {
-        for (const s of settlements) {
-          await Settlement.upsert({
-            id: s.id,
-            tour_id: s.tourId,
-            from_id: s.fromId,
-            to_id: s.toId,
-            amount: s.amount,
-            date: s.date
-          }, { transaction });
+      // 6. Bulk Upsert Settlements
+      if (settlements && settlements.length > 0) {
+        await Settlement.bulkCreate(settlements.map(s => ({
+          id: s.id,
+          tour_id: s.tourId,
+          from_id: s.fromId,
+          to_id: s.toId,
+          amount: s.amount,
+          date: s.date
+        })), { 
+          transaction,
+          updateOnDuplicate: ['amount', 'date']
+        });
+      }
+
+      // 7. Sync Tour Members (Manually as they are a junction table without a separate primary ID usually)
+      if (unsyncedData.members && unsyncedData.members.length > 0) {
+        console.log(`📡 Sync: Pushing ${unsyncedData.members.length} member connections...`);
+        for (const m of unsyncedData.members) {
+           const tour = await Tour.findByPk(m.tourId, { transaction });
+           const user = await User.findByPk(m.userId, { transaction });
+           if (tour && user) {
+             await tour.addUser(user, { transaction });
+             // Update left_at if present
+             if (m.leftAt) {
+               await (sequelize.model('TourMember')).update(
+                 { left_at: m.leftAt },
+                 { where: { tour_id: m.tourId, user_id: m.userId }, transaction }
+               );
+             }
+           }
         }
       }
     }

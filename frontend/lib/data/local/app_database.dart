@@ -236,10 +236,12 @@ class AppDatabase extends _$AppDatabase {
   Future<List<Expense>> getUnsyncedExpenses() => (select(expenses)..where((t) => t.isSynced.equals(false))).get();
   Future<List<ExpenseSplit>> getUnsyncedSplits() => (select(expenseSplits)..where((t) => t.isSynced.equals(false))).get();
   Future<List<ExpensePayer>> getUnsyncedExpensePayers() => (select(expensePayers)..where((t) => t.isSynced.equals(false))).get();
+  Future<List<TourMember>> getUnsyncedTourMembers() => (select(tourMembers)..where((t) => t.isSynced.equals(false))).get();
   Future<List<Settlement>> getUnsyncedSettlements() => (select(settlements)..where((t) => t.isSynced.equals(false))).get();
   
   Future<void> markUserSynced(String id) => (update(users)..where((t) => t.id.equals(id))).write(UsersCompanion(isSynced: Value(true)));
   Future<void> markTourSynced(String id) => (update(tours)..where((t) => t.id.equals(id))).write(ToursCompanion(isSynced: Value(true)));
+  Future<void> markTourMemberSynced(String tourId, String userId) => (update(tourMembers)..where((t) => t.tourId.equals(tourId) & t.userId.equals(userId))).write(TourMembersCompanion(isSynced: const Value(true)));
   Future<void> markExpenseSynced(String id) => (update(expenses)..where((t) => t.id.equals(id))).write(ExpensesCompanion(isSynced: Value(true)));
   Future<void> markSplitSynced(String id) => (update(expenseSplits)..where((t) => t.id.equals(id))).write(ExpenseSplitsCompanion(isSynced: Value(true)));
   Future<void> markExpensePayerSynced(String id) => (update(expensePayers)..where((t) => t.id.equals(id))).write(ExpensePayersCompanion(isSynced: Value(true)));

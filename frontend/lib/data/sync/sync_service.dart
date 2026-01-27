@@ -54,9 +54,11 @@ class SyncService {
       final unsyncedExpenses = await db.getUnsyncedExpenses();
       final unsyncedSplits = await db.getUnsyncedSplits();
       final unsyncedPayers = await db.getUnsyncedExpensePayers();
+      final unsyncedMembers = await db.getUnsyncedTourMembers();
       final unsyncedSettlements = await db.getUnsyncedSettlements();
 
-      if (unsyncedUsers.isEmpty && unsyncedTours.isEmpty && unsyncedExpenses.isEmpty && unsyncedSplits.isEmpty && unsyncedPayers.isEmpty && unsyncedSettlements.isEmpty) {
+      if (unsyncedUsers.isEmpty && unsyncedTours.isEmpty && unsyncedExpenses.isEmpty && 
+          unsyncedSplits.isEmpty && unsyncedPayers.isEmpty && unsyncedMembers.isEmpty && unsyncedSettlements.isEmpty) {
         // Still pull
       }
 
@@ -99,6 +101,11 @@ class SyncService {
             'userId': p.userId,
             'amount': p.amount,
           }).toList(),
+          'members': unsyncedMembers.map((m) => {
+            'tourId': m.tourId,
+            'userId': m.userId,
+            'leftAt': m.leftAt?.toIso8601String(),
+          }).toList(),
           'settlements': unsyncedSettlements.map((s) => {
             'id': s.id,
             'tourId': s.tourId,
@@ -114,6 +121,7 @@ class SyncService {
         // Mark as synced locally
         for (final u in unsyncedUsers) await db.markUserSynced(u.id);
         for (final t in unsyncedTours) await db.markTourSynced(t.id);
+        for (final m in unsyncedMembers) await db.markTourMemberSynced(m.tourId, m.userId);
         for (final e in unsyncedExpenses) await db.markExpenseSynced(e.id);
         for (final s in unsyncedSplits) await db.markSplitSynced(s.id);
         for (final p in unsyncedPayers) await db.markExpensePayerSynced(p.id);
