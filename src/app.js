@@ -6,20 +6,32 @@ const { sequelize } = require('./models');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+// Trust Railway Proxy
+app.enable('trust proxy');
+
+// 0. Logging & Healthcheck (Must be first)
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
+app.get('/', (req, res) => {
+  res.status(200).send('Tour Manager API is Live');
+});
+
+app.get('/health', (req, res) => res.sendStatus(200));
+
+// 1. CORS
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept', 'X-Requested-With'],
   credentials: true
 }));
-app.options('*', cors()); // Enable pre-flight for all routes
-app.use(bodyParser.json());
 
-// Routes
-app.get('/', (req, res) => {
-  res.send('Tour Expense Manager API is running');
-});
+// 2. Body Parsers
+app.use(bodyParser.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Import Routes
 const userRoutes = require('./routes/userRoutes');
@@ -46,33 +58,31 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // Database Connection & Server Start
 async function startServer() {
-  console.log(`📡 Attempting to start server on port ${PORT}...`);
   try {
+    // Start listening IMMEDIATELY to satisfy Railway healthchecks
     const server = app.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 Server is live on port ${PORT}`);
-      console.log(`📅 Started at: ${new Date().toISOString()}`);
+      console.log(`🚀 Server is listening on port ${PORT}`);
     });
 
     server.on('error', (err) => {
       console.error('❌ Server Listen Error:', err);
     });
 
-  } catch (listenError) {
-    console.error('❌ Synchronous Listen Error:', listenError);
-  }
+    // Initialize Database asynchronously
+    console.log('🔄 Initializing Database...');
+    try {
+      await sequelize.authenticate();
+      console.log('✅ Database connected.');
+      await sequelize.sync();
+      console.log('✅ Database schema synced.');
+    } catch (dbErr) {
+      console.error('❌ Database Sync Failed:', dbErr);
+      // Don't exit, let healthcheck pass so we can debug via logs
+    }
 
-  try {
-    console.log('🔄 Connecting to database...');
-    await sequelize.authenticate();
-    console.log('✅ Database connected successfully.');
-    
-    // Sync models
-    console.log('🔄 Syncing models...');
-    await sequelize.sync();
-    console.log('✅ Database schema synced.');
-  } catch (err) {
-    console.error('❌ Database Initialization Error:', err);
-    // We don't exit(1) here to let the app stay alive for healthchecks
+  } catch (startupErr) {
+    console.error('💥 Critical Startup Error:', startupErr);
+    process.exit(1);
   }
 }
 
