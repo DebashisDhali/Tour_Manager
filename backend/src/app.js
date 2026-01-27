@@ -20,11 +20,13 @@ const userRoutes = require('./routes/userRoutes');
 const tourRoutes = require('./routes/tourRoutes');
 const expenseRoutes = require('./routes/expenseRoutes');
 const syncRoutes = require('./routes/syncRoutes');
+const settlementRoutes = require('./routes/settlementRoutes');
 
 app.use('/users', userRoutes);
 app.use('/tours', tourRoutes);
 app.use('/expenses', expenseRoutes);
 app.use('/sync', syncRoutes);
+app.use('/settlements', settlementRoutes);
 
 
 // Database Connection & Server Start
@@ -34,7 +36,7 @@ async function startServer() {
     console.log('✅ Database connected successfully.');
     
     // Sync models
-    await sequelize.sync({ alter: true });
+    await sequelize.sync();
     console.log('✅ Database schema synced.');
 
     app.listen(PORT, '0.0.0.0', () => {

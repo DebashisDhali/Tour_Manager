@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/local/app_database.dart';
+import '../../data/local/app_database.dart' as models;
 import '../../domain/logic/settlement_calculator.dart';
 import '../../data/providers/app_providers.dart';
 import '../../main.dart';
 import 'final_receipt_screen.dart';
+import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
+import '../../domain/logic/purpose_config.dart';
 
 class SettlementScreen extends ConsumerWidget {
   final String tourId;
@@ -12,31 +15,40 @@ class SettlementScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final db = ref.watch(databaseProvider);
-    
-    return FutureBuilder(
-      future: Future.wait([
-        db.getAllUsers(),
-        (db.select(db.expenses)..where((t) => t.tourId.equals(tourId))).get(),
-        db.select(db.expenseSplits).get(),
-        (db.select(db.tours)..where((t) => t.id.equals(tourId))).getSingle(),
-      ]),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        
-        final users = snapshot.data![0] as List<User>;
-        final expenses = snapshot.data![1] as List<Expense>;
-        final allSplits = snapshot.data![2] as List<ExpenseSplit>;
-        final tour = snapshot.data![3] as Tour;
-        
-        final expenseIds = expenses.map((e) => e.id).toSet();
-        final tourSplits = allSplits.where((s) => expenseIds.contains(s.expenseId)).toList();
+    final currentUserAsync = ref.watch(currentUserProvider);
+    final config = PurposeConfig.getConfig(currentUserAsync.value?.purpose);
 
-        final totalCost = expenses.fold(0.0, (sum, e) => sum + e.amount);
-        final averageCost = users.isEmpty ? 0.0 : totalCost / users.length;
+    final usersAsync = ref.watch(tourUsersProvider(tourId));
+    final expensesAsync = ref.watch(tourExpensesProvider(tourId));
+    final splitsAsync = ref.watch(tourSplitsProvider(tourId));
+    final tourAsync = ref.watch(singleTourProvider(tourId));
+    final settlementsAsync = ref.watch(tourSettlementsProvider(tourId));
+    final payersAsync = ref.watch(tourPayersProvider(tourId));
 
-        final calculator = SettlementCalculator();
-        final instructions = calculator.calculate(expenses, tourSplits, users);
+    if (usersAsync.isLoading || expensesAsync.isLoading || splitsAsync.isLoading || 
+        tourAsync.isLoading || settlementsAsync.isLoading || payersAsync.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (usersAsync.hasError || expensesAsync.hasError || splitsAsync.hasError || 
+        tourAsync.hasError || settlementsAsync.hasError || payersAsync.hasError) {
+      return const Center(child: Text("Error loading settlement data"));
+    }
+
+    final users = usersAsync.value ?? [];
+    final expenses = expensesAsync.value ?? [];
+    final tourSplits = splitsAsync.value ?? [];
+    final tour = tourAsync.value;
+    final previousSettlements = settlementsAsync.value ?? [];
+    final tourPayers = payersAsync.value ?? [];
+
+    if (tour == null) return const Center(child: Text("Tour not found"));
+
+    final totalCost = expenses.fold(0.0, (sum, e) => sum + e.amount);
+    final averageCost = users.isEmpty ? 0.0 : totalCost / users.length;
+
+    final calculator = SettlementCalculator();
+    final instructions = calculator.calculate(expenses, tourSplits, tourPayers, users, previousSettlements);
 
         return ListView(
           padding: const EdgeInsets.all(16),
@@ -45,26 +57,23 @@ class SettlementScreen extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildSectionTitle("Tour Analysis"),
+                _buildSectionTitle("${config.label} Analysis", config.color),
                 TextButton.icon(
                   onPressed: () {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => FinalReceiptScreen(
-                      tour: tour,
-                      users: users,
-                      expenses: expenses,
-                      splits: tourSplits,
-                      settlementInstructions: instructions,
+                      tourId: tourId,
                     )));
                   },
                   icon: const Icon(Icons.receipt_long, size: 18),
-                  label: const Text("Export Statement", style: TextStyle(fontSize: 12)),
+                  label: Text("Export ${config.label} Summary", style: const TextStyle(fontSize: 12)),
+                  style: TextButton.styleFrom(foregroundColor: config.color),
                 )
               ],
             ),
 
             Card(
               elevation: 0,
-              color: Colors.teal.shade50,
+              color: config.color.withOpacity(0.08),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               child: Padding(
                 padding: const EdgeInsets.all(20),
@@ -73,9 +82,9 @@ class SettlementScreen extends ConsumerWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _buildStatItem("Total Cost", "${totalCost.toStringAsFixed(0)} ৳", Icons.account_balance_wallet_outlined),
-                        Container(width: 1, height: 40, color: Colors.teal.shade200),
-                        _buildStatItem("Per Person", "${averageCost.toStringAsFixed(0)} ৳", Icons.person_outline),
+                        _buildStatItem("Total Cost", "${totalCost.toStringAsFixed(0)} ৳", Icons.account_balance_wallet_outlined, config.color),
+                        Container(width: 1, height: 40, color: config.color.withOpacity(0.2)),
+                        _buildStatItem("Per Person", "${averageCost.toStringAsFixed(0)} ৳", Icons.person_outline, config.color),
                       ],
                     ),
                   ],
@@ -85,10 +94,10 @@ class SettlementScreen extends ConsumerWidget {
             const SizedBox(height: 24),
 
             // --- Logic Explanation Section ---
-            _buildSectionTitle("How it's Calculated"),
+            _buildSectionTitle("How it's Calculated", config.color),
             InkWell(
-              onTap: () => _showAlgorithmExplanation(context),
-              borderRadius: BorderRadius.circular(16),
+               onTap: () => _showAlgorithmExplanation(context, config),
+               borderRadius: BorderRadius.circular(16),
               child: Card(
                 elevation: 0,
                 shape: RoundedRectangleBorder(
@@ -99,9 +108,9 @@ class SettlementScreen extends ConsumerWidget {
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
-                      _buildRuleItem(Icons.auto_awesome, "Greedy Minimization", "We use a smart algorithm that reduces the number of transactions, so most people only have to pay once."),
+                      _buildRuleItem(Icons.auto_awesome, "Greedy Minimization", "We use a smart algorithm that reduces the number of transactions, so most people only have to pay once.", config.color),
                       const Divider(height: 24),
-                      _buildRuleItem(Icons.balance, "Equal Distribution", "The total tour cost is divided equally among all group members."),
+                      _buildRuleItem(Icons.balance, "Equal Distribution", "The total cost is divided equally among all group members.", config.color),
                     ],
                   ),
                 ),
@@ -111,11 +120,30 @@ class SettlementScreen extends ConsumerWidget {
             const SizedBox(height: 24),
 
             // --- Contribution Summary Section ---
-            _buildSectionTitle("Contribution Summary"),
+            _buildSectionTitle("Contribution Summary", config.color),
             ...users.map((u) {
-              final paid = expenses.where((e) => e.payerId == u.id).fold(0.0, (sum, e) => sum + e.amount);
+              final expensesWithPayerRecords = tourPayers.map((p) => p.expenseId).toSet();
+              
+              double paidOnExpenses = tourPayers
+                  .where((p) => p.userId == u.id)
+                  .fold(0.0, (sum, p) => sum + p.amount);
+              
+              // Add legacy expenses
+              for (var e in expenses) {
+                if (!expensesWithPayerRecords.contains(e.id) && e.payerId == u.id) {
+                  paidOnExpenses += e.amount;
+                }
+              }
+
               final share = tourSplits.where((s) => s.userId == u.id).fold(0.0, (sum, s) => sum + s.amount);
-              final balance = paid - share;
+              
+              // Add settlements (money paid to others increases investment, money received decreases it)
+              final paidSettlements = previousSettlements.where((s) => s.fromId == u.id).fold(0.0, (sum, s) => sum + s.amount);
+              final receivedSettlements = previousSettlements.where((s) => s.toId == u.id).fold(0.0, (sum, s) => sum + s.amount);
+              
+              final totalInvested = paidOnExpenses + paidSettlements;
+              final netReceived = receivedSettlements;
+              final balance = totalInvested - share - netReceived;
 
               return Card(
                 elevation: 0,
@@ -126,26 +154,60 @@ class SettlementScreen extends ConsumerWidget {
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: Colors.teal.shade50,
-                    child: Text(u.name[0], style: const TextStyle(color: Colors.teal, fontWeight: FontWeight.bold)),
+                    backgroundColor: config.color.withOpacity(0.1),
+                    child: Text(u.name[0], style: TextStyle(color: config.color, fontWeight: FontWeight.bold)),
                   ),
                   title: Text(u.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text("Paid: ${paid.toStringAsFixed(0)} ৳ | Share: ${share.toStringAsFixed(0)} ৳", 
-                    style: const TextStyle(fontSize: 12)),
-                  trailing: Text(
-                    "${balance >= 0 ? '+' : ''}${balance.toStringAsFixed(0)} ৳",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: balance >= 0 ? Colors.green : Colors.red,
-                    ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Paid: ${paidOnExpenses.toStringAsFixed(0)} ৳ | Share: ${share.toStringAsFixed(0)} ৳", 
+                        style: const TextStyle(fontSize: 12)),
+                      if (paidSettlements > 0 || receivedSettlements > 0)
+                        Text(
+                          "${paidSettlements > 0 ? 'Settled: +${paidSettlements.toStringAsFixed(0)} ' : ''}${receivedSettlements > 0 ? 'Received: -${receivedSettlements.toStringAsFixed(0)}' : ''}",
+                          style: TextStyle(fontSize: 10, color: config.color.withOpacity(0.7), fontWeight: FontWeight.w500),
+                        ),
+                    ],
+                  ),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        "${balance >= 0 ? '+' : ''}${balance.toStringAsFixed(0)} ৳",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: balance >= 0 ? Colors.green : Colors.red,
+                        ),
+                      ),
+                      Text(
+                        balance >= 0 ? "Creditor" : "Debtor",
+                        style: TextStyle(fontSize: 10, color: balance >= 0 ? Colors.green : Colors.red),
+                      ),
+                    ],
                   ),
                 ),
               );
             }).toList(),
             const SizedBox(height: 24),
 
+            if (previousSettlements.isNotEmpty) ...[
+              _buildSectionTitle("Recent Transactions", config.color),
+              ...previousSettlements.reversed.take(3).map((s) => ListTile(
+                dense: true,
+                leading: const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                title: Text("${users.firstWhere((u) => u.id == s.fromId).name} paid ${users.firstWhere((u) => u.id == s.toId).name}", style: const TextStyle(fontSize: 12)),
+                subtitle: Text(DateFormat('MMM dd').format(s.date), style: const TextStyle(fontSize: 10)),
+                trailing: Text("${s.amount.toStringAsFixed(0)} ৳", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                onLongPress: () => _confirmDeleteSettlement(context, ref, s),
+              )),
+              const SizedBox(height: 24),
+            ],
+
             const SizedBox(height: 24),
-            _buildSectionTitle("Settlement Plan | লেনদেন গাইড"),
+            _buildSectionTitle("Settlement Plan | লেনদেন গাইড", config.color),
 
             if (instructions.isEmpty)
               Center(
@@ -159,38 +221,36 @@ class SettlementScreen extends ConsumerWidget {
                 ),
               )
             else ...[
-              _buildVisualFlow(instructions),
+              _buildVisualFlow(context, ref, instructions, config),
             ],
             const SizedBox(height: 80),
           ],
         );
-      },
-    );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, Color color) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12, left: 4),
-      child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.teal)),
+      child: Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon) {
+  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
     return Column(
       children: [
-        Icon(icon, color: Colors.teal, size: 20),
+        Icon(icon, color: color, size: 20),
         const SizedBox(height: 8),
-        Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF006D6D))),
+        Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
         Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
       ],
     );
   }
 
-  Widget _buildRuleItem(IconData icon, String title, String description) {
+  Widget _buildRuleItem(IconData icon, String title, String description, Color color) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20, color: Colors.teal),
+        Icon(icon, size: 20, color: color),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -206,7 +266,7 @@ class SettlementScreen extends ConsumerWidget {
     );
   }
 
-  void _showAlgorithmExplanation(BuildContext context) {
+  void _showAlgorithmExplanation(BuildContext context, PurposeConfig config) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -223,25 +283,25 @@ class SettlementScreen extends ConsumerWidget {
           children: [
             Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)))),
             const SizedBox(height: 24),
-            const Text("হিসাব নিকাশ কিভাবে হয়? 🧠", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.teal)),
+            Text("হিসাব নিকাশ কিভাবে হয়? 🧠", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: config.color)),
             const Text("How calculations work", style: TextStyle(fontSize: 14, color: Colors.grey)),
             const SizedBox(height: 16),
             Expanded(
               child: ListView(
                 children: [
-                   _buildStep(1, "ব্যালেন্স ক্যালকুলেশন", "প্রথমে অ্যাপটি দেখে যে ট্যুরে কার কত টাকা দেওয়ার কথা ছিল এবং সে বাস্তবে কত টাকা দিয়েছে। (Paid - Share = Balance)"),
-                   _buildStep(2, "পাওনাদার ও দেনাদার আলাদা করা", "যাদের ব্যালেন্স পজিটিভ তারা টাকা পাবে (Creditors), আর যাদের নেগেটিভ তারা টাকা দিবে (Debtors)।"),
-                   _buildStep(3, "Greedy Flow Minimization", "আমরা একটি স্মার্ট অ্যালগরিদম ব্যবহার করি যা সবচেয়ে বড় দেনাদারকে সবচেয়ে বড় পাওনাদারের সাথে মিলিয়ে দেয়। এর ফলে লেনদেনের সংখ্যা (Number of Transactions) সবচেয়ে কম হয়।"),
-                   _buildStep(4, "সহজ সমাধান", "এর উদ্দেশ্য হলো যেন ট্যুর শেষে সবাইকে সবার হাতে টাকা দিতে না হয়, বরং মাত্র কয়েকজনের মধ্যে লেনদেন করলেই সবার হিসাব মিলে যায়।"),
+                   _buildStep(1, "ব্যালেন্স ক্যালকুলেশন", "প্রথমে অ্যাপটি দেখে যে ${config.label.toLowerCase()}-এ কার কত টাকা দেওয়ার কথা ছিল এবং সে বাস্তবে কত টাকা দিয়েছে। (Paid - Share = Balance)", config.color),
+                   _buildStep(2, "পাওনাদার ও দেনাদার আলাদা করা", "যাদের ব্যালেন্স পজিটিভ তারা টাকা পাবে (Creditors), আর যাদের নেগেটিভ তারা টাকা দিবে (Debtors)।", config.color),
+                   _buildStep(3, "Greedy Flow Minimization", "আমরা একটি স্মার্ট অ্যালগরিদম ব্যবহার করি যা সবচেয়ে বড় দেনাদারকে সবচেয়ে বড় পাওনাদারের সাথে মিলিয়ে দেয়। এর ফলে লেনদেনের সংখ্যা (Number of Transactions) সবচেয়ে কম হয়।", config.color),
+                   _buildStep(4, "সহজ সমাধান", "এর উদ্দেশ্য হলো যেন ${config.label.toLowerCase()} শেষে সবাইকে সবার হাতে টাকা দিতে না হয়, বরং মাত্র কয়েকজনের মধ্যে লেনদেন করলেই সবার হিসাব মিলে যায়।", config.color),
                    const SizedBox(height: 24),
                    Container(
                      padding: const EdgeInsets.all(16),
-                     decoration: BoxDecoration(color: Colors.teal.shade50, borderRadius: BorderRadius.circular(12)),
-                     child: const Column(
+                     decoration: BoxDecoration(color: config.color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                     child: Column(
                        children: [
-                         Text("উদাহরণ:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal)),
-                         SizedBox(height: 8),
-                         Text("আবির ৫০০৳ পায়, আর সজল ৫০০৳ দিবে। অ্যালগরিদম সজলকে সরাসরি আবিরকে টাকা দিতে বলবে, মাঝখানে অন্য কারো কোনো ঝামেলা থাকবে না।", 
+                         Text("উদাহরণ:", style: TextStyle(fontWeight: FontWeight.bold, color: config.color)),
+                         const SizedBox(height: 8),
+                         const Text("আবির ৫০০৳ পায়, আর সজল ৫০০৳ দিবে। অ্যালগরিদম সজলকে সরাসরি আবিরকে টাকা দিতে বলবে, মাঝখানে অন্য কারো কোনো ঝামেলা থাকবে না।", 
                            textAlign: TextAlign.center, style: TextStyle(fontSize: 13, fontStyle: FontStyle.italic)),
                        ],
                      ),
@@ -253,6 +313,7 @@ class SettlementScreen extends ConsumerWidget {
               width: double.infinity,
               child: FilledButton(
                 onPressed: () => Navigator.pop(context),
+                style: FilledButton.styleFrom(backgroundColor: config.color),
                 child: const Text("বুঝেছি!"),
               ),
             )
@@ -262,13 +323,13 @@ class SettlementScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStep(int no, String title, String desc) {
+  Widget _buildStep(int no, String title, String desc, Color color) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(radius: 12, backgroundColor: Colors.teal, child: Text(no.toString(), style: const TextStyle(fontSize: 12, color: Colors.white))),
+          CircleAvatar(radius: 12, backgroundColor: color, child: Text(no.toString(), style: const TextStyle(fontSize: 12, color: Colors.white))),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -285,13 +346,13 @@ class SettlementScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildUserAvatar(String name) {
+  Widget _buildUserAvatar(String name, Color color) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         CircleAvatar(
           radius: 18,
-          backgroundColor: Colors.teal,
+          backgroundColor: color,
           child: Text(name[0], style: const TextStyle(color: Colors.white, fontSize: 14)),
         ),
         const SizedBox(height: 4),
@@ -300,8 +361,8 @@ class SettlementScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildVisualFlow(List<Settlement> instructions) {
-    final groupedByPayer = <String, List<Settlement>>{};
+  Widget _buildVisualFlow(BuildContext context, WidgetRef ref, List<SettlementInstruction> instructions, PurposeConfig config) {
+    final groupedByPayer = <String, List<SettlementInstruction>>{};
     for (var s in instructions) {
       groupedByPayer.putIfAbsent(s.payerName, () => []).add(s);
     }
@@ -309,7 +370,7 @@ class SettlementScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle("Visual Payment Network | পেমেন্ট গ্রাফ"),
+        _buildSectionTitle("Visual Payment Network | পেমেন্ট গ্রাফ", config.color),
         ...groupedByPayer.entries.map((entry) {
           final payer = entry.key;
           final receivers = entry.value;
@@ -319,14 +380,14 @@ class SettlementScreen extends ConsumerWidget {
             margin: const EdgeInsets.only(bottom: 16),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
-              side: BorderSide(color: Colors.teal.shade100, width: 1),
+              side: BorderSide(color: config.color.withOpacity(0.2), width: 1),
             ),
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
                 gradient: LinearGradient(
-                  colors: [Colors.teal.shade50.withOpacity(0.3), Colors.white],
+                  colors: [config.color.withOpacity(0.05), Colors.white],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -334,9 +395,9 @@ class SettlementScreen extends ConsumerWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  _buildUserAvatar(payer),
+                  _buildUserAvatar(payer, config.color),
                   const SizedBox(width: 12),
-                  _buildCustomArrow(),
+                  _buildCustomArrow(config.color),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -356,18 +417,27 @@ class SettlementScreen extends ConsumerWidget {
                           child: Row(
                             children: [
                               Expanded(
-                                child: Text(
-                                  "${r.amount.toStringAsFixed(0)} ৳",
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.teal,
-                                    fontSize: 16,
+                                child: InkWell(
+                                  onTap: () => _markAsPaid(context, ref, r),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "${r.amount.toStringAsFixed(0)} ৳",
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: config.color,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                      const Text("Tap to mark as paid", style: TextStyle(fontSize: 9, color: Colors.grey)),
+                                    ],
                                   ),
                                 ),
                               ),
                               const Icon(Icons.keyboard_arrow_right, size: 16, color: Colors.grey),
                               const SizedBox(width: 4),
-                              _buildSmallAvatar(r.receiverName),
+                              _buildSmallAvatar(r.receiverName, config.color),
                             ],
                           ),
                         )),
@@ -383,7 +453,7 @@ class SettlementScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildCustomArrow() {
+  Widget _buildCustomArrow(Color color) {
     return Column(
       children: [
         Container(
@@ -391,18 +461,18 @@ class SettlementScreen extends ConsumerWidget {
           height: 30,
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.teal.shade100, Colors.teal],
+              colors: [color.withOpacity(0.2), color],
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
             ),
           ),
         ),
-        const Icon(Icons.arrow_drop_down, color: Colors.teal, size: 16),
+        Icon(Icons.arrow_drop_down, color: color, size: 16),
       ],
     );
   }
 
-  Widget _buildSmallAvatar(String name) {
+  Widget _buildSmallAvatar(String name, Color color) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -410,10 +480,64 @@ class SettlementScreen extends ConsumerWidget {
         const SizedBox(width: 8),
         CircleAvatar(
           radius: 14,
-          backgroundColor: Colors.teal.shade100,
-          child: Text(name[0], style: const TextStyle(color: Colors.teal, fontSize: 10, fontWeight: FontWeight.bold)),
+          backgroundColor: color.withOpacity(0.2),
+          child: Text(name[0], style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
         ),
       ],
+    );
+  }
+
+  void _markAsPaid(BuildContext context, WidgetRef ref, SettlementInstruction r) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Confirm Payment"),
+        content: Text("Did ${r.payerName} really pay ${r.amount.toStringAsFixed(0)} ৳ to ${r.receiverName}?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("No")),
+          TextButton(
+            onPressed: () async {
+              final database = ref.read(databaseProvider);
+              final settlement = models.Settlement(
+                id: const Uuid().v4(),
+                tourId: tourId,
+                fromId: r.payerId,
+                toId: r.receiverId,
+                amount: r.amount,
+                date: DateTime.now(),
+                isSynced: false,
+              );
+              await database.createSettlement(settlement);
+              if (context.mounted) Navigator.pop(context);
+              
+              // Trigger sync
+              ref.read(syncServiceProvider).startSync(r.payerId).catchError((e) => print("Sync failed: $e"));
+            }, 
+            child: const Text("Yes, Mark as Paid")
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteSettlement(BuildContext context, WidgetRef ref, models.Settlement s) {
+     showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete Transaction?"),
+        content: const Text("This will return the debt to the settlement plan."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () async {
+              final database = ref.read(databaseProvider);
+              await database.deleteSettlement(s.id);
+              if (context.mounted) Navigator.pop(context);
+            }, 
+            child: const Text("Delete", style: TextStyle(color: Colors.red))
+          ),
+        ],
+      ),
     );
   }
 }

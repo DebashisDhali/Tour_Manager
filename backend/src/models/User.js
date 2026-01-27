@@ -15,6 +15,19 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING,
       allowNull: true
     },
+    email: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    avatar_url: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    purpose: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: 'tour'
+    },
     is_registered: {
         type: DataTypes.BOOLEAN,
         defaultValue: false

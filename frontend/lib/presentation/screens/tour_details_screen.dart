@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:drift/drift.dart' show Value;
 import 'dart:math';
 import 'user_profile_screen.dart';
@@ -11,6 +12,7 @@ import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../data/local/app_database.dart';
 import '../../main.dart';
+import '../../domain/logic/purpose_config.dart';
 
 class TourDetailsScreen extends ConsumerStatefulWidget {
   final String tourId;
@@ -35,16 +37,38 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(widget.tourName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(widget.tourName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                   tourAsync.when(
-                    data: (tour) => Text(
-                      tour.startDate == null 
-                        ? 'Manage Expenses & Friends' 
-                        : '${DateFormat('MMM dd').format(tour.startDate!)} - ${DateFormat('MMM dd, yyyy').format(tour.endDate ?? tour.startDate!)}',
-                      style: TextStyle(fontSize: 12, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.8)),
+                    data: (tour) => Consumer(
+                      builder: (context, ref, child) {
+                         final creatorAsync = ref.watch(singleUserProvider(tour.createdBy));
+                         return Row(
+                           children: [
+                             Icon(Icons.person_pin_circle_outlined, size: 12, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.5)),
+                             const SizedBox(width: 4),
+                             creatorAsync.when(
+                               data: (user) => Text(
+                                 "Created by ${user?.name ?? 'Unknown'}",
+                                 style: TextStyle(fontSize: 10, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7)),
+                               ),
+                               loading: () => const Text("Loading...", style: TextStyle(fontSize: 10)),
+                               error: (_, __) => const Text("Error", style: TextStyle(fontSize: 10)),
+                             ),
+                             const SizedBox(width: 8),
+                             Icon(Icons.calendar_today_outlined, size: 10, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.5)),
+                             const SizedBox(width: 4),
+                             Text(
+                               tour.startDate == null 
+                                 ? 'Ongoing' 
+                                 : '${DateFormat('MMM dd').format(tour.startDate!)} - ${DateFormat('MMM dd').format(tour.endDate ?? tour.startDate!)}',
+                               style: TextStyle(fontSize: 10, color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7)),
+                             ),
+                           ],
+                         );
+                      },
                     ),
                     loading: () => const SizedBox.shrink(),
-                    error: (e, s) => const Text('Error loading date', style: TextStyle(fontSize: 10)),
+                    error: (e, s) => const Text('Error loading details', style: TextStyle(fontSize: 10)),
                   ),
                 ],
               );
@@ -95,10 +119,15 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> {
         floatingActionButton: Builder(
           builder: (context) {
             final tabIndex = DefaultTabController.of(context).index;
+            final userAsync = ref.watch(currentUserProvider);
+            final config = PurposeConfig.getConfig(userAsync.value?.purpose);
+            
             return FloatingActionButton.extended(
               onPressed: () => _handleFabPress(context),
               icon: const Icon(Icons.add),
               label: Text(tabIndex == 1 ? "Add Member" : "Add Expense"),
+              backgroundColor: config.color,
+              foregroundColor: Colors.white,
             );
           },
         ),
@@ -137,25 +166,44 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> {
   }
 
   void _showInviteCode(BuildContext context, String code) {
+    final userAsync = ref.read(currentUserProvider);
+    final config = PurposeConfig.getConfig(userAsync.value?.purpose);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Invite Friends'),
+        title: const Text('Invite Members'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Share this code with your friends. They can join the tour from the home screen.'),
+            Text('Share this code with others. They can join the ${config.label.toLowerCase()} from the home screen.'),
             const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.teal.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.teal.shade200),
-              ),
-              child: Text(
-                code,
-                style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 4, color: Colors.teal),
+            InkWell(
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: code));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Code copied to clipboard!'), duration: Duration(seconds: 2)),
+                );
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                decoration: BoxDecoration(
+                  color: config.color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: config.color.withOpacity(0.2)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      code,
+                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 4, color: config.color),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(Icons.copy, size: 20, color: config.color.withOpacity(0.5)),
+                  ],
+                ),
               ),
             ),
           ],
@@ -167,12 +215,13 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> {
           ),
           FilledButton.icon(
             onPressed: () {
-              final text = "Join my tour on Tour Manager! Code: $code\n\nDownload the app to manage expenses together.";
+              final text = "Join my ${config.label.toLowerCase()} on Manager App! Code: $code\n\nDownload the app to manage expenses together.";
               Share.share(text);
               Navigator.pop(context);
             },
             icon: const Icon(Icons.share),
             label: const Text('Share Code'),
+            style: FilledButton.styleFrom(backgroundColor: config.color),
           ),
         ],
       ),
@@ -180,8 +229,9 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> {
   }
 
   Widget _buildExpensesTab() {
-    // ... same as before
     final expensesAsync = ref.watch(expensesProvider(widget.tourId));
+    final userAsync = ref.watch(currentUserProvider);
+    final config = PurposeConfig.getConfig(userAsync.value?.purpose);
 
     return expensesAsync.when(
       data: (expenses) {
@@ -190,7 +240,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.no_accounts_outlined, size: 60, color: Colors.teal.shade200),
+                Icon(Icons.no_accounts_outlined, size: 60, color: config.color.withOpacity(0.3)),
                 const SizedBox(height: 16),
                 const Text('No expenses yet. Add one to start tracking!'),
               ],
@@ -204,13 +254,13 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(16),
-              color: Colors.teal.shade50,
+              color: config.color.withOpacity(0.1),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text("Total Spent:", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   Text("${total.toStringAsFixed(0)} ৳", 
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.teal)),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: config.color)),
                 ],
               ),
             ),
@@ -235,12 +285,30 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> {
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("Paid by: ${item.payer.name}"),
+                          Text("Paid by: ${item.payer?.name ?? 'Combined'}"),
                           Text(DateFormat('MMM dd, hh:mm a').format(exp.createdAt), style: const TextStyle(fontSize: 11)),
                         ],
                       ),
-                      trailing: Text("${exp.amount.toStringAsFixed(0)} ৳", 
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.redAccent)),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text("${exp.amount.toStringAsFixed(0)} ৳", 
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.redAccent)),
+                          PopupMenuButton<String>(
+                            onSelected: (val) {
+                              if (val == 'edit') {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => AddExpenseScreen(tourId: widget.tourId, initialExpense: exp)));
+                              } else if (val == 'delete') {
+                                _showDeleteDialog(context, exp);
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit), title: Text('Edit'), dense: true)),
+                              const PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete, color: Colors.red), title: Text('Delete', style: TextStyle(color: Colors.red)), dense: true)),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },
@@ -258,6 +326,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> {
     final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
     final tourAsync = ref.watch(singleTourProvider(widget.tourId));
     final currentUserAsync = ref.watch(currentUserProvider);
+    final config = PurposeConfig.getConfig(currentUserAsync.value?.purpose);
 
     return Column(
       children: [
@@ -291,9 +360,9 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> {
                                 Navigator.push(context, MaterialPageRoute(builder: (_) => UserProfileScreen(user: user)));
                               },
                               leading: CircleAvatar(
-                                backgroundColor: hasLeft ? Colors.grey.shade100 : Colors.teal.shade50,
+                                backgroundColor: hasLeft ? Colors.grey.shade100 : config.color.withOpacity(0.1),
                                 backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
-                                child: user.avatarUrl == null ? Text(user.name[0], style: TextStyle(color: hasLeft ? Colors.grey : Colors.teal, fontWeight: FontWeight.bold)) : null,
+                                child: user.avatarUrl == null ? Text(user.name[0], style: TextStyle(color: hasLeft ? Colors.grey : config.color, fontWeight: FontWeight.bold)) : null,
                               ),
                               title: Row(
                                 children: [
@@ -318,7 +387,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> {
                                     itemBuilder: (context) {
                                       final items = <PopupMenuEntry<String>>[];
                                       if (isMe && !isCreator) {
-                                        items.add(const PopupMenuItem(value: 'leave', child: Text("Leave Tour")));
+                                        items.add(PopupMenuItem(value: 'leave', child: Text("Leave ${config.label}")));
                                       } else if (isCreator && !isMe) {
                                         items.add(const PopupMenuItem(value: 'leave', child: Text("Remove Member")));
                                       }
@@ -348,13 +417,16 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> {
   }
 
   void _showLeaveConfirmation(User user, {required bool isRemoval}) {
+    final userAsync = ref.read(currentUserProvider);
+    final config = PurposeConfig.getConfig(userAsync.value?.purpose);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(isRemoval ? "Remove Member" : "Leave Tour"),
+        title: Text(isRemoval ? "Remove Member" : "Leave ${config.label}"),
         content: Text(isRemoval 
-          ? "Are you sure you want to remove ${user.name} from this tour? They will be excluded from all future expenses."
-          : "Are you sure you want to leave this tour? You will no longer be included in any upcoming expenses."),
+          ? "Are you sure you want to remove ${user.name} from this ${config.label.toLowerCase()}? They will be excluded from all future expenses."
+          : "Are you sure you want to leave this ${config.label.toLowerCase()}? You will no longer be included in any upcoming expenses."),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
           FilledButton(
@@ -362,7 +434,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> {
               await ref.read(databaseProvider).markMemberAsLeft(widget.tourId, user.id);
               if (mounted) {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isRemoval ? "${user.name} has been removed." : "You have left the tour.")));
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isRemoval ? "${user.name} has been removed." : "You have left the ${config.label.toLowerCase()}.")) );
               }
             },
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
@@ -397,6 +469,28 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> {
       case 'shopping': return Colors.pink;
       default: return Colors.grey;
     }
+  }
+
+  void _showDeleteDialog(BuildContext context, Expense exp) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete Expense?"),
+        content: Text("Are you sure you want to delete '${exp.title}'? This action cannot be undone."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () async {
+              final db = ref.read(databaseProvider);
+              await db.deleteExpenseWithDetails(exp.id);
+              if (context.mounted) Navigator.pop(context);
+              // Background Sync (Implementation needed for deletes in SyncService)
+            }, 
+            child: const Text("Delete", style: TextStyle(color: Colors.red))
+          ),
+        ],
+      ),
+    );
   }
 }
 

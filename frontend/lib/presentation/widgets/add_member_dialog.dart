@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../main.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../data/local/app_database.dart';
 import '../../data/providers/app_providers.dart';
+import '../../domain/logic/purpose_config.dart';
 
 class AddMemberDialog extends ConsumerStatefulWidget {
   final String tourId;
@@ -70,9 +72,11 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
   @override
   Widget build(BuildContext context) {
     final tourAsync = ref.watch(singleTourProvider(widget.tourId));
+    final currentUserAsync = ref.watch(currentUserProvider);
+    final config = PurposeConfig.getConfig(currentUserAsync.value?.purpose);
 
     return AlertDialog(
-      title: const Text('Add Member'),
+      title: Text('Add ${config.label} Member'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -83,26 +87,41 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
               data: (tour) => tour.inviteCode != null ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Share Invite Code", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.teal)),
+                  Text("Share Invite Code", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: config.color)),
                   const SizedBox(height: 8),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.teal.shade50,
+                      color: config.color.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.teal.shade100),
+                      border: Border.all(color: config.color.withOpacity(0.1)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(tour.inviteCode!, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 2)),
-                        IconButton(
-                          icon: const Icon(Icons.share, size: 20, color: Colors.teal),
-                          onPressed: () {
-                            final text = "Join my tour on Tour Manager! Code: ${tour.inviteCode}\n\nDownload the app to manage expenses together.";
-                            Share.share(text);
-                          },
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: Icon(Icons.copy, size: 20, color: config.color),
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: tour.inviteCode!));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Code copied to clipboard!'), duration: Duration(seconds: 2)),
+                                );
+                              },
+                              tooltip: 'Copy Code',
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.share, size: 20, color: config.color),
+                              onPressed: () {
+                                final text = "Join my ${config.label.toLowerCase()} on Manager App! Code: ${tour.inviteCode}\n\nDownload the app to manage expenses together.";
+                                Share.share(text);
+                              },
+                              tooltip: 'Share Code',
+                            ),
+                          ],
                         )
                       ],
                     ),
@@ -157,6 +176,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
         ),
         FilledButton(
           onPressed: _isLoading ? null : _addMember,
+          style: FilledButton.styleFrom(backgroundColor: config.color),
           child: _isLoading
               ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
               : const Text('Add Now'),

@@ -10,7 +10,8 @@ import '../../data/providers/app_providers.dart';
 import '../../domain/logic/purpose_config.dart';
 
 class CreateTourScreen extends ConsumerStatefulWidget {
-  const CreateTourScreen({super.key});
+  final Tour? initialTour;
+  const CreateTourScreen({super.key, this.initialTour});
 
   @override
   ConsumerState<CreateTourScreen> createState() => _CreateTourScreenState();
@@ -25,6 +26,20 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
   DateTimeRange? _selectedDateRange;
   final List<String> _additionalMembers = [];
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialTour != null) {
+      _nameController.text = widget.initialTour!.name;
+      if (widget.initialTour!.startDate != null && widget.initialTour!.endDate != null) {
+        _selectedDateRange = DateTimeRange(
+          start: widget.initialTour!.startDate!,
+          end: widget.initialTour!.endDate!,
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -99,55 +114,57 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
            throw Exception("Profile not found. Please restart the app or set up your profile.");
          }
 
-         final tourId = const Uuid().v4();
-         
-         // Helper to generate 6-char alphanumeric code
-         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No O, 0, I, 1
-         final inviteCode = List.generate(6, (index) => chars[Random().nextInt(chars.length)]).join();
+         if (widget.initialTour == null) {
+           final tourId = const Uuid().v4();
+           const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+           final inviteCode = List.generate(6, (index) => chars[Random().nextInt(chars.length)]).join();
 
-         // 3. Create Tour
-         await db.createTour(Tour(
-             id: tourId,
-             name: _nameController.text.trim(),
-             startDate: _selectedDateRange?.start,
-             endDate: _selectedDateRange?.end,
-             inviteCode: inviteCode,
-             createdBy: currentUser.id,
-             isSynced: false,
-             updatedAt: DateTime.now()
-         ));
-
-
-         // 3. Add self to tour
-         await db.into(db.tourMembers).insert(TourMember(
-             tourId: tourId,
-             userId: currentUser.id,
-             isSynced: false
-         ));
-
-         // 4. Create and add additional members
-         for (final memberName in _additionalMembers) {
-           final memberId = const Uuid().v4();
-           await db.createUser(User(
-             id: memberId,
-             name: memberName,
-             phone: null,
-             isMe: false,
-             isSynced: false,
-             updatedAt: DateTime.now(),
+           await db.createTour(Tour(
+               id: tourId,
+               name: _nameController.text.trim(),
+               startDate: _selectedDateRange?.start,
+               endDate: _selectedDateRange?.end,
+               inviteCode: inviteCode,
+               createdBy: currentUser.id,
+               isSynced: false,
+               updatedAt: DateTime.now()
            ));
-           
+
            await db.into(db.tourMembers).insert(TourMember(
-             tourId: tourId,
-             userId: memberId,
-             isSynced: false,
+               tourId: tourId,
+               userId: currentUser.id,
+               isSynced: false
            ));
+
+           for (final memberName in _additionalMembers) {
+             final memberId = const Uuid().v4();
+             await db.createUser(User(
+               id: memberId,
+               name: memberName,
+               phone: null,
+               isMe: false,
+               isSynced: false,
+               updatedAt: DateTime.now(),
+             ));
+             await db.into(db.tourMembers).insert(TourMember(
+               tourId: tourId,
+               userId: memberId,
+               isSynced: false,
+             ));
+           }
+         } else {
+           final updatedTour = widget.initialTour!.copyWith(
+              name: _nameController.text.trim(),
+              startDate: drift.Value(_selectedDateRange?.start),
+              endDate: drift.Value(_selectedDateRange?.end),
+              isSynced: false,
+              updatedAt: DateTime.now(),
+           );
+           await db.createTour(updatedTour);
          }
          
          if (mounted) {
-           // Background Sync
            ref.read(syncServiceProvider).startSync(currentUser.id).catchError((e) => print("Auto-sync failed: $e"));
-           
            Navigator.pop(context);
          }
        } catch (e) {
@@ -169,7 +186,9 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('New ${config.label} Setup'),
+        title: Text(widget.initialTour == null ? 'New ${config.label} Setup' : 'Edit ${config.label}'),
+        backgroundColor: config.color,
+        foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -179,20 +198,19 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildSectionTitle("${config.label} Details"),
+              _buildSectionTitle("${config.label} Details", config.color),
               TextFormField(
                 controller: _nameController,
                 decoration: InputDecoration(
                     labelText: '${config.label} Name',
-                    hintText: 'e.g. ${config.label == 'Party' ? 'BBQ Night' : 'Sajek Valley'}',
+                    hintText: 'e.g. ${_getHintText(config.label)}',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                    prefixIcon: Icon(config.icon)
+                    prefixIcon: Icon(config.icon, color: config.color)
                 ),
                 validator: (v) => v == null || v.isEmpty ? 'Please enter a name' : null,
               ),
               const SizedBox(height: 16),
               
-              // Date Selection
               InkWell(
                 onTap: _selectDateRange,
                 borderRadius: BorderRadius.circular(15),
@@ -204,7 +222,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.calendar_month_outlined, color: Colors.teal),
+                      Icon(Icons.calendar_month_outlined, color: config.color),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
@@ -229,66 +247,70 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                 ),
               ),
               
-              const SizedBox(height: 24),
-              _buildSectionTitle("Add Members"),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _memberController,
-                      decoration: InputDecoration(
-                        labelText: 'Friend\'s Name',
-                        hintText: 'Add friend',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                        prefixIcon: const Icon(Icons.person_add_outlined),
+              if (widget.initialTour == null) ...[
+                const SizedBox(height: 24),
+                _buildSectionTitle("Add Members", config.color),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _memberController,
+                        decoration: InputDecoration(
+                          labelText: 'Friend\'s Name',
+                          hintText: 'Add friend',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                          prefixIcon: const Icon(Icons.person_add_outlined),
+                        ),
+                        onFieldSubmitted: (_) => _addMember(),
                       ),
-                      onFieldSubmitted: (_) => _addMember(),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  IconButton.filled(
-                    onPressed: _addMember,
-                    icon: const Icon(Icons.add),
-                    style: IconButton.styleFrom(
-                      minimumSize: const Size(56, 56),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    const SizedBox(width: 12),
+                    IconButton.filled(
+                      onPressed: _addMember,
+                      icon: const Icon(Icons.add),
+                      style: IconButton.styleFrom(
+                        backgroundColor: config.color,
+                        minimumSize: const Size(56, 56),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              if (_additionalMembers.isNotEmpty)
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _additionalMembers.asMap().entries.map((entry) {
-                    return Chip(
-                      label: Text(entry.value),
-                      deleteIcon: const Icon(Icons.close, size: 18),
-                      onDeleted: () => _removeMember(entry.key),
-                      backgroundColor: Colors.teal.shade50,
-                      side: BorderSide(color: Colors.teal.shade100),
-                    );
-                  }).toList(),
-                )
-              else
-                const Padding(
-                  padding: EdgeInsets.all(8.0),
-                  child: Text("No friends added yet. You can add them later too!", 
-                    style: TextStyle(color: Colors.grey, fontSize: 13, fontStyle: FontStyle.italic)),
+                  ],
                 ),
+                const SizedBox(height: 16),
+                if (_additionalMembers.isNotEmpty)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _additionalMembers.asMap().entries.map((entry) {
+                      return Chip(
+                        label: Text(entry.value),
+                        deleteIcon: const Icon(Icons.close, size: 18),
+                        onDeleted: () => _removeMember(entry.key),
+                        backgroundColor: config.color.withOpacity(0.1),
+                        side: BorderSide(color: config.color.withOpacity(0.2)),
+                      );
+                    }).toList(),
+                  )
+                else
+                  const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Text("No friends added yet. You can add them later too!", 
+                      style: TextStyle(color: Colors.grey, fontSize: 13, fontStyle: FontStyle.italic)),
+                  ),
+              ],
               const SizedBox(height: 60),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
                     onPressed: _isLoading ? null : _createTour,
                     style: FilledButton.styleFrom(
+                      backgroundColor: config.color,
                       padding: const EdgeInsets.symmetric(vertical: 18),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                     ),
                     child: _isLoading 
                       ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
-                      : const Text('Launch Tour 🚀', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))
+                      : Text(widget.initialTour == null ? 'Launch ${config.label} 🚀' : 'Update ${config.label} ✨', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))
                 ),
               )
             ],
@@ -298,12 +320,20 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, Color color) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12, left: 4),
-      child: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.teal)),
+      child: Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
     );
   }
+
+  String _getHintText(String label) {
+    switch (label.toLowerCase()) {
+      case 'party': return 'BBQ Night';
+      case 'mess': return 'January Mess';
+      case 'project': return 'Mobile App Dev';
+      case 'event': return 'Annual Picnic';
+      default: return 'Sajek Valley Trip';
+    }
+  }
 }
-
-

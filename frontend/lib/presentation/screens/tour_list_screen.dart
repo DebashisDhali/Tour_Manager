@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/providers/app_providers.dart';
 import 'create_tour_screen.dart';
@@ -6,6 +7,8 @@ import 'tour_details_screen.dart';
 import 'package:intl/intl.dart';
 import 'user_profile_screen.dart';
 import '../../domain/logic/purpose_config.dart';
+import '../../data/local/app_database.dart' as models;
+import '../../main.dart';
 
 class TourListScreen extends ConsumerWidget {
   const TourListScreen({super.key});
@@ -58,7 +61,7 @@ class TourListScreen extends ConsumerWidget {
             body: TabBarView(
               children: [
                 _buildCentralFeed(context, ref, config),
-                _buildTourList(context, ref, config),
+                _buildTourList(context, ref, config, user),
               ],
             ),
             floatingActionButton: FloatingActionButton.extended(
@@ -113,14 +116,16 @@ class TourListScreen extends ConsumerWidget {
                 leading: CircleAvatar(
                   radius: 25,
                   backgroundColor: Colors.teal.shade50,
-                  backgroundImage: item.payer.avatarUrl != null ? NetworkImage(item.payer.avatarUrl!) : null,
-                  child: item.payer.avatarUrl == null ? Text(item.payer.name[0].toUpperCase(), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal)) : null,
+                  backgroundImage: item.payer?.avatarUrl != null ? NetworkImage(item.payer!.avatarUrl!) : null,
+                  child: item.payer?.avatarUrl == null 
+                    ? Text(item.payer?.name[0].toUpperCase() ?? 'M', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal)) 
+                    : null,
                 ),
                 title: Text(item.expense.title, style: const TextStyle(fontWeight: FontWeight.bold)),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Paid by ${item.payer.name} • ${item.tour.name}", 
+                    Text("Paid by ${item.payer?.name ?? 'Combined'} • ${item.tour.name}", 
                       style: TextStyle(color: Colors.teal.shade600, fontSize: 12)),
                     Text(DateFormat('MMM dd, hh:mm a').format(item.expense.createdAt), 
                       style: const TextStyle(fontSize: 10, color: Colors.grey)),
@@ -141,7 +146,7 @@ class TourListScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTourList(BuildContext context, WidgetRef ref, PurposeConfig config) {
+  Widget _buildTourList(BuildContext context, WidgetRef ref, PurposeConfig config, models.User? currentUser) {
     final toursAsync = ref.watch(tourListProvider);
 
     return toursAsync.when(
@@ -165,6 +170,8 @@ class TourListScreen extends ConsumerWidget {
           itemCount: tours.length,
           itemBuilder: (context, index) {
             final tour = tours[index];
+            final isCreator = currentUser != null && tour.createdBy == currentUser.id;
+            
             return Card(
               margin: const EdgeInsets.only(bottom: 16),
               elevation: 0,
@@ -172,43 +179,46 @@ class TourListScreen extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(16),
                 side: BorderSide(color: Colors.grey.shade200),
               ),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(16),
+              child: ListTile(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => TourDetailsScreen(tourId: tour.id, tourName: tour.name)));
                 },
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 50,
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(Icons.map_rounded, color: Colors.blue.shade700),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(tour.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                            Text(
-                              tour.startDate == null 
-                                ? "Active Adventure" 
-                                : "${DateFormat('MMM dd').format(tour.startDate!)} - ${DateFormat('MMM dd, yyyy').format(tour.endDate ?? tour.startDate!)}",
-                              style: TextStyle(color: Colors.blue.shade700, fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
-                    ],
+                leading: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  child: Icon(Icons.map_rounded, color: Colors.blue.shade700),
                 ),
+                title: Text(tour.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                subtitle: Text(
+                  tour.startDate == null 
+                    ? "Active Adventure" 
+                    : "${DateFormat('MMM dd').format(tour.startDate!)} - ${DateFormat('MMM dd, yyyy').format(tour.endDate ?? tour.startDate!)}",
+                  style: TextStyle(color: Colors.blue.shade700, fontSize: 12),
+                ),
+                trailing: isCreator ? PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => CreateTourScreen(initialTour: tour)));
+                    } else if (value == 'delete') {
+                      _confirmDeleteTour(context, ref, tour);
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Edit')]),
+                    ),
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: Row(children: [Icon(Icons.delete, color: Colors.red, size: 18), SizedBox(width: 8), Text('Delete', style: TextStyle(color: Colors.red))]),
+                    ),
+                  ],
+                ) : const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
               ),
             );
           },
@@ -216,6 +226,30 @@ class TourListScreen extends ConsumerWidget {
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, stack) => Center(child: Text('Error: $err')),
+    );
+  }
+
+  void _confirmDeleteTour(BuildContext context, WidgetRef ref, models.Tour tour) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete Tour"),
+        content: Text("Are you sure you want to delete '${tour.name}'? This will delete all expenses and records associated with it."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () async {
+              final db = ref.read(databaseProvider);
+              await db.deleteTourWithDetails(tour.id);
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Tour deleted")));
+              }
+            }, 
+            child: const Text("Delete", style: TextStyle(color: Colors.red))
+          ),
+        ],
+      ),
     );
   }
 
@@ -230,63 +264,170 @@ class TourListScreen extends ConsumerWidget {
   void _showJoinDialog(BuildContext context, WidgetRef ref, PurposeConfig config) {
     final controller = TextEditingController();
     bool isLoading = false;
+    String? errorText;
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text('Join ${config.label}'),
-          content: TextField(
-            controller: controller,
-            enabled: !isLoading,
-            decoration: InputDecoration(
-              hintText: 'Enter 6-digit Invite Code',
-              border: const OutlineInputBorder(),
+        builder: (context, setState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
             ),
-            textCapitalization: TextCapitalization.characters,
-          ),
-          actions: [
-            TextButton(
-              onPressed: isLoading ? null : () => Navigator.pop(context), 
-              child: const Text('Cancel')
-            ),
-            FilledButton(
-              onPressed: isLoading ? null : () async {
-                final code = controller.text.trim().toUpperCase();
-                if (code.isEmpty) return;
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40, 
+                      height: 4, 
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))
+                    )
+                  ),
+                  Text(
+                    'Join ${config.label}', 
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Enter the 6-digit code shared with you',
+                    style: TextStyle(color: Colors.grey.shade600),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 32),
+                  TextField(
+                    controller: controller,
+                    enabled: !isLoading,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 24, letterSpacing: 8, fontWeight: FontWeight.bold),
+                    textCapitalization: TextCapitalization.characters,
+                    maxLength: 6,
+                    decoration: InputDecoration(
+                        hintText: 'CODE',
+                        hintStyle: TextStyle(color: Colors.grey.shade300, letterSpacing: 2),
+                        fillColor: config.color.withOpacity(0.05),
+                        filled: true,
+                        counterText: "",
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide(color: config.color, width: 2),
+                        ),
+                        errorText: errorText,
+                        suffixIcon: IconButton(
+                          icon: Icon(Icons.paste, color: config.color),
+                          onPressed: isLoading ? null : () async {
+                            try {
+                              final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+                              if (clipboardData != null && clipboardData.text != null) {
+                                final pastedText = clipboardData.text!.trim().toUpperCase();
+                                // Only paste if it looks like a valid code (6 alphanumeric characters)
+                                if (pastedText.length == 6 && RegExp(r'^[A-Z0-9]+$').hasMatch(pastedText)) {
+                                  controller.text = pastedText;
+                                  setState(() => errorText = null);
+                                } else {
+                                  setState(() => errorText = "Invalid code format");
+                                }
+                              }
+                            } catch (e) {
+                              setState(() => errorText = "Failed to paste");
+                            }
+                          },
+                        ) 
+                    ),
+                    onChanged: (val) {
+                      if (errorText != null) setState(() => errorText = null);
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: isLoading ? null : () async {
+                      final code = controller.text.trim().toUpperCase();
+                      if (code.length != 6) {
+                        setState(() => errorText = "Code must be 6 digits");
+                        return;
+                      }
 
-                setState(() => isLoading = true);
-                try {
-                  final user = await ref.read(currentUserProvider.future);
-                  if (user != null) {
-                    await ref.read(syncServiceProvider).joinByInvite(
-                      code,
-                      user.id,
-                      user.name
-                    );
-                    if (context.mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Successfully joined!')),
-                      );
-                    }
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error joining: $e'), backgroundColor: Colors.red),
-                    );
-                  }
-                } finally {
-                  if (context.mounted) setState(() => isLoading = false);
-                }
-              },
-              child: isLoading 
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Text('Join Now'),
+                      setState(() {
+                        isLoading = true; 
+                        errorText = null;
+                      });
+                      
+                      try {
+                        final user = await ref.read(currentUserProvider.future);
+                        if (user != null) {
+                          await ref.read(syncServiceProvider).joinByInvite(
+                            code,
+                            user.id,
+                            user.name,
+                            email: user.email,
+                            avatarUrl: user.avatarUrl,
+                            purpose: user.purpose,
+                          );
+                          
+                          // Force refresh
+                          ref.invalidate(tourListProvider);
+                          
+                          if (context.mounted) {
+                            Navigator.pop(context); // Close sheet
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Row(
+                                  children: [
+                                    const Icon(Icons.check_circle, color: Colors.white),
+                                    const SizedBox(width: 12),
+                                    Text('Joined ${config.label} successfully!'),
+                                  ],
+                                ),
+                                backgroundColor: Colors.green.shade600,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            );
+                          }
+                        }
+                      } catch (e) {
+                         setState(() {
+                           // Extract clean message
+                           String msg = e.toString().replaceAll("Exception:", "").trim();
+                           if (msg.contains("404")) msg = "Invalid Invite Code";
+                           else if (msg.contains("Connection failed")) msg = "Network Error. Check connection.";
+                           errorText = msg;
+                         });
+                      } finally {
+                        setState(() => isLoading = false);
+                      }
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: config.color,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                    child: isLoading 
+                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('Join Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(height: 24),
+                ],
+              ),
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

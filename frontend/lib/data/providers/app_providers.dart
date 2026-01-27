@@ -56,26 +56,26 @@ final tourMembersProvider = StreamProvider.family.autoDispose<List<MemberWithSta
 class ExpenseWithPayer {
 
   final Expense expense;
-  final User payer;
+  final User? payer;
   ExpenseWithPayer(this.expense, this.payer);
 }
 
 final expensesProvider = StreamProvider.family.autoDispose<List<ExpenseWithPayer>, String>((ref, tourId) {
   final db = ref.watch(databaseProvider);
   final query = db.select(db.expenses).join([
-    innerJoin(db.users, db.users.id.equalsExp(db.expenses.payerId)),
+    leftOuterJoin(db.users, db.users.id.equalsExp(db.expenses.payerId)),
   ])..where(db.expenses.tourId.equals(tourId))
     ..orderBy([OrderingTerm.desc(db.expenses.createdAt)]);
 
   return query.watch().map((rows) => rows.map((row) {
     return ExpenseWithPayer(
       row.readTable(db.expenses),
-      row.readTable(db.users),
+      row.readTableOrNull(db.users),
     );
   }).toList());
 });class GlobalExpenseItem {
   final Expense expense;
-  final User payer;
+  final User? payer;
   final Tour tour;
   GlobalExpenseItem(this.expense, this.payer, this.tour);
 }
@@ -83,7 +83,7 @@ final expensesProvider = StreamProvider.family.autoDispose<List<ExpenseWithPayer
 final globalRecentExpensesProvider = StreamProvider.autoDispose<List<GlobalExpenseItem>>((ref) {
   final db = ref.watch(databaseProvider);
   final query = db.select(db.expenses).join([
-    innerJoin(db.users, db.users.id.equalsExp(db.expenses.payerId)),
+    leftOuterJoin(db.users, db.users.id.equalsExp(db.expenses.payerId)),
     innerJoin(db.tours, db.tours.id.equalsExp(db.expenses.tourId)),
   ])..orderBy([OrderingTerm.desc(db.expenses.createdAt)])
     ..limit(20);
@@ -91,7 +91,7 @@ final globalRecentExpensesProvider = StreamProvider.autoDispose<List<GlobalExpen
   return query.watch().map((rows) => rows.map((row) {
     return GlobalExpenseItem(
       row.readTable(db.expenses),
-      row.readTable(db.users),
+      row.readTableOrNull(db.users),
       row.readTable(db.tours),
     );
   }).toList());
@@ -101,5 +101,40 @@ final singleTourProvider = StreamProvider.family.autoDispose<Tour, String>((ref,
   return (db.select(db.tours)..where((t) => t.id.equals(tourId))).watchSingle();
 });
 
+final singleUserProvider = StreamProvider.family.autoDispose<User?, String>((ref, userId) {
+  final db = ref.watch(databaseProvider);
+  return (db.select(db.users)..where((u) => u.id.equals(userId))).watchSingleOrNull();
+});
+final tourUsersProvider = StreamProvider.family.autoDispose<List<User>, String>((ref, tourId) {
+  final db = ref.watch(databaseProvider);
+  final query = db.select(db.users).join([
+    innerJoin(db.tourMembers, db.tourMembers.userId.equalsExp(db.users.id)),
+  ])..where(db.tourMembers.tourId.equals(tourId));
+  return query.watch().map((rows) => rows.map((row) => row.readTable(db.users)).toList());
+});
 
+final tourExpensesProvider = StreamProvider.family.autoDispose<List<Expense>, String>((ref, tourId) {
+  final db = ref.watch(databaseProvider);
+  return (db.select(db.expenses)..where((t) => t.tourId.equals(tourId))).watch();
+});
 
+final tourSplitsProvider = StreamProvider.family.autoDispose<List<ExpenseSplit>, String>((ref, tourId) {
+  final db = ref.watch(databaseProvider);
+  final query = db.select(db.expenseSplits).join([
+    innerJoin(db.expenses, db.expenses.id.equalsExp(db.expenseSplits.expenseId)),
+  ])..where(db.expenses.tourId.equals(tourId));
+  return query.watch().map((rows) => rows.map((row) => row.readTable(db.expenseSplits)).toList());
+});
+
+final tourPayersProvider = StreamProvider.family.autoDispose<List<ExpensePayer>, String>((ref, tourId) {
+  final db = ref.watch(databaseProvider);
+  final query = db.select(db.expensePayers).join([
+    innerJoin(db.expenses, db.expenses.id.equalsExp(db.expensePayers.expenseId)),
+  ])..where(db.expenses.tourId.equals(tourId));
+  return query.watch().map((rows) => rows.map((row) => row.readTable(db.expensePayers)).toList());
+});
+
+final tourSettlementsProvider = StreamProvider.family.autoDispose<List<Settlement>, String>((ref, tourId) {
+  final db = ref.watch(databaseProvider);
+  return (db.select(db.settlements)..where((t) => t.tourId.equals(tourId))).watch();
+});

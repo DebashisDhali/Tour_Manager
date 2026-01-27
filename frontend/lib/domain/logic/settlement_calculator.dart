@@ -1,13 +1,17 @@
 import 'dart:math';
 import '../../data/local/app_database.dart';
 
-class Settlement {
+class SettlementInstruction {
+  final String payerId;
   final String payerName;
+  final String receiverId;
   final String receiverName;
   final double amount;
 
-  Settlement({
+  SettlementInstruction({
+    required this.payerId,
     required this.payerName,
+    required this.receiverId,
     required this.receiverName,
     required this.amount,
   });
@@ -16,21 +20,44 @@ class Settlement {
 class SettlementCalculator {
   
   /// Calculates the optimized settlement plan
-  List<Settlement> calculate(List<Expense> expenses, List<ExpenseSplit> splits, List<User> users) {
+  List<SettlementInstruction> calculate(
+    List<Expense> expenses, 
+    List<ExpenseSplit> splits, 
+    List<ExpensePayer> expensePayers,
+    List<User> users,
+    List<Settlement> previousSettlements
+  ) {
     // 1. Calculate Balances
     final balances = <String, double>{};
     for (var u in users) {
       balances[u.id] = 0.0;
     }
 
-    // Process expenses (Credits)
-    for (var e in expenses) {
-      balances[e.payerId] = (balances[e.payerId] ?? 0) + e.amount;
+    // Process expenses (Credits - who PAID)
+    final expensesWithPayerRecords = expensePayers.map((p) => p.expenseId).toSet();
+    
+    // 1. First process explicit payer records (New System)
+    for (var ep in expensePayers) {
+      balances[ep.userId] = (balances[ep.userId] ?? 0) + ep.amount;
     }
 
-    // Process splits (Debits)
+    // 2. Fallback for legacy expenses without records in ExpensePayers table
+    for (var e in expenses) {
+       if (!expensesWithPayerRecords.contains(e.id) && e.payerId != null) {
+          balances[e.payerId!] = (balances[e.payerId!] ?? 0) + e.amount;
+       }
+    }
+
+    // Process splits (Debits - who owes)
     for (var s in splits) {
        balances[s.userId] = (balances[s.userId] ?? 0) - s.amount;
+    }
+
+    // Process Previous Settlements (Adjustments)
+    // If A paid B 500, A gets +500 (Credit) and B gets -500 (Debit)
+    for (var s in previousSettlements) {
+      balances[s.fromId] = (balances[s.fromId] ?? 0) + s.amount;
+      balances[s.toId] = (balances[s.toId] ?? 0) - s.amount;
     }
 
     // 2. Separate Debtors and Creditors
@@ -49,7 +76,7 @@ class SettlementCalculator {
     debtors.sort((a, b) => a.amount.compareTo(b.amount)); // Ascending (most negative first)
     creditors.sort((a, b) => b.amount.compareTo(a.amount)); // Descending (most positive first)
 
-    final settlements = <Settlement>[];
+    final settlements = <SettlementInstruction>[];
     int i = 0; // Debtor ptr
     int j = 0; // Creditor ptr
 
@@ -64,12 +91,14 @@ class SettlementCalculator {
       amount = (amount * 100).round() / 100;
 
       // Find user names
-      final debtorName = users.firstWhere((u) => u.id == debtor.userId).name;
-      final creditorName = users.firstWhere((u) => u.id == creditor.userId).name;
+      final debtorUser = users.firstWhere((u) => u.id == debtor.userId);
+      final creditorUser = users.firstWhere((u) => u.id == creditor.userId);
 
-      settlements.add(Settlement(
-        payerName: debtorName,
-        receiverName: creditorName,
+      settlements.add(SettlementInstruction(
+        payerId: debtorUser.id,
+        payerName: debtorUser.name,
+        receiverId: creditorUser.id,
+        receiverName: creditorUser.name,
         amount: amount,
       ));
 

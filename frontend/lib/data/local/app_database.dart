@@ -47,7 +47,7 @@ class TourMembers extends Table {
 class Expenses extends Table {
   TextColumn get id => text()();
   TextColumn get tourId => text().references(Tours, #id)();
-  TextColumn get payerId => text().references(Users, #id)();
+  TextColumn get payerId => text().named('payer_id').nullable().references(Users, #id)();
   RealColumn get amount => real()();
   TextColumn get title => text()();
   TextColumn get category => text()();
@@ -69,12 +69,36 @@ class ExpenseSplits extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-@DriftDatabase(tables: [Users, Tours, TourMembers, Expenses, ExpenseSplits])
+class ExpensePayers extends Table {
+  TextColumn get id => text()();
+  TextColumn get expenseId => text().references(Expenses, #id)();
+  TextColumn get userId => text().references(Users, #id)();
+  RealColumn get amount => real()();
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class Settlements extends Table {
+  TextColumn get id => text()();
+  TextColumn get tourId => text().references(Tours, #id)();
+  TextColumn get fromId => text().references(Users, #id)();
+  TextColumn get toId => text().references(Users, #id)();
+  RealColumn get amount => real()();
+  DateTimeColumn get date => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DriftDatabase(tables: [Users, Tours, TourMembers, Expenses, ExpenseSplits, ExpensePayers, Settlements])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(connect());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -101,6 +125,12 @@ class AppDatabase extends _$AppDatabase {
       if (from < 7) {
         await m.addColumn(tourMembers, tourMembers.leftAt);
       }
+      if (from < 8) {
+        await m.createTable(settlements);
+      }
+      if (from < 9) {
+        await m.createTable(expensePayers);
+      }
     },
   );
 
@@ -108,16 +138,95 @@ class AppDatabase extends _$AppDatabase {
   Future<void> createUser(User user) => into(users).insert(user, mode: InsertMode.insertOrReplace);
   Future<List<User>> getAllUsers() => select(users).get();
   Future<User?> getUserById(String id) => (select(users)..where((t) => t.id.equals(id))).getSingleOrNull();
+
+  Future<List<User>> getTourUsers(String tourId) {
+    final query = select(users).join([
+      innerJoin(tourMembers, tourMembers.userId.equalsExp(users.id)),
+    ])..where(tourMembers.tourId.equals(tourId));
+    return query.map((row) => row.readTable(users)).get();
+  }
+
+  Future<List<ExpenseSplit>> getSplitsByTour(String tourId) {
+    final query = select(expenseSplits).join([
+      innerJoin(expenses, expenses.id.equalsExp(expenseSplits.expenseId)),
+    ])..where(expenses.tourId.equals(tourId));
+    return query.map((row) => row.readTable(expenseSplits)).get();
+  }
+
+  Future<List<ExpensePayer>> getPayersByTour(String tourId) {
+    final query = select(expensePayers).join([
+      innerJoin(expenses, expenses.id.equalsExp(expensePayers.expenseId)),
+    ])..where(expenses.tourId.equals(tourId));
+    return query.map((row) => row.readTable(expensePayers)).get();
+  }
+
+  Future<List<Settlement>> getSettlementsByTour(String tourId) {
+    return (select(settlements)..where((t) => t.tourId.equals(tourId))).get();
+  }
   
   Future<void> createTour(Tour tour) => into(tours).insert(tour, mode: InsertMode.insertOrReplace);
   
   // Expenses with Transaction
-  Future<void> addExpenseWithSplits(Expense expense, List<ExpenseSplit> splits) {
+  Future<void> addExpenseWithDetails(Expense expense, List<ExpenseSplit> splits, List<ExpensePayer> payers) {
     return transaction(() async {
       await into(expenses).insert(expense, mode: InsertMode.insertOrReplace);
       for (final split in splits) {
         await into(expenseSplits).insert(split, mode: InsertMode.insertOrReplace);
       }
+      for (final payer in payers) {
+        await into(expensePayers).insert(payer, mode: InsertMode.insertOrReplace);
+      }
+    });
+  }
+
+  Future<void> updateExpenseWithDetails(Expense expense, List<ExpenseSplit> splits, List<ExpensePayer> payers) {
+    return transaction(() async {
+      await update(expenses).replace(expense);
+      await (delete(expenseSplits)..where((t) => t.expenseId.equals(expense.id))).go();
+      await (delete(expensePayers)..where((t) => t.expenseId.equals(expense.id))).go();
+      for (final split in splits) {
+        await into(expenseSplits).insert(split);
+      }
+      for (final payer in payers) {
+        await into(expensePayers).insert(payer);
+      }
+    });
+  }
+
+  Future<void> deleteExpenseWithDetails(String expenseId) {
+    return transaction(() async {
+      await (delete(expenseSplits)..where((t) => t.expenseId.equals(expenseId))).go();
+      await (delete(expensePayers)..where((t) => t.expenseId.equals(expenseId))).go();
+      await (delete(expenses)..where((t) => t.id.equals(expenseId))).go();
+    });
+  }
+
+  Future<void> createSettlement(Settlement settlement) => into(settlements).insert(settlement, mode: InsertMode.insertOrReplace);
+  Future<void> deleteSettlement(String id) => (delete(settlements)..where((t) => t.id.equals(id))).go();
+
+  Future<void> deleteTourWithDetails(String tourId) {
+    return transaction(() async {
+      // 1. Get all expenses for this tour
+      final tourExpenses = await (select(expenses)..where((t) => t.tourId.equals(tourId))).get();
+      final expenseIds = tourExpenses.map((e) => e.id).toList();
+
+      // 2. Delete Splis and Payers for these expenses
+      if (expenseIds.isNotEmpty) {
+        await (delete(expenseSplits)..where((t) => t.expenseId.isIn(expenseIds))).go();
+        await (delete(expensePayers)..where((t) => t.expenseId.isIn(expenseIds))).go();
+      }
+
+      // 3. Delete Settlements
+      await (delete(settlements)..where((t) => t.tourId.equals(tourId))).go();
+
+      // 4. Delete Expenses
+      await (delete(expenses)..where((t) => t.tourId.equals(tourId))).go();
+
+      // 5. Delete Members
+      await (delete(tourMembers)..where((t) => t.tourId.equals(tourId))).go();
+
+      // 6. Delete Tour
+      await (delete(tours)..where((t) => t.id.equals(tourId))).go();
     });
   }
 
@@ -126,11 +235,15 @@ class AppDatabase extends _$AppDatabase {
   Future<List<Tour>> getUnsyncedTours() => (select(tours)..where((t) => t.isSynced.equals(false))).get();
   Future<List<Expense>> getUnsyncedExpenses() => (select(expenses)..where((t) => t.isSynced.equals(false))).get();
   Future<List<ExpenseSplit>> getUnsyncedSplits() => (select(expenseSplits)..where((t) => t.isSynced.equals(false))).get();
+  Future<List<ExpensePayer>> getUnsyncedExpensePayers() => (select(expensePayers)..where((t) => t.isSynced.equals(false))).get();
+  Future<List<Settlement>> getUnsyncedSettlements() => (select(settlements)..where((t) => t.isSynced.equals(false))).get();
   
   Future<void> markUserSynced(String id) => (update(users)..where((t) => t.id.equals(id))).write(UsersCompanion(isSynced: Value(true)));
   Future<void> markTourSynced(String id) => (update(tours)..where((t) => t.id.equals(id))).write(ToursCompanion(isSynced: Value(true)));
   Future<void> markExpenseSynced(String id) => (update(expenses)..where((t) => t.id.equals(id))).write(ExpensesCompanion(isSynced: Value(true)));
   Future<void> markSplitSynced(String id) => (update(expenseSplits)..where((t) => t.id.equals(id))).write(ExpenseSplitsCompanion(isSynced: Value(true)));
+  Future<void> markExpensePayerSynced(String id) => (update(expensePayers)..where((t) => t.id.equals(id))).write(ExpensePayersCompanion(isSynced: Value(true)));
+  Future<void> markSettlementSynced(String id) => (update(settlements)..where((t) => t.id.equals(id))).write(SettlementsCompanion(isSynced: Value(true)));
   
   Future<void> markMemberAsLeft(String tourId, String userId) {
     return (update(tourMembers)

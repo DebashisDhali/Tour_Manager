@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -79,7 +80,9 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
         await ref.read(syncServiceProvider).joinByInvite(
           enteredInviteCode,
           userId,
-          _nameController.text.trim()
+          _nameController.text.trim(),
+          email: _emailController.text.trim(),
+          purpose: enteredInviteCode.isNotEmpty ? 'tour' : _selectedPurpose,
         );
       }
       
@@ -204,13 +207,28 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                                 labelText: "Join with Code",
                                 hintText: "Enter 6-digit code",
                                 prefixIcon: const Icon(Icons.vpn_key_outlined),
+                                suffixIcon: IconButton(
+                                  icon: const Icon(Icons.paste, size: 20),
+                                  onPressed: () async {
+                                    final data = await Clipboard.getData(Clipboard.kTextPlain);
+                                    if (data?.text != null) {
+                                      final text = data!.text!.trim().toUpperCase();
+                                      if (text.length == 6) {
+                                        setState(() {
+                                          _inviteCodeController.text = text;
+                                        });
+                                      }
+                                    }
+                                  },
+                                ),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-                                counterText: "", // Hide character counter
+                                counterText: "", 
                                 fillColor: Colors.blue.shade50,
                                 filled: true,
                               ),
                               maxLength: 6,
                               textCapitalization: TextCapitalization.characters,
+                              onChanged: (v) => setState(() {}),
                             ),
 
                             const SizedBox(height: 32),
@@ -225,7 +243,12 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                                 ),
                                 child: _isLoading 
                                   ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                  : const Text("Start Now", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                  : Text(
+                                      _inviteCodeController.text.length == 6 
+                                        ? "Join & Start" 
+                                        : "Start Now", 
+                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)
+                                    ),
                               ),
                             ),
                           ],

@@ -1,0 +1,7 @@
+{
+    "ignore": [
+        "*.sqlite",
+        "*.sqlite-journal",
+        "*.sqlite-wal"
+    ]
+}
