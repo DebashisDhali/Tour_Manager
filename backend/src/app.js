@@ -32,7 +32,7 @@ app.use('/settlements', settlementRoutes);
 // Database Connection & Server Start
 async function startServer() {
   console.log(`📡 Starting server on port ${PORT}...`);
-  app.listen(PORT, '0.0.0.0', () => {
+  app.listen(PORT, () => {
     console.log(`🚀 Server is live on port ${PORT}`);
   });
 
