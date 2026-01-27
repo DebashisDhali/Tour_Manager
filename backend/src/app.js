@@ -31,19 +31,17 @@ app.use('/settlements', settlementRoutes);
 
 // Database Connection & Server Start
 async function startServer() {
-  console.log(`📡 Attempting to start server on port ${PORT}...`);
-  try {
-    app.listen(PORT, () => {
-      console.log(`🚀 Server is live on port ${PORT}`);
-    });
-  } catch (listenError) {
-    console.error('❌ Listen Error:', listenError);
-  }
+  console.log(`📡 Starting server on port ${PORT}...`);
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server is live on port ${PORT}`);
+  });
 
   try {
     console.log('🔄 Connecting to database...');
     await sequelize.authenticate();
     console.log('✅ Database connected successfully.');
+    
+    // Sync models
     await sequelize.sync();
     console.log('✅ Database schema synced.');
   } catch (err) {

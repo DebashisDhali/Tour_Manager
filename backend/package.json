@@ -4,7 +4,7 @@
   "description": "Backend for Tour Expense Manager",
   "main": "src/app.js",
   "scripts": {
-    "start": "node src/app_test.js",
+    "start": "node src/app.js",
     "dev": "nodemon src/app.js"
   },
   "dependencies": {
