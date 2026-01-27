@@ -26,19 +26,26 @@ exports.syncData = async (req, res) => {
       if (tours) {
         console.log(`📡 Sync: Pushing ${tours.length} tours...`);
         for (const t of tours) {
-          const [tourRecord] = await Tour.upsert({ 
-            id: t.id, 
-            name: t.name, 
-            created_by: t.createdBy, 
-            invite_code: t.inviteCode,
-            start_date: t.startDate, 
-            end_date: t.endDate 
-          }, { transaction });
+          try {
+            await Tour.upsert({ 
+              id: t.id, 
+              name: t.name, 
+              created_by: t.createdBy, 
+              invite_code: t.inviteCode,
+              start_date: t.startDate, 
+              end_date: t.endDate 
+            }, { transaction });
 
-          // Ensure creator is a member
-          const creator = await User.findByPk(t.createdBy, { transaction });
-          if (creator) {
-            await tourRecord.addUser(creator, { transaction });
+            // Fetch the instance to be safe
+            const tourInstance = await Tour.findByPk(t.id, { transaction });
+            if (tourInstance && t.createdBy) {
+              const creator = await User.findByPk(t.createdBy, { transaction });
+              if (creator) {
+                await tourInstance.addUser(creator, { transaction });
+              }
+            }
+          } catch (err) {
+            console.error(`Error syncing tour ${t.id}:`, err);
           }
         }
       }
