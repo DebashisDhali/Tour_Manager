@@ -10,11 +10,34 @@ import '../../domain/logic/purpose_config.dart';
 import '../../data/local/app_database.dart' as models;
 import '../../main.dart';
 
-class TourListScreen extends ConsumerWidget {
+class TourListScreen extends ConsumerStatefulWidget {
   const TourListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TourListScreen> createState() => _TourListScreenState();
+}
+
+class _TourListScreenState extends ConsumerState<TourListScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Auto-sync on startup
+    Future.microtask(() => _triggerInitialSync());
+  }
+
+  Future<void> _triggerInitialSync() async {
+    final user = ref.read(currentUserProvider).value;
+    if (user != null) {
+      try {
+        await ref.read(syncServiceProvider).startSync(user.id);
+      } catch (e) {
+        print("Initial auto-sync failed: $e");
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final currentUserAsync = ref.watch(currentUserProvider);
 
     return currentUserAsync.when(
@@ -33,12 +56,12 @@ class TourListScreen extends ConsumerWidget {
               ),
               actions: [
                 IconButton(
-                  onPressed: () => _syncData(context, ref),
+                  onPressed: () => _syncData(context),
                   icon: const Icon(Icons.sync),
                   tooltip: 'Sync Now',
                 ),
                 IconButton(
-                  onPressed: () => _showJoinDialog(context, ref, config),
+                  onPressed: () => _showJoinDialog(context, config),
                   icon: const Icon(Icons.group_add_outlined),
                   tooltip: 'Join ${config.label}',
                 ),
@@ -60,8 +83,8 @@ class TourListScreen extends ConsumerWidget {
             ),
             body: TabBarView(
               children: [
-                _buildCentralFeed(context, ref, config),
-                _buildTourList(context, ref, config, user),
+                _buildCentralFeed(context, config),
+                _buildTourList(context, config, user),
               ],
             ),
             floatingActionButton: FloatingActionButton.extended(
@@ -81,7 +104,7 @@ class TourListScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildCentralFeed(BuildContext context, WidgetRef ref, PurposeConfig config) {
+  Widget _buildCentralFeed(BuildContext context, PurposeConfig config) {
     final recentExpensesAsync = ref.watch(globalRecentExpensesProvider);
 
     return recentExpensesAsync.when(
@@ -146,7 +169,7 @@ class TourListScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTourList(BuildContext context, WidgetRef ref, PurposeConfig config, models.User? currentUser) {
+  Widget _buildTourList(BuildContext context, PurposeConfig config, models.User? currentUser) {
     final toursAsync = ref.watch(tourListProvider);
 
     return toursAsync.when(
@@ -205,7 +228,7 @@ class TourListScreen extends ConsumerWidget {
                     if (value == 'edit') {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => CreateTourScreen(initialTour: tour)));
                     } else if (value == 'delete') {
-                      _confirmDeleteTour(context, ref, tour);
+                      _confirmDeleteTour(context, tour);
                     }
                   },
                   itemBuilder: (context) => [
@@ -229,7 +252,7 @@ class TourListScreen extends ConsumerWidget {
     );
   }
 
-  void _confirmDeleteTour(BuildContext context, WidgetRef ref, models.Tour tour) {
+  void _confirmDeleteTour(BuildContext context, models.Tour tour) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -253,15 +276,15 @@ class TourListScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _syncData(BuildContext context, WidgetRef ref) async {
+  Future<void> _syncData(BuildContext context) async {
     final user = await ref.read(currentUserProvider.future);
     if (user != null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Syncing...'), duration: Duration(seconds: 1)));
       await ref.read(syncServiceProvider).startSync(user.id);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Syncing...')));
     }
   }
 
-  void _showJoinDialog(BuildContext context, WidgetRef ref, PurposeConfig config) {
+  void _showJoinDialog(BuildContext context, PurposeConfig config) {
     final controller = TextEditingController();
     bool isLoading = false;
     String? errorText;
