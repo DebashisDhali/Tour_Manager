@@ -1,0 +1,9 @@
+{
+    "name": "tour-manager-root",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "start": "npm start --prefix backend",
+        "install-backend": "npm install --prefix backend"
+    }
+}
