@@ -30,6 +30,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   // Custom split support
   bool _isCustomSplit = false;
   Map<String, double> _splitAmounts = {}; // userId -> amount
+  Set<String> _involvedMemberIds = {}; // Who shares this expense?
 
   @override
   void initState() {
@@ -78,6 +79,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         }
       });
     }
+
+    // Always load involved members from splits
+    setState(() {
+      _involvedMemberIds = splits.map((s) => s.userId).toSet();
+    });
   }
 
   @override
@@ -98,6 +104,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           if (members.isEmpty) return Center(child: Text("No active members in this ${config.label.toLowerCase()}."));
           
           _selectedPayerId ??= members.first.user.id;
+          
+          // Initial selection: All members
+          if (_involvedMemberIds.isEmpty && widget.initialExpense == null) {
+            _involvedMemberIds = members.map((m) => m.user.id).toSet();
+          }
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(24),
@@ -231,21 +242,64 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     ],
                   ),
 
+                  // Member Selection for Split
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 0,
+                      children: members.map((m) {
+                        final isSelected = _involvedMemberIds.contains(m.user.id);
+                        return FilterChip(
+                          label: Text(m.user.name, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : Colors.black87)),
+                          selected: isSelected,
+                          onSelected: (v) {
+                            setState(() {
+                              if (v) {
+                                _involvedMemberIds.add(m.user.id);
+                              } else {
+                                if (_involvedMemberIds.length > 1) {
+                                  _involvedMemberIds.remove(m.user.id);
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("At least one person must share the cost")));
+                                }
+                              }
+                              
+                              // If custom split is on, update split amounts accordingly
+                              if (_isCustomSplit) {
+                                if (v) {
+                                  _splitAmounts[m.user.id] = 0.0;
+                                } else {
+                                  _splitAmounts.remove(m.user.id);
+                                }
+                              }
+                            });
+                          },
+                          selectedColor: config.color,
+                          checkmarkColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+
                   if (!_isCustomSplit)
                     Container(
                       padding: const EdgeInsets.all(16),
+                      margin: const EdgeInsets.only(top: 8),
                       decoration: BoxDecoration(
                         color: Colors.grey.shade50,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.grey.shade200),
                       ),
                       child: Text(
-                        "Split equally between all ${members.length} members",
+                        "Split equally between ${_involvedMemberIds.length} members",
                         style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                       ),
                     )
                   else
-                    ...members.map((m) => Padding(
+                    ...members.where((m) => _involvedMemberIds.contains(m.user.id)).map((m) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Row(
                         children: [
@@ -253,6 +307,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                           Expanded(
                             flex: 3,
                             child: TextFormField(
+                              key: ValueKey("split_${m.user.id}"),
                               initialValue: _splitAmounts[m.user.id]?.toStringAsFixed(1) ?? '0',
                               decoration: const InputDecoration(prefixText: "৳ ", border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
                               keyboardType: TextInputType.number,
@@ -328,10 +383,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         // 1. Create Splits (Who owes)
         List<models.ExpenseSplit> splits;
         if (!_isCustomSplit) {
-          final splitAmount = totalAmount / members.length;
-          splits = members.map((m) => models.ExpenseSplit(id: const Uuid().v4(), expenseId: expenseId, userId: m.user.id, amount: splitAmount, isSynced: false)).toList();
+          final splitAmount = totalAmount / (_involvedMemberIds.isEmpty ? 1 : _involvedMemberIds.length);
+          splits = members
+            .where((m) => _involvedMemberIds.contains(m.user.id))
+            .map((m) => models.ExpenseSplit(id: const Uuid().v4(), expenseId: expenseId, userId: m.user.id, amount: splitAmount, isSynced: false)).toList();
         } else {
-          splits = _splitAmounts.entries.map((e) => models.ExpenseSplit(id: const Uuid().v4(), expenseId: expenseId, userId: e.key, amount: e.value, isSynced: false)).toList();
+          splits = _splitAmounts.entries
+            .where((e) => _involvedMemberIds.contains(e.key))
+            .map((e) => models.ExpenseSplit(id: const Uuid().v4(), expenseId: expenseId, userId: e.key, amount: e.value, isSynced: false)).toList();
         }
 
         // 2. Create Payers (Who paid)

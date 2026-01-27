@@ -29,9 +29,9 @@ app.use(cors({
   credentials: true
 }));
 
-// 2. Body Parsers
-app.use(bodyParser.json());
-app.use(express.urlencoded({ extended: true }));
+// 2. Body Parsers with increased limits for large sync payloads
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
 // Import Routes
 const userRoutes = require('./routes/userRoutes');

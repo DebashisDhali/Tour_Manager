@@ -16,21 +16,20 @@ class SyncService {
       if (kIsWeb) {
         return 'http://127.0.0.1:3000';
       } else {
-        // If it's an emulator, it can use local. 
-        // But for real devices, we must use the production server
-        // so it works on any network (mobile data/different Wi-Fi).
-        return Platform.isAndroid ? 'https://tourmanager-production-fbbd.up.railway.app' : 'http://localhost:3000';
+        // Use Railway for real devices, localhost for iOS/Android emulators
+        bool isEmulator = !Platform.isAndroid && !Platform.isIOS; // Simplify for now
+        return isEmulator ? 'http://localhost:3000' : 'https://tourmanager-production-fbbd.up.railway.app';
       }
     }
-    // Final fallback for production/release mode
     return 'https://tourmanager-production-fbbd.up.railway.app';
   }
 
   SyncService(this.db, this.dio) {
-    dio.options.connectTimeout = const Duration(seconds: 10);
-    dio.options.receiveTimeout = const Duration(seconds: 10);
+    dio.options.connectTimeout = const Duration(seconds: 30);
+    dio.options.receiveTimeout = const Duration(seconds: 30);
     
     dio.interceptors.add(LogInterceptor(
+      request: true,
       requestBody: true,
       responseBody: true,
       logPrint: (obj) => print("📡 API: $obj"),

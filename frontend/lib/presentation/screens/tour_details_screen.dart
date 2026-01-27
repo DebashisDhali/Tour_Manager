@@ -25,6 +25,8 @@ class TourDetailsScreen extends ConsumerStatefulWidget {
 }
 
 class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> {
+  String? _selectedFilterMemberId;
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -263,8 +265,14 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> {
     final config = PurposeConfig.getConfig(userAsync.value?.purpose);
 
     return expensesAsync.when(
-      data: (expenses) {
-        if (expenses.isEmpty) {
+      data: (allExpenses) {
+        final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
+        
+        final filteredExpenses = _selectedFilterMemberId == null 
+          ? allExpenses 
+          : allExpenses.where((e) => e.expense.payerId == _selectedFilterMemberId).toList();
+
+        if (allExpenses.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -277,10 +285,51 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> {
           );
         }
 
-        double total = expenses.fold(0, (sum, e) => sum + e.expense.amount);
+        double total = filteredExpenses.fold(0, (sum, e) => sum + e.expense.amount);
 
         return Column(
           children: [
+            // Filter Bar
+            membersAsync.when(
+              data: (members) => Container(
+                height: 60,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: const Text("All"),
+                        selected: _selectedFilterMemberId == null,
+                        onSelected: (selected) => setState(() => _selectedFilterMemberId = null),
+                        selectedColor: config.color,
+                        labelStyle: TextStyle(color: _selectedFilterMemberId == null ? Colors.white : Colors.black87),
+                      ),
+                    ),
+                    ...members.map((m) => Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        avatar: CircleAvatar(
+                          radius: 12,
+                          backgroundColor: Colors.white,
+                          child: Text(m.user.name[0].toUpperCase(), style: TextStyle(fontSize: 10, color: config.color)),
+                        ),
+                        label: Text(m.user.name),
+                        selected: _selectedFilterMemberId == m.user.id,
+                        onSelected: (selected) => setState(() => _selectedFilterMemberId = selected ? m.user.id : null),
+                        selectedColor: config.color,
+                        labelStyle: TextStyle(color: _selectedFilterMemberId == m.user.id ? Colors.white : Colors.black87),
+                      ),
+                    )).toList(),
+                  ],
+                ),
+              ),
+              loading: () => const SizedBox(height: 60),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+            
             Container(
               padding: const EdgeInsets.all(16),
               color: config.color.withOpacity(0.1),
@@ -294,11 +343,13 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> {
               ),
             ),
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.only(bottom: 80),
-                itemCount: expenses.length,
-                itemBuilder: (context, index) {
-                  final item = expenses[index];
+              child: filteredExpenses.isEmpty 
+                ? const Center(child: Text("No expenses found for this selection."))
+                : ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 80),
+                    itemCount: filteredExpenses.length,
+                    itemBuilder: (context, index) {
+                      final item = filteredExpenses[index];
                   final exp = item.expense;
                   return Card(
                     margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

@@ -101,30 +101,51 @@ exports.syncData = async (req, res) => {
     }
 
     await transaction.commit();
+    console.log(`✅ Sync: Data for user ${userId} pushed successfully.`);
 
     // 2. Fetch All Data for the User's Tours to send back (Pull)
-    const userWithTours = await User.findByPk(userId, {
+    // Optimized: Fetch tours first, then fetch details to avoid massive join slowdown
+    const tours = await Tour.findAll({
       include: [{
-        model: Tour,
-        include: [
-          { model: User }, // Members
-          { 
-            model: Expense,
-            include: [ExpenseSplit, ExpensePayer]
-          },
-          { model: Settlement }
-        ]
+        model: User,
+        where: { id: userId },
+        attributes: [] // Just to filter tours this user belongs to
       }]
+    });
+
+    const tourIds = tours.map(t => t.id);
+    
+    // Fetch full data for these tours
+    const fullTours = await Tour.findAll({
+      where: { id: tourIds },
+      include: [
+        { model: User }, // Members
+        { 
+          model: Expense,
+          include: [ExpenseSplit, ExpensePayer]
+        },
+        { model: Settlement }
+      ]
     });
 
     res.json({
       timestamp: new Date().toISOString(),
-      tours: userWithTours ? userWithTours.Tours : []
+      tours: fullTours
     });
 
   } catch (err) {
-    if (transaction) await transaction.rollback();
+    if (transaction && !transaction.finished) {
+      try {
+        await transaction.rollback();
+      } catch (rbErr) {
+        console.error("Rollback Error:", rbErr);
+      }
+    }
     console.error("Sync Error:", err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ 
+      error: "Synchronization failed", 
+      details: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 };
