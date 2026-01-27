@@ -128,4 +128,23 @@ exports.joinTour = async (req, res) => {
   }
 };
 
+exports.deleteTour = async (req, res) => {
+  try {
+    const { tourId, userId } = req.body;
+    const tour = await Tour.findByPk(tourId);
+    
+    if (!tour) return res.status(404).json({ error: 'Tour not found' });
+    
+    // Only creator can delete for everyone
+    if (tour.created_by !== userId) {
+      return res.status(403).json({ error: 'Only the creator can delete this tour' });
+    }
+
+    await tour.destroy();
+    res.json({ message: 'Tour deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 

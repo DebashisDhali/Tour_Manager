@@ -19,13 +19,13 @@ const ExpensePayer = require('./ExpensePayer')(sequelize);
 
 
 // Relations
-User.belongsToMany(Tour, { through: 'TourMembers' });
-Tour.belongsToMany(User, { through: 'TourMembers' });
+User.belongsToMany(Tour, { through: 'TourMembers', onDelete: 'CASCADE' });
+Tour.belongsToMany(User, { through: 'TourMembers', onDelete: 'CASCADE' });
 
-Tour.hasMany(Expense, { foreignKey: 'tour_id' });
+Tour.hasMany(Expense, { foreignKey: 'tour_id', onDelete: 'CASCADE' });
 Expense.belongsTo(Tour, { foreignKey: 'tour_id' });
 
-Tour.hasMany(Settlement, { foreignKey: 'tour_id' });
+Tour.hasMany(Settlement, { foreignKey: 'tour_id', onDelete: 'CASCADE' });
 Settlement.belongsTo(Tour, { foreignKey: 'tour_id' });
 
 User.hasMany(Expense, { foreignKey: 'payer_id' }); // kept for backward compatibility (primary payer)

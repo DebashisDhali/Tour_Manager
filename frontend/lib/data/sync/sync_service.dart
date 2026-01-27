@@ -122,6 +122,18 @@ class SyncService {
 
         // 2. Process Pulled Data (Tours, Members, Expenses)
         final serverTours = response.data['tours'] as List;
+        final serverTourIds = serverTours.map((t) => t['id'].toString()).toSet();
+        
+        // Get all currently local tours to check for deletions
+        final localTours = await db.select(db.tours).get();
+        for (final lt in localTours) {
+          // If a tour is local but NOT on server, it means it's been deleted or access revoked
+          if (!serverTourIds.contains(lt.id)) {
+             print("🗑️ Tour ${lt.id} not on server, deleting locally...");
+             await db.deleteTourWithDetails(lt.id); 
+          }
+        }
+        
         for (final st in serverTours) {
           // Sync Tour
           await db.createTour(Tour(

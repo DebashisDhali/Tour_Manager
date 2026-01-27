@@ -7,6 +7,7 @@ router.get('/', tourController.getAllTours);
 router.post('/join', tourController.joinTour);
 
 router.get('/:id', tourController.getTourDetails);
+router.post('/delete', tourController.deleteTour);
 
 
 module.exports = router;
