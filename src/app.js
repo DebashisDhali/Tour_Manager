@@ -29,12 +29,31 @@ app.use('/sync', syncRoutes);
 app.use('/settlements', settlementRoutes);
 
 
+// Global error handlers to prevent silent crashes
+process.on('uncaughtException', (err) => {
+  console.error('🔥 FATAL: Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🔥 FATAL: Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 // Database Connection & Server Start
 async function startServer() {
-  console.log(`📡 Starting server on port ${PORT}...`);
-  app.listen(PORT, () => {
-    console.log(`🚀 Server is live on port ${PORT}`);
-  });
+  console.log(`📡 Attempting to start server on port ${PORT}...`);
+  try {
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 Server is live on port ${PORT}`);
+      console.log(`📅 Started at: ${new Date().toISOString()}`);
+    });
+
+    server.on('error', (err) => {
+      console.error('❌ Server Listen Error:', err);
+    });
+
+  } catch (listenError) {
+    console.error('❌ Synchronous Listen Error:', listenError);
+  }
 
   try {
     console.log('🔄 Connecting to database...');
@@ -42,10 +61,12 @@ async function startServer() {
     console.log('✅ Database connected successfully.');
     
     // Sync models
+    console.log('🔄 Syncing models...');
     await sequelize.sync();
     console.log('✅ Database schema synced.');
   } catch (err) {
     console.error('❌ Database Initialization Error:', err);
+    // We don't exit(1) here to let the app stay alive for healthchecks
   }
 }
 
