@@ -1,20 +1,18 @@
-FROM node:20-slim
+FROM node:20
 
 WORKDIR /app
 
-# Copy package files
+# We are in the root directory (where backend/ is)
 COPY backend/package*.json ./
-
-# Install dependencies
 RUN npm install
 
-# Copy source code
+# Copy everything from backend/ to the current WORKDIR (/app)
 COPY backend/ .
 
-# Railway uses the PORT environment variable
-# If PORT is not set, we default to 3000
-ENV PORT=3000
+# Verify files are there
+RUN ls -la
+
 EXPOSE 3000
 
-# Start the application
-CMD ["npm", "start"]
+# Railway will provide the PORT env var. Our app handles it.
+CMD ["node", "src/app_test.js"]
