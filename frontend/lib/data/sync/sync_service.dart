@@ -128,8 +128,9 @@ class SyncService {
         final localTours = await db.select(db.tours).get();
         for (final lt in localTours) {
           // If a tour is local but NOT on server, it means it's been deleted or access revoked
-          if (!serverTourIds.contains(lt.id)) {
-             print("🗑️ Tour ${lt.id} not on server, deleting locally...");
+          // IMPORTANT: Only delete if it was previously synced. Unsynced tours are new local creations.
+          if (lt.isSynced && !serverTourIds.contains(lt.id)) {
+             print("🗑️ Tour ${lt.name} (${lt.id}) not on server, deleting locally...");
              await db.deleteTourWithDetails(lt.id); 
           }
         }

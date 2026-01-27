@@ -26,7 +26,7 @@ exports.syncData = async (req, res) => {
       if (tours) {
         console.log(`📡 Sync: Pushing ${tours.length} tours...`);
         for (const t of tours) {
-          await Tour.upsert({ 
+          const [tourRecord] = await Tour.upsert({ 
             id: t.id, 
             name: t.name, 
             created_by: t.createdBy, 
@@ -34,6 +34,12 @@ exports.syncData = async (req, res) => {
             start_date: t.startDate, 
             end_date: t.endDate 
           }, { transaction });
+
+          // Ensure creator is a member
+          const creator = await User.findByPk(t.createdBy, { transaction });
+          if (creator) {
+            await tourRecord.addUser(creator, { transaction });
+          }
         }
       }
 
