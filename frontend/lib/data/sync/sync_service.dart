@@ -12,21 +12,22 @@ class SyncService {
   final Dio dio;
   
   String get baseUrl {
-    // For now, force Production URL so Phone (Real) and Laptop (Debug) talk to same DB
-    // To test locally, uncomment the localhost line
-    return 'https://tourmanager-production-fbbd.up.railway.app';
-    
-    /* 
+    // Check developer overrides or environment
     if (kDebugMode) {
-      if (kIsWeb) {
-        return 'http://127.0.0.1:3000';
-      } else {
-        bool isEmulator = !Platform.isAndroid && !Platform.isIOS; 
-        return isEmulator ? 'http://localhost:3000' : 'https://tourmanager-production-fbbd.up.railway.app';
+      if (kIsWeb) return 'http://127.0.0.1:3000';
+      
+      // For Mobile (Android Emulator uses 10.0.2.2 to access host's localhost)
+      try {
+        if (Platform.isAndroid) return 'http://10.0.2.2:3000';
+        if (Platform.isIOS) return 'http://localhost:3000';
+      } catch (e) {
+        // Platform check might fail on web if not careful, but kIsWeb guards it
       }
+      return 'http://localhost:3000';
     }
-    return 'https://tourmanager-production-fbbd.up.railway.app';
-    */
+    
+    // PRODUCTION URL - https://tour-manager-navy.vercel.app
+    return 'https://tour-manager-navy.vercel.app'; 
   }
 
   SyncService(this.db, this.dio) {
@@ -65,8 +66,9 @@ class SyncService {
         db.getUnsyncedTourMembers(),
         db.getUnsyncedSettlements(),
         db.getUnsyncedProgramIncomes(),
+        db.getUnsyncedJoinRequests(),
       ]);
-
+ 
       final unsyncedUsers = results[0] as List<User>;
       final unsyncedTours = results[1] as List<Tour>;
       final unsyncedExpenses = results[2] as List<Expense>;
@@ -75,6 +77,7 @@ class SyncService {
       final unsyncedMembers = results[5] as List<TourMember>;
       final unsyncedSettlements = results[6] as List<Settlement>;
       final unsyncedIncomes = results[7] as List<ProgramIncome>;
+      final unsyncedJoinRequests = results[8] as List<JoinRequest>;
 
       final response = await dio.post('$baseUrl/sync', data: {
         'userId': userId,
@@ -101,7 +104,8 @@ class SyncService {
             'id': p.id, 'expenseId': p.expenseId, 'userId': p.userId, 'amount': p.amount,
           }).toList(),
           'members': unsyncedMembers.map((m) => {
-            'tourId': m.tourId, 'userId': m.userId, 'leftAt': m.leftAt?.toIso8601String(), 'mealCount': m.mealCount,
+            'tourId': m.tourId, 'userId': m.userId, 'leftAt': m.leftAt?.toIso8601String(), 
+            'mealCount': m.mealCount, 'role': m.role,
           }).toList(),
           'settlements': unsyncedSettlements.map((s) => {
             'id': s.id, 'tourId': s.tourId, 'fromId': s.fromId, 'toId': s.toId, 'amount': s.amount, 'date': s.date.toIso8601String(),
@@ -109,6 +113,9 @@ class SyncService {
           'incomes': unsyncedIncomes.map((i) => {
             'id': i.id, 'tourId': i.tourId, 'amount': i.amount, 'source': i.source,
             'description': i.description, 'collectedBy': i.collectedBy, 'date': i.date.toIso8601String(),
+          }).toList(),
+          'joinRequests': unsyncedJoinRequests.map((jr) => {
+            'id': jr.id, 'tourId': jr.tourId, 'userId': jr.userId, 'userName': jr.userName, 'status': jr.status,
           }).toList(),
         }
       });
@@ -125,10 +132,25 @@ class SyncService {
           for (final p in unsyncedPayers) db.markExpensePayerSynced(p.id);
           for (final s in unsyncedSettlements) db.markSettlementSynced(s.id);
           for (final i in unsyncedIncomes) db.markProgramIncomeSynced(i.id);
+          for (final jr in unsyncedJoinRequests) db.markJoinRequestSynced(jr.id);
 
-          // 3. Process Pulled Data
           final serverTours = response.data['tours'] as List;
           for (final st in serverTours) {
+            // Sync Join Requests (if returned in tour data or separately)
+            final jrList = st['JoinRequests'] ?? st['joinRequests'];
+            if (jrList != null && jrList is List) {
+              for (final jr in jrList) {
+                batch.insert(db.joinRequests, JoinRequestsCompanion.insert(
+                  id: jr['id'],
+                  tourId: st['id'],
+                  userId: jr['user_id'],
+                  userName: jr['user_name'],
+                  status: Value(jr['status']),
+                  isSynced: const Value(true),
+                ), mode: InsertMode.insertOrReplace);
+              }
+            }
+
             // Sync Tour
             batch.insert(db.tours, ToursCompanion.insert(
               id: st['id'],
@@ -178,12 +200,16 @@ class SyncService {
                 final suLeftAt = (su['TourMember'] != null && su['TourMember']['removed_at'] != null) 
                     ? DateTime.parse(su['TourMember']['removed_at'].toString()) 
                     : null;
+                final suRole = (su['TourMember'] != null && su['TourMember']['role'] != null)
+                    ? su['TourMember']['role'].toString()
+                    : 'viewer'; // default to viewer if undefined
                 
                 batch.insert(db.tourMembers, TourMembersCompanion.insert(
                   tourId: st['id'],
                   userId: su['id'],
                   status: Value(suStatus),
                   leftAt: Value(suLeftAt),
+                  role: Value(suRole),
                   mealCount: Value((su['meal_count'] as num?)?.toDouble() ?? 0.0),
                   isSynced: const Value(true),
                 ), mode: InsertMode.insertOrReplace);
@@ -369,7 +395,8 @@ class SyncService {
                     updatedAt: DateTime.now(),
                   ));
                   
-                  final mStatus = (member['TourMember'] != null) ? member['TourMember']['status'] : 'active';
+                  final mStatus = (member['TourMember'] != null) ? (member['TourMember']['status'] ?? 'active') : 'active';
+                  final mRole = (member['TourMember'] != null) ? (member['TourMember']['role'] ?? 'editor') : 'editor';
                   final mLeftAt = (member['TourMember'] != null && member['TourMember']['removed_at'] != null)
                       ? DateTime.parse(member['TourMember']['removed_at'].toString())
                       : null;
@@ -378,6 +405,7 @@ class SyncService {
                     tourId: tourData['id'].toString(),
                     userId: mId,
                     status: mStatus,
+                    role: mRole,
                     leftAt: mLeftAt,
                     mealCount: (member['meal_count'] as num?)?.toDouble() ?? 0.0,
                     isSynced: true,
@@ -554,6 +582,93 @@ class SyncService {
       }
     } catch (e) {
       print("Add member failed: $e");
+      throw Exception(e.toString());
+    }
+  }
+
+  Future<void> updateMemberRole(String tourId, String userId, String role) async {
+    try {
+      final response = await dio.patch('$baseUrl/tours/$tourId/members/$userId/role', data: {'role': role});
+      if (response.statusCode != 200) {
+        throw Exception(response.data['error'] ?? 'Failed to update role');
+      }
+    } catch (e) {
+      print("Update role failed: $e");
+      throw Exception(e.toString());
+    }
+  }
+
+  // Join Requests
+  Future<Map<String, dynamic>?> findTourByCode(String code) async {
+    try {
+      final response = await dio.get('$baseUrl/tours/find/$code');
+      if (response.statusCode == 200) {
+        return Map<String, dynamic>.from(response.data);
+      }
+      return null;
+    } on DioException catch (e) {
+      print("Find tour failed: ${e.message}");
+      if (e.response?.statusCode == 401) {
+        throw Exception("Authentication required. Please log in again.");
+      } else if (e.response?.statusCode == 404) {
+        return null; // This is a legitimate "Not Found"
+      } else if (e.type == DioExceptionType.connectionError || e.type == DioExceptionType.connectionTimeout) {
+        throw Exception("Server unreachable. Check your internet or if the backend is running at $baseUrl");
+      }
+      throw Exception("Find failed: ${e.message}");
+    } catch (e) {
+      print("Unexpected error in findTourByCode: $e");
+      return null;
+    }
+  }
+
+  Future<void> requestToJoin(String tourId) async {
+    try {
+      final response = await dio.post('$baseUrl/tours/$tourId/request-join');
+      if (response.statusCode != 201) {
+        throw Exception(response.data['error'] ?? 'Failed to send join request');
+      }
+      
+      // Save locally as pending
+      final jrData = response.data;
+      await db.into(db.joinRequests).insert(JoinRequestsCompanion.insert(
+        id: jrData['id'],
+        tourId: tourId,
+        userId: jrData['user_id'],
+        userName: jrData['user_name'],
+        status: const Value('pending'),
+        isSynced: const Value(true),
+      ), mode: InsertMode.insertOrReplace);
+    } catch (e) {
+      print("Join request failed: $e");
+      throw Exception(e.toString());
+    }
+  }
+
+  Future<List<dynamic>> getJoinRequests(String tourId) async {
+    try {
+      final response = await dio.get('$baseUrl/tours/$tourId/requests');
+      if (response.statusCode == 200) {
+        return List<dynamic>.from(response.data);
+      }
+      return [];
+    } catch (e) {
+      print("Get requests failed: $e");
+      return [];
+    }
+  }
+
+  Future<void> handleJoinRequest(String requestId, String status, {String? role}) async {
+    try {
+      final response = await dio.patch('$baseUrl/tours/requests/$requestId', data: {
+        'status': status,
+        'role': role ?? 'editor'
+      });
+      if (response.statusCode != 200) {
+        throw Exception(response.data['error'] ?? 'Failed to handle request');
+      }
+    } catch (e) {
+      print("Handle request failed: $e");
       throw Exception(e.toString());
     }
   }

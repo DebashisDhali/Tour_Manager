@@ -71,6 +71,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
         return Scaffold(
           appBar: AppBar(
             automaticallyImplyLeading: true,
+            backgroundColor: config.color,
+            surfaceTintColor: Colors.transparent,
             flexibleSpace: Container(
               decoration: BoxDecoration(gradient: config.gradient),
               child: Opacity(
@@ -126,7 +128,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(48),
               child: Container(
-                decoration: const BoxDecoration(color: Colors.white10),
+                decoration: BoxDecoration(color: Colors.black.withOpacity(0.1)),
                 child: TabBar(
                   controller: _tabController,
                   isScrollable: _isProgram || (tour.purpose.toLowerCase() == 'mess'),
@@ -135,7 +137,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                     insets: EdgeInsets.symmetric(horizontal: 16.0),
                   ),
                   labelColor: Colors.white,
-                  unselectedLabelColor: Colors.white60,
+                  unselectedLabelColor: Colors.white70,
                   labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.2),
                   unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
                   tabs: _isProgram 
@@ -411,7 +413,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                       selected: _selectedFilterMemberId == null,
                       onSelected: (_) => setState(() => _selectedFilterMemberId = null),
                       selectedColor: config.color,
-                      labelStyle: TextStyle(color: _selectedFilterMemberId == null ? Colors.white : Colors.black),
+                      labelStyle: TextStyle(color: _selectedFilterMemberId == null ? Colors.white : Theme.of(context).colorScheme.onSurface),
                     ),
                     const SizedBox(width: 8),
                     ...members.map((m) => Padding(
@@ -421,7 +423,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                         selected: _selectedFilterMemberId == m.user.id,
                         onSelected: (s) => setState(() => _selectedFilterMemberId = s ? m.user.id : null),
                         selectedColor: config.color,
-                        labelStyle: TextStyle(color: _selectedFilterMemberId == m.user.id ? Colors.white : Colors.black),
+                        labelStyle: TextStyle(color: _selectedFilterMemberId == m.user.id ? Colors.white : Theme.of(context).colorScheme.onSurface),
                       ),
                     )),
                   ],
@@ -489,7 +491,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                               const SizedBox(height: 2),
                               Text(
                                 "Paid by: $payerText • ${DateFormat('MMM dd, hh:mm a').format(exp.createdAt)}", 
-                                style: TextStyle(fontSize: 10, color: Colors.black.withOpacity(0.7), fontWeight: FontWeight.w600)
+                                style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7), fontWeight: FontWeight.w600)
                               ),
                             ],
                           ),
@@ -508,7 +510,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                               style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Colors.redAccent)
                             ),
                             if (_selectedFilterMemberId != null) 
-                              Text("of ৳${exp.amount.toStringAsFixed(0)}", style: const TextStyle(fontSize: 9, color: Colors.black26)),
+                              Text("of ৳${exp.amount.toStringAsFixed(0)}", style: TextStyle(fontSize: 9, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3))),
                           ],
                         ),
                         const SizedBox(width: 4),
@@ -538,6 +540,76 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
     );
   }
 
+  Widget _buildJoinRequests(Tour tour) {
+    final me = ref.watch(currentUserProvider).value;
+    if (me?.id != tour.createdBy) return const SizedBox.shrink();
+
+    final db = ref.read(databaseProvider);
+    return StreamBuilder<List<JoinRequest>>(
+      stream: (db.select(db.joinRequests)..where((t) => t.tourId.equals(widget.tourId) & t.status.equals('pending'))).watch(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) return const SizedBox.shrink();
+        final requests = snapshot.data!;
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.amber.shade50,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.amber.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.person_add_alt_1_rounded, size: 20, color: Colors.orange),
+                  SizedBox(width: 12),
+                  Text("Join Requests", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ...requests.map((r) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(child: Text(r.userName[0])),
+                title: Text(r.userName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.check_circle, color: Colors.green),
+                      onPressed: () async {
+                        try {
+                          await ref.read(syncServiceProvider).handleJoinRequest(r.id, 'approved');
+                          await (db.update(db.joinRequests)..where((t) => t.id.equals(r.id))).write(const JoinRequestsCompanion(status: drift.Value('approved')));
+                          await ref.read(syncServiceProvider).startSync(me!.id);
+                        } catch (e) {
+                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+                        }
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.cancel, color: Colors.red),
+                      onPressed: () async {
+                        try {
+                          await ref.read(syncServiceProvider).handleJoinRequest(r.id, 'rejected');
+                          await (db.update(db.joinRequests)..where((t) => t.id.equals(r.id))).write(const JoinRequestsCompanion(status: drift.Value('rejected')));
+                        } catch (e) {
+                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              )).toList(),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildMembersTab(Tour tour) {
     final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
     final config = PurposeConfig.getConfig(tour.purpose);
@@ -563,6 +635,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
               ],
             ),
           ),
+          _buildJoinRequests(tour),
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -572,71 +645,105 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
           final isMe = me?.id == m.user.id;
           final isRemoved = m.status.toLowerCase().trim() == 'removed';
           
-          return Card(
-            elevation: isRemoved ? 0 : 1,
-            color: isRemoved ? Colors.grey.shade50 : null,
-            child: Opacity(
-              opacity: isRemoved ? 0.6 : 1.0,
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: isRemoved ? Colors.grey.shade200 : config.color.withOpacity(0.1),
-                  child: Text(m.user.name[0], style: TextStyle(color: isRemoved ? Colors.grey : config.color, fontWeight: FontWeight.bold)),
-                ),
-                title: Text(
-                  isMe ? "${m.user.name} (You)" : m.user.name,
-                  style: TextStyle(
-                    decoration: isRemoved ? TextDecoration.lineThrough : null,
-                    color: isRemoved ? Colors.grey : null,
+            final isAdmin = me?.id == tour.createdBy || members.any((x) => x.user.id == me?.id && x.role == 'admin');
+            
+            Widget? trailingWidget;
+            if (isAdmin && !isMe) {
+               trailingWidget = Row(
+                 mainAxisSize: MainAxisSize.min,
+                 children: [
+                   if (!isRemoved) DropdownButton<String>(
+                     value: m.role,
+                     icon: const Icon(Icons.arrow_drop_down, size: 16),
+                     style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold),
+                     items: const [
+                       DropdownMenuItem(value: 'viewer', child: Text('Viewer')),
+                       DropdownMenuItem(value: 'editor', child: Text('Editor')),
+                       DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                     ],
+                     onChanged: (val) {
+                       if (val != null) {
+                         ref.read(databaseProvider).updateMemberRole(widget.tourId, m.user.id, val);
+                         ref.read(syncServiceProvider).updateMemberRole(widget.tourId, m.user.id, val).catchError((e) => debugPrint(e.toString()));
+                       }
+                     },
+                     underline: const SizedBox(),
+                   ),
+                   isRemoved 
+                     ? IconButton(
+                         onPressed: () => _showRestoreConfirmation(m.user), 
+                         icon: const Icon(Icons.settings_backup_restore, size: 20),
+                         color: config.color,
+                         tooltip: "Restore",
+                       )
+                     : IconButton(icon: const Icon(Icons.person_remove, color: Colors.red, size: 18), onPressed: () => _showLeaveConfirmation(m.user, isRemoval: true)),
+                 ],
+               );
+            } else {
+               if (!isRemoved) {
+                 trailingWidget = Container(
+                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                   decoration: BoxDecoration(color: Colors.grey.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                   child: Text(m.role.toUpperCase(), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey))
+                 );
+               }
+            }
+
+            return Card(
+              elevation: isRemoved ? 0 : 1,
+              color: isRemoved ? Colors.grey.shade50 : null,
+              child: Opacity(
+                opacity: isRemoved ? 0.6 : 1.0,
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: isRemoved ? Colors.grey.shade200 : config.color.withOpacity(0.1),
+                    child: Text(m.user.name[0], style: TextStyle(color: isRemoved ? Colors.grey : config.color, fontWeight: FontWeight.bold)),
                   ),
-                ),
-                subtitle: tour.purpose.toLowerCase() == 'mess' 
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(m.user.phone ?? "No phone", style: const TextStyle(fontSize: 10)),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Icon(Icons.restaurant_menu, size: 14, color: isRemoved ? Colors.grey : config.color.withOpacity(0.7)),
-                            const SizedBox(width: 4),
-                            Text(
-                              "Meal Count: ${m.mealCount.toStringAsFixed(1)}", 
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold, 
-                                fontSize: 13, 
-                                color: isRemoved ? Colors.grey : Colors.black87
+                  title: Text(
+                    isMe ? "${m.user.name} (You)" : m.user.name,
+                    style: TextStyle(
+                      decoration: isRemoved ? TextDecoration.lineThrough : null,
+                      color: isRemoved ? Colors.grey : null,
+                    ),
+                  ),
+                  subtitle: tour.purpose.toLowerCase() == 'mess' 
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(m.user.phone ?? "No phone", style: const TextStyle(fontSize: 10)),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Icon(Icons.restaurant_menu, size: 14, color: isRemoved ? Colors.grey : config.color.withOpacity(0.7)),
+                              const SizedBox(width: 4),
+                              Text(
+                                "Meal Count: ${m.mealCount.toStringAsFixed(1)}", 
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold, 
+                                  fontSize: 13, 
+                                  color: isRemoved ? Colors.grey : Theme.of(context).colorScheme.onSurface.withOpacity(0.8)
+                                ),
                               ),
-                            ),
-                            if (isRemoved) ...[
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(4)),
-                                child: const Text("REMOVED", style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.grey)),
-                              ),
+                              if (isRemoved) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                  decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(4)),
+                                  child: const Text("REMOVED", style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.grey)),
+                                ),
+                              ],
                             ],
-                          ],
-                        ),
-                      ],
-                    )
-                  : Text(m.user.phone ?? "No phone", style: TextStyle(color: isRemoved ? Colors.grey : null)),
-                onTap: !isRemoved && tour.purpose.toLowerCase() == 'mess' && (isMe || me?.id == tour.createdBy)
-                  ? () => _showEditMealCountDialog(m)
-                  : null,
-                trailing: (me?.id == tour.createdBy && !isMe) 
-                  ? (isRemoved 
-                      ? TextButton.icon(
-                          onPressed: () => _showRestoreConfirmation(m.user), 
-                          icon: const Icon(Icons.settings_backup_restore, size: 16),
-                          label: const Text("Restore", style: TextStyle(fontSize: 11)),
-                          style: TextButton.styleFrom(foregroundColor: config.color),
-                        )
-                      : IconButton(icon: const Icon(Icons.person_remove, color: Colors.red), onPressed: () => _showLeaveConfirmation(m.user, isRemoval: true))
-                    )
-                  : null,
+                          ),
+                        ],
+                      )
+                    : Text(m.user.phone ?? "No phone", style: TextStyle(color: isRemoved ? Colors.grey : null)),
+                  onTap: !isRemoved && tour.purpose.toLowerCase() == 'mess' && (isMe || me?.id == tour.createdBy)
+                    ? () => _showEditMealCountDialog(m)
+                    : null,
+                  trailing: trailingWidget,
+                ),
               ),
-            ),
-          );
+            );
               },
             ),
           ),
@@ -657,6 +764,9 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
     final me = ref.watch(currentUserProvider).value;
     final splitsAsync = ref.watch(tourSplitsProvider(widget.tourId));
     final splits = splitsAsync.value ?? [];
+    
+    final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
+    final members = membersAsync.value ?? [];
     
     final usersStream = (db.select(db.users).join([
       drift.innerJoin(db.tourMembers, db.tourMembers.userId.equalsExp(db.users.id))
@@ -727,14 +837,35 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                           const SizedBox(height: 32),
                           const Text("Quick Actions", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
                           const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(child: _buildDashboardQuickButton(Icons.add_task_rounded, "Income", config.color, () => showDialog(context: context, builder: (_) => AddIncomeDialog(tourId: widget.tourId)))),
-                              const SizedBox(width: 12),
-                              Expanded(child: _buildDashboardQuickButton(Icons.receipt_rounded, "Expense", Colors.orange, () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddExpenseScreen(tourId: widget.tourId))))),
-                              const SizedBox(width: 12),
-                              Expanded(child: _buildDashboardQuickButton(Icons.swap_calls_rounded, "Transfer", Colors.teal, () => showDialog(context: context, builder: (_) => AllocateFundDialog(tourId: widget.tourId)))),
-                            ],
+                          Builder(
+                            builder: (context) {
+                              final myRole = members.firstWhere((m) => m.user.id == me?.id, orElse: () => members.first).role;
+                              final isViewer = myRole == 'viewer';
+                              
+                              if (isViewer) {
+                                return Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(color: Colors.amber.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                                  child: const Row(
+                                    children: [
+                                      Icon(Icons.lock_outline, color: Colors.orange, size: 20),
+                                      SizedBox(width: 8),
+                                      Expanded(child: Text("You are a Viewer. Viewers cannot add or edit expenses.", style: TextStyle(fontSize: 12, color: Colors.orange))),
+                                    ],
+                                  ),
+                                );
+                              }
+                              
+                              return Row(
+                                children: [
+                                  Expanded(child: _buildDashboardQuickButton(Icons.add_task_rounded, "Income", config.color, () => showDialog(context: context, builder: (_) => AddIncomeDialog(tourId: widget.tourId)))),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: _buildDashboardQuickButton(Icons.receipt_rounded, "Expense", Colors.orange, () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddExpenseScreen(tourId: widget.tourId))))),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: _buildDashboardQuickButton(Icons.swap_calls_rounded, "Transfer", Colors.teal, () => showDialog(context: context, builder: (_) => AllocateFundDialog(tourId: widget.tourId)))),
+                                ],
+                              );
+                            }
                           ),
                           
                           const SizedBox(height: 32),

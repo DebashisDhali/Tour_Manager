@@ -5,9 +5,7 @@ exports.createTour = async (req, res) => {
   try {
     const { id, name, created_by, start_date, end_date } = req.body;
     
-    // Generate simple 6-char invite code
-    const invite_code = Math.random().toString(36).substring(2, 8).toUpperCase();
-
+    const invite_code = req.body.invite_code || Math.random().toString(36).substring(2, 8).toUpperCase();
     const tour = await Tour.create({ 
       id: id || uuidv4(), 
       name, 
@@ -57,6 +55,23 @@ exports.getTourDetails = async (req, res) => {
 };
 
 // Invitation Logic - Joins Immediately (No Approval Required)
+exports.findTourByCode = async (req, res) => {
+  const { code } = req.params;
+  try {
+    const tour = await Tour.findOne({ 
+      where: sequelize.where(
+        sequelize.fn('LOWER', sequelize.col('invite_code')),
+        code.toLowerCase()
+      ), 
+      attributes: ['id', 'name', 'purpose', 'created_by'] 
+    });
+    if (!tour) return res.status(404).json({ error: 'Tour not found' });
+    res.status(200).json(tour);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
+
 exports.joinTour = async (req, res) => {
   const t = await sequelize.transaction();
   try {
@@ -65,7 +80,10 @@ exports.joinTour = async (req, res) => {
     
     // Find tour with current members
     const tour = await Tour.findOne({ 
-      where: { invite_code },
+      where: sequelize.where(
+        sequelize.fn('LOWER', sequelize.col('invite_code')),
+        invite_code.toLowerCase()
+      ),
       transaction: t
     });
     
@@ -111,10 +129,14 @@ exports.joinTour = async (req, res) => {
       await existingConnection.update({ 
         status: 'active', 
         removed_at: null,
-        joined_at: new Date() // Refresh join date? Or keep original? Let's refresh.
+        joined_at: new Date(),
+        role: 'viewer' // Reset to viewer when re-joining via code
       }, { transaction: t });
     } else {
-      await tour.addUser(user, { transaction: t });
+      await tour.addUser(user, { 
+        through: { role: 'viewer' },
+        transaction: t 
+      });
     }
     
     // Commit the transaction

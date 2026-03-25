@@ -971,6 +971,13 @@ class $TourMembersTable extends TourMembers
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant('active'));
+  static const VerificationMeta _roleMeta = const VerificationMeta('role');
+  @override
+  late final GeneratedColumn<String> role = GeneratedColumn<String>(
+      'role', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('editor'));
   static const VerificationMeta _isSyncedMeta =
       const VerificationMeta('isSynced');
   @override
@@ -983,7 +990,7 @@ class $TourMembersTable extends TourMembers
       defaultValue: const Constant(false));
   @override
   List<GeneratedColumn> get $columns =>
-      [tourId, userId, mealCount, leftAt, status, isSynced];
+      [tourId, userId, mealCount, leftAt, status, role, isSynced];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1018,6 +1025,10 @@ class $TourMembersTable extends TourMembers
       context.handle(_statusMeta,
           status.isAcceptableOrUnknown(data['status']!, _statusMeta));
     }
+    if (data.containsKey('role')) {
+      context.handle(
+          _roleMeta, role.isAcceptableOrUnknown(data['role']!, _roleMeta));
+    }
     if (data.containsKey('is_synced')) {
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
@@ -1041,6 +1052,8 @@ class $TourMembersTable extends TourMembers
           .read(DriftSqlType.dateTime, data['${effectivePrefix}left_at']),
       status: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      role: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}role'])!,
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
     );
@@ -1058,6 +1071,7 @@ class TourMember extends DataClass implements Insertable<TourMember> {
   final double mealCount;
   final DateTime? leftAt;
   final String status;
+  final String role;
   final bool isSynced;
   const TourMember(
       {required this.tourId,
@@ -1065,6 +1079,7 @@ class TourMember extends DataClass implements Insertable<TourMember> {
       required this.mealCount,
       this.leftAt,
       required this.status,
+      required this.role,
       required this.isSynced});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1076,6 +1091,7 @@ class TourMember extends DataClass implements Insertable<TourMember> {
       map['left_at'] = Variable<DateTime>(leftAt);
     }
     map['status'] = Variable<String>(status);
+    map['role'] = Variable<String>(role);
     map['is_synced'] = Variable<bool>(isSynced);
     return map;
   }
@@ -1088,6 +1104,7 @@ class TourMember extends DataClass implements Insertable<TourMember> {
       leftAt:
           leftAt == null && nullToAbsent ? const Value.absent() : Value(leftAt),
       status: Value(status),
+      role: Value(role),
       isSynced: Value(isSynced),
     );
   }
@@ -1101,6 +1118,7 @@ class TourMember extends DataClass implements Insertable<TourMember> {
       mealCount: serializer.fromJson<double>(json['mealCount']),
       leftAt: serializer.fromJson<DateTime?>(json['leftAt']),
       status: serializer.fromJson<String>(json['status']),
+      role: serializer.fromJson<String>(json['role']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
     );
   }
@@ -1113,6 +1131,7 @@ class TourMember extends DataClass implements Insertable<TourMember> {
       'mealCount': serializer.toJson<double>(mealCount),
       'leftAt': serializer.toJson<DateTime?>(leftAt),
       'status': serializer.toJson<String>(status),
+      'role': serializer.toJson<String>(role),
       'isSynced': serializer.toJson<bool>(isSynced),
     };
   }
@@ -1123,6 +1142,7 @@ class TourMember extends DataClass implements Insertable<TourMember> {
           double? mealCount,
           Value<DateTime?> leftAt = const Value.absent(),
           String? status,
+          String? role,
           bool? isSynced}) =>
       TourMember(
         tourId: tourId ?? this.tourId,
@@ -1130,6 +1150,7 @@ class TourMember extends DataClass implements Insertable<TourMember> {
         mealCount: mealCount ?? this.mealCount,
         leftAt: leftAt.present ? leftAt.value : this.leftAt,
         status: status ?? this.status,
+        role: role ?? this.role,
         isSynced: isSynced ?? this.isSynced,
       );
   TourMember copyWithCompanion(TourMembersCompanion data) {
@@ -1139,6 +1160,7 @@ class TourMember extends DataClass implements Insertable<TourMember> {
       mealCount: data.mealCount.present ? data.mealCount.value : this.mealCount,
       leftAt: data.leftAt.present ? data.leftAt.value : this.leftAt,
       status: data.status.present ? data.status.value : this.status,
+      role: data.role.present ? data.role.value : this.role,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
     );
   }
@@ -1151,6 +1173,7 @@ class TourMember extends DataClass implements Insertable<TourMember> {
           ..write('mealCount: $mealCount, ')
           ..write('leftAt: $leftAt, ')
           ..write('status: $status, ')
+          ..write('role: $role, ')
           ..write('isSynced: $isSynced')
           ..write(')'))
         .toString();
@@ -1158,7 +1181,7 @@ class TourMember extends DataClass implements Insertable<TourMember> {
 
   @override
   int get hashCode =>
-      Object.hash(tourId, userId, mealCount, leftAt, status, isSynced);
+      Object.hash(tourId, userId, mealCount, leftAt, status, role, isSynced);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1168,6 +1191,7 @@ class TourMember extends DataClass implements Insertable<TourMember> {
           other.mealCount == this.mealCount &&
           other.leftAt == this.leftAt &&
           other.status == this.status &&
+          other.role == this.role &&
           other.isSynced == this.isSynced);
 }
 
@@ -1177,6 +1201,7 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
   final Value<double> mealCount;
   final Value<DateTime?> leftAt;
   final Value<String> status;
+  final Value<String> role;
   final Value<bool> isSynced;
   final Value<int> rowid;
   const TourMembersCompanion({
@@ -1185,6 +1210,7 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
     this.mealCount = const Value.absent(),
     this.leftAt = const Value.absent(),
     this.status = const Value.absent(),
+    this.role = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -1194,6 +1220,7 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
     this.mealCount = const Value.absent(),
     this.leftAt = const Value.absent(),
     this.status = const Value.absent(),
+    this.role = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : tourId = Value(tourId),
@@ -1204,6 +1231,7 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
     Expression<double>? mealCount,
     Expression<DateTime>? leftAt,
     Expression<String>? status,
+    Expression<String>? role,
     Expression<bool>? isSynced,
     Expression<int>? rowid,
   }) {
@@ -1213,6 +1241,7 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
       if (mealCount != null) 'meal_count': mealCount,
       if (leftAt != null) 'left_at': leftAt,
       if (status != null) 'status': status,
+      if (role != null) 'role': role,
       if (isSynced != null) 'is_synced': isSynced,
       if (rowid != null) 'rowid': rowid,
     });
@@ -1224,6 +1253,7 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
       Value<double>? mealCount,
       Value<DateTime?>? leftAt,
       Value<String>? status,
+      Value<String>? role,
       Value<bool>? isSynced,
       Value<int>? rowid}) {
     return TourMembersCompanion(
@@ -1232,6 +1262,7 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
       mealCount: mealCount ?? this.mealCount,
       leftAt: leftAt ?? this.leftAt,
       status: status ?? this.status,
+      role: role ?? this.role,
       isSynced: isSynced ?? this.isSynced,
       rowid: rowid ?? this.rowid,
     );
@@ -1255,6 +1286,9 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
     if (status.present) {
       map['status'] = Variable<String>(status.value);
     }
+    if (role.present) {
+      map['role'] = Variable<String>(role.value);
+    }
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
@@ -1272,6 +1306,7 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
           ..write('mealCount: $mealCount, ')
           ..write('leftAt: $leftAt, ')
           ..write('status: $status, ')
+          ..write('role: $role, ')
           ..write('isSynced: $isSynced, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -3741,6 +3776,356 @@ class SyncMetadataCompanion extends UpdateCompanion<SyncMetadataData> {
   }
 }
 
+class $JoinRequestsTable extends JoinRequests
+    with TableInfo<$JoinRequestsTable, JoinRequest> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $JoinRequestsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tourIdMeta = const VerificationMeta('tourId');
+  @override
+  late final GeneratedColumn<String> tourId = GeneratedColumn<String>(
+      'tour_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES tours (id)'));
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+      'user_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES users (id)'));
+  static const VerificationMeta _userNameMeta =
+      const VerificationMeta('userName');
+  @override
+  late final GeneratedColumn<String> userName = GeneratedColumn<String>(
+      'user_name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('pending'));
+  static const VerificationMeta _isSyncedMeta =
+      const VerificationMeta('isSynced');
+  @override
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+      'is_synced', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, tourId, userId, userName, status, isSynced];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'join_requests';
+  @override
+  VerificationContext validateIntegrity(Insertable<JoinRequest> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('tour_id')) {
+      context.handle(_tourIdMeta,
+          tourId.isAcceptableOrUnknown(data['tour_id']!, _tourIdMeta));
+    } else if (isInserting) {
+      context.missing(_tourIdMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(_userIdMeta,
+          userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta));
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('user_name')) {
+      context.handle(_userNameMeta,
+          userName.isAcceptableOrUnknown(data['user_name']!, _userNameMeta));
+    } else if (isInserting) {
+      context.missing(_userNameMeta);
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(_isSyncedMeta,
+          isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  JoinRequest map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return JoinRequest(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      tourId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tour_id'])!,
+      userId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}user_id'])!,
+      userName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}user_name'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      isSynced: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+    );
+  }
+
+  @override
+  $JoinRequestsTable createAlias(String alias) {
+    return $JoinRequestsTable(attachedDatabase, alias);
+  }
+}
+
+class JoinRequest extends DataClass implements Insertable<JoinRequest> {
+  final String id;
+  final String tourId;
+  final String userId;
+  final String userName;
+  final String status;
+  final bool isSynced;
+  const JoinRequest(
+      {required this.id,
+      required this.tourId,
+      required this.userId,
+      required this.userName,
+      required this.status,
+      required this.isSynced});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['tour_id'] = Variable<String>(tourId);
+    map['user_id'] = Variable<String>(userId);
+    map['user_name'] = Variable<String>(userName);
+    map['status'] = Variable<String>(status);
+    map['is_synced'] = Variable<bool>(isSynced);
+    return map;
+  }
+
+  JoinRequestsCompanion toCompanion(bool nullToAbsent) {
+    return JoinRequestsCompanion(
+      id: Value(id),
+      tourId: Value(tourId),
+      userId: Value(userId),
+      userName: Value(userName),
+      status: Value(status),
+      isSynced: Value(isSynced),
+    );
+  }
+
+  factory JoinRequest.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return JoinRequest(
+      id: serializer.fromJson<String>(json['id']),
+      tourId: serializer.fromJson<String>(json['tourId']),
+      userId: serializer.fromJson<String>(json['userId']),
+      userName: serializer.fromJson<String>(json['userName']),
+      status: serializer.fromJson<String>(json['status']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'tourId': serializer.toJson<String>(tourId),
+      'userId': serializer.toJson<String>(userId),
+      'userName': serializer.toJson<String>(userName),
+      'status': serializer.toJson<String>(status),
+      'isSynced': serializer.toJson<bool>(isSynced),
+    };
+  }
+
+  JoinRequest copyWith(
+          {String? id,
+          String? tourId,
+          String? userId,
+          String? userName,
+          String? status,
+          bool? isSynced}) =>
+      JoinRequest(
+        id: id ?? this.id,
+        tourId: tourId ?? this.tourId,
+        userId: userId ?? this.userId,
+        userName: userName ?? this.userName,
+        status: status ?? this.status,
+        isSynced: isSynced ?? this.isSynced,
+      );
+  JoinRequest copyWithCompanion(JoinRequestsCompanion data) {
+    return JoinRequest(
+      id: data.id.present ? data.id.value : this.id,
+      tourId: data.tourId.present ? data.tourId.value : this.tourId,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      userName: data.userName.present ? data.userName.value : this.userName,
+      status: data.status.present ? data.status.value : this.status,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('JoinRequest(')
+          ..write('id: $id, ')
+          ..write('tourId: $tourId, ')
+          ..write('userId: $userId, ')
+          ..write('userName: $userName, ')
+          ..write('status: $status, ')
+          ..write('isSynced: $isSynced')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, tourId, userId, userName, status, isSynced);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is JoinRequest &&
+          other.id == this.id &&
+          other.tourId == this.tourId &&
+          other.userId == this.userId &&
+          other.userName == this.userName &&
+          other.status == this.status &&
+          other.isSynced == this.isSynced);
+}
+
+class JoinRequestsCompanion extends UpdateCompanion<JoinRequest> {
+  final Value<String> id;
+  final Value<String> tourId;
+  final Value<String> userId;
+  final Value<String> userName;
+  final Value<String> status;
+  final Value<bool> isSynced;
+  final Value<int> rowid;
+  const JoinRequestsCompanion({
+    this.id = const Value.absent(),
+    this.tourId = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.userName = const Value.absent(),
+    this.status = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  JoinRequestsCompanion.insert({
+    required String id,
+    required String tourId,
+    required String userId,
+    required String userName,
+    this.status = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        tourId = Value(tourId),
+        userId = Value(userId),
+        userName = Value(userName);
+  static Insertable<JoinRequest> custom({
+    Expression<String>? id,
+    Expression<String>? tourId,
+    Expression<String>? userId,
+    Expression<String>? userName,
+    Expression<String>? status,
+    Expression<bool>? isSynced,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (tourId != null) 'tour_id': tourId,
+      if (userId != null) 'user_id': userId,
+      if (userName != null) 'user_name': userName,
+      if (status != null) 'status': status,
+      if (isSynced != null) 'is_synced': isSynced,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  JoinRequestsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? tourId,
+      Value<String>? userId,
+      Value<String>? userName,
+      Value<String>? status,
+      Value<bool>? isSynced,
+      Value<int>? rowid}) {
+    return JoinRequestsCompanion(
+      id: id ?? this.id,
+      tourId: tourId ?? this.tourId,
+      userId: userId ?? this.userId,
+      userName: userName ?? this.userName,
+      status: status ?? this.status,
+      isSynced: isSynced ?? this.isSynced,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (tourId.present) {
+      map['tour_id'] = Variable<String>(tourId.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (userName.present) {
+      map['user_name'] = Variable<String>(userName.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('JoinRequestsCompanion(')
+          ..write('id: $id, ')
+          ..write('tourId: $tourId, ')
+          ..write('userId: $userId, ')
+          ..write('userName: $userName, ')
+          ..write('status: $status, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3754,6 +4139,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ProgramIncomesTable programIncomes = $ProgramIncomesTable(this);
   late final $MealRecordsTable mealRecords = $MealRecordsTable(this);
   late final $SyncMetadataTable syncMetadata = $SyncMetadataTable(this);
+  late final $JoinRequestsTable joinRequests = $JoinRequestsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3768,7 +4154,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         settlements,
         programIncomes,
         mealRecords,
-        syncMetadata
+        syncMetadata,
+        joinRequests
       ];
 }
 
@@ -3884,6 +4271,20 @@ final class $$UsersTableReferences
         .filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_mealRecordsRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+
+  static MultiTypedResultKey<$JoinRequestsTable, List<JoinRequest>>
+      _joinRequestsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+          db.joinRequests,
+          aliasName: $_aliasNameGenerator(db.users.id, db.joinRequests.userId));
+
+  $$JoinRequestsTableProcessedTableManager get joinRequestsRefs {
+    final manager = $$JoinRequestsTableTableManager($_db, $_db.joinRequests)
+        .filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_joinRequestsRefsTable($_db));
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: cache));
   }
@@ -4042,6 +4443,27 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
             $$MealRecordsTableFilterComposer(
               $db: $db,
               $table: $db.mealRecords,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> joinRequestsRefs(
+      Expression<bool> Function($$JoinRequestsTableFilterComposer f) f) {
+    final $$JoinRequestsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.joinRequests,
+        getReferencedColumn: (t) => t.userId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$JoinRequestsTableFilterComposer(
+              $db: $db,
+              $table: $db.joinRequests,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -4249,6 +4671,27 @@ class $$UsersTableAnnotationComposer
             ));
     return f(composer);
   }
+
+  Expression<T> joinRequestsRefs<T extends Object>(
+      Expression<T> Function($$JoinRequestsTableAnnotationComposer a) f) {
+    final $$JoinRequestsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.joinRequests,
+        getReferencedColumn: (t) => t.userId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$JoinRequestsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.joinRequests,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
 }
 
 class $$UsersTableTableManager extends RootTableManager<
@@ -4268,7 +4711,8 @@ class $$UsersTableTableManager extends RootTableManager<
         bool expenseSplitsRefs,
         bool expensePayersRefs,
         bool programIncomesRefs,
-        bool mealRecordsRefs})> {
+        bool mealRecordsRefs,
+        bool joinRequestsRefs})> {
   $$UsersTableTableManager(_$AppDatabase db, $UsersTable table)
       : super(TableManagerState(
           db: db,
@@ -4337,7 +4781,8 @@ class $$UsersTableTableManager extends RootTableManager<
               expenseSplitsRefs = false,
               expensePayersRefs = false,
               programIncomesRefs = false,
-              mealRecordsRefs = false}) {
+              mealRecordsRefs = false,
+              joinRequestsRefs = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [
@@ -4346,7 +4791,8 @@ class $$UsersTableTableManager extends RootTableManager<
                 if (expenseSplitsRefs) db.expenseSplits,
                 if (expensePayersRefs) db.expensePayers,
                 if (programIncomesRefs) db.programIncomes,
-                if (mealRecordsRefs) db.mealRecords
+                if (mealRecordsRefs) db.mealRecords,
+                if (joinRequestsRefs) db.joinRequests
               ],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
@@ -4421,6 +4867,18 @@ class $$UsersTableTableManager extends RootTableManager<
                         referencedItemsForCurrentItem: (item,
                                 referencedItems) =>
                             referencedItems.where((e) => e.userId == item.id),
+                        typedResults: items),
+                  if (joinRequestsRefs)
+                    await $_getPrefetchedData<User, $UsersTable, JoinRequest>(
+                        currentTable: table,
+                        referencedTable:
+                            $$UsersTableReferences._joinRequestsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$UsersTableReferences(db, table, p0)
+                                .joinRequestsRefs,
+                        referencedItemsForCurrentItem: (item,
+                                referencedItems) =>
+                            referencedItems.where((e) => e.userId == item.id),
                         typedResults: items)
                 ];
               },
@@ -4446,7 +4904,8 @@ typedef $$UsersTableProcessedTableManager = ProcessedTableManager<
         bool expenseSplitsRefs,
         bool expensePayersRefs,
         bool programIncomesRefs,
-        bool mealRecordsRefs})>;
+        bool mealRecordsRefs,
+        bool joinRequestsRefs})>;
 typedef $$ToursTableCreateCompanionBuilder = ToursCompanion Function({
   required String id,
   required String name,
@@ -4543,6 +5002,20 @@ final class $$ToursTableReferences
         .filter((f) => f.tourId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_mealRecordsRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+
+  static MultiTypedResultKey<$JoinRequestsTable, List<JoinRequest>>
+      _joinRequestsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+          db.joinRequests,
+          aliasName: $_aliasNameGenerator(db.tours.id, db.joinRequests.tourId));
+
+  $$JoinRequestsTableProcessedTableManager get joinRequestsRefs {
+    final manager = $$JoinRequestsTableTableManager($_db, $_db.joinRequests)
+        .filter((f) => f.tourId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_joinRequestsRefsTable($_db));
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: cache));
   }
@@ -4680,6 +5153,27 @@ class $$ToursTableFilterComposer extends Composer<_$AppDatabase, $ToursTable> {
             $$MealRecordsTableFilterComposer(
               $db: $db,
               $table: $db.mealRecords,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> joinRequestsRefs(
+      Expression<bool> Function($$JoinRequestsTableFilterComposer f) f) {
+    final $$JoinRequestsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.joinRequests,
+        getReferencedColumn: (t) => t.tourId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$JoinRequestsTableFilterComposer(
+              $db: $db,
+              $table: $db.joinRequests,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -4866,6 +5360,27 @@ class $$ToursTableAnnotationComposer
             ));
     return f(composer);
   }
+
+  Expression<T> joinRequestsRefs<T extends Object>(
+      Expression<T> Function($$JoinRequestsTableAnnotationComposer a) f) {
+    final $$JoinRequestsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.joinRequests,
+        getReferencedColumn: (t) => t.tourId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$JoinRequestsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.joinRequests,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
 }
 
 class $$ToursTableTableManager extends RootTableManager<
@@ -4884,7 +5399,8 @@ class $$ToursTableTableManager extends RootTableManager<
         bool expensesRefs,
         bool settlementsRefs,
         bool programIncomesRefs,
-        bool mealRecordsRefs})> {
+        bool mealRecordsRefs,
+        bool joinRequestsRefs})> {
   $$ToursTableTableManager(_$AppDatabase db, $ToursTable table)
       : super(TableManagerState(
           db: db,
@@ -4952,7 +5468,8 @@ class $$ToursTableTableManager extends RootTableManager<
               expensesRefs = false,
               settlementsRefs = false,
               programIncomesRefs = false,
-              mealRecordsRefs = false}) {
+              mealRecordsRefs = false,
+              joinRequestsRefs = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [
@@ -4960,7 +5477,8 @@ class $$ToursTableTableManager extends RootTableManager<
                 if (expensesRefs) db.expenses,
                 if (settlementsRefs) db.settlements,
                 if (programIncomesRefs) db.programIncomes,
-                if (mealRecordsRefs) db.mealRecords
+                if (mealRecordsRefs) db.mealRecords,
+                if (joinRequestsRefs) db.joinRequests
               ],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
@@ -5023,6 +5541,18 @@ class $$ToursTableTableManager extends RootTableManager<
                         referencedItemsForCurrentItem: (item,
                                 referencedItems) =>
                             referencedItems.where((e) => e.tourId == item.id),
+                        typedResults: items),
+                  if (joinRequestsRefs)
+                    await $_getPrefetchedData<Tour, $ToursTable, JoinRequest>(
+                        currentTable: table,
+                        referencedTable:
+                            $$ToursTableReferences._joinRequestsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$ToursTableReferences(db, table, p0)
+                                .joinRequestsRefs,
+                        referencedItemsForCurrentItem: (item,
+                                referencedItems) =>
+                            referencedItems.where((e) => e.tourId == item.id),
                         typedResults: items)
                 ];
               },
@@ -5047,7 +5577,8 @@ typedef $$ToursTableProcessedTableManager = ProcessedTableManager<
         bool expensesRefs,
         bool settlementsRefs,
         bool programIncomesRefs,
-        bool mealRecordsRefs})>;
+        bool mealRecordsRefs,
+        bool joinRequestsRefs})>;
 typedef $$TourMembersTableCreateCompanionBuilder = TourMembersCompanion
     Function({
   required String tourId,
@@ -5055,6 +5586,7 @@ typedef $$TourMembersTableCreateCompanionBuilder = TourMembersCompanion
   Value<double> mealCount,
   Value<DateTime?> leftAt,
   Value<String> status,
+  Value<String> role,
   Value<bool> isSynced,
   Value<int> rowid,
 });
@@ -5065,6 +5597,7 @@ typedef $$TourMembersTableUpdateCompanionBuilder = TourMembersCompanion
   Value<double> mealCount,
   Value<DateTime?> leftAt,
   Value<String> status,
+  Value<String> role,
   Value<bool> isSynced,
   Value<int> rowid,
 });
@@ -5119,6 +5652,9 @@ class $$TourMembersTableFilterComposer
 
   ColumnFilters<String> get status => $composableBuilder(
       column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get role => $composableBuilder(
+      column: $table.role, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
@@ -5182,6 +5718,9 @@ class $$TourMembersTableOrderingComposer
   ColumnOrderings<String> get status => $composableBuilder(
       column: $table.status, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get role => $composableBuilder(
+      column: $table.role, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
 
@@ -5243,6 +5782,9 @@ class $$TourMembersTableAnnotationComposer
 
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get role =>
+      $composableBuilder(column: $table.role, builder: (column) => column);
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
@@ -5316,6 +5858,7 @@ class $$TourMembersTableTableManager extends RootTableManager<
             Value<double> mealCount = const Value.absent(),
             Value<DateTime?> leftAt = const Value.absent(),
             Value<String> status = const Value.absent(),
+            Value<String> role = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -5325,6 +5868,7 @@ class $$TourMembersTableTableManager extends RootTableManager<
             mealCount: mealCount,
             leftAt: leftAt,
             status: status,
+            role: role,
             isSynced: isSynced,
             rowid: rowid,
           ),
@@ -5334,6 +5878,7 @@ class $$TourMembersTableTableManager extends RootTableManager<
             Value<double> mealCount = const Value.absent(),
             Value<DateTime?> leftAt = const Value.absent(),
             Value<String> status = const Value.absent(),
+            Value<String> role = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -5343,6 +5888,7 @@ class $$TourMembersTableTableManager extends RootTableManager<
             mealCount: mealCount,
             leftAt: leftAt,
             status: status,
+            role: role,
             isSynced: isSynced,
             rowid: rowid,
           ),
@@ -8020,6 +8566,370 @@ typedef $$SyncMetadataTableProcessedTableManager = ProcessedTableManager<
     ),
     SyncMetadataData,
     PrefetchHooks Function()>;
+typedef $$JoinRequestsTableCreateCompanionBuilder = JoinRequestsCompanion
+    Function({
+  required String id,
+  required String tourId,
+  required String userId,
+  required String userName,
+  Value<String> status,
+  Value<bool> isSynced,
+  Value<int> rowid,
+});
+typedef $$JoinRequestsTableUpdateCompanionBuilder = JoinRequestsCompanion
+    Function({
+  Value<String> id,
+  Value<String> tourId,
+  Value<String> userId,
+  Value<String> userName,
+  Value<String> status,
+  Value<bool> isSynced,
+  Value<int> rowid,
+});
+
+final class $$JoinRequestsTableReferences
+    extends BaseReferences<_$AppDatabase, $JoinRequestsTable, JoinRequest> {
+  $$JoinRequestsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $ToursTable _tourIdTable(_$AppDatabase db) => db.tours
+      .createAlias($_aliasNameGenerator(db.joinRequests.tourId, db.tours.id));
+
+  $$ToursTableProcessedTableManager get tourId {
+    final $_column = $_itemColumn<String>('tour_id')!;
+
+    final manager = $$ToursTableTableManager($_db, $_db.tours)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_tourIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static $UsersTable _userIdTable(_$AppDatabase db) => db.users
+      .createAlias($_aliasNameGenerator(db.joinRequests.userId, db.users.id));
+
+  $$UsersTableProcessedTableManager get userId {
+    final $_column = $_itemColumn<String>('user_id')!;
+
+    final manager = $$UsersTableTableManager($_db, $_db.users)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_userIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+}
+
+class $$JoinRequestsTableFilterComposer
+    extends Composer<_$AppDatabase, $JoinRequestsTable> {
+  $$JoinRequestsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get userName => $composableBuilder(
+      column: $table.userName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isSynced => $composableBuilder(
+      column: $table.isSynced, builder: (column) => ColumnFilters(column));
+
+  $$ToursTableFilterComposer get tourId {
+    final $$ToursTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.tourId,
+        referencedTable: $db.tours,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ToursTableFilterComposer(
+              $db: $db,
+              $table: $db.tours,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$UsersTableFilterComposer get userId {
+    final $$UsersTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.userId,
+        referencedTable: $db.users,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$UsersTableFilterComposer(
+              $db: $db,
+              $table: $db.users,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$JoinRequestsTableOrderingComposer
+    extends Composer<_$AppDatabase, $JoinRequestsTable> {
+  $$JoinRequestsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get userName => $composableBuilder(
+      column: $table.userName, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isSynced => $composableBuilder(
+      column: $table.isSynced, builder: (column) => ColumnOrderings(column));
+
+  $$ToursTableOrderingComposer get tourId {
+    final $$ToursTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.tourId,
+        referencedTable: $db.tours,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ToursTableOrderingComposer(
+              $db: $db,
+              $table: $db.tours,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$UsersTableOrderingComposer get userId {
+    final $$UsersTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.userId,
+        referencedTable: $db.users,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$UsersTableOrderingComposer(
+              $db: $db,
+              $table: $db.users,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$JoinRequestsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $JoinRequestsTable> {
+  $$JoinRequestsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userName =>
+      $composableBuilder(column: $table.userName, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  $$ToursTableAnnotationComposer get tourId {
+    final $$ToursTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.tourId,
+        referencedTable: $db.tours,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ToursTableAnnotationComposer(
+              $db: $db,
+              $table: $db.tours,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$UsersTableAnnotationComposer get userId {
+    final $$UsersTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.userId,
+        referencedTable: $db.users,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$UsersTableAnnotationComposer(
+              $db: $db,
+              $table: $db.users,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$JoinRequestsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $JoinRequestsTable,
+    JoinRequest,
+    $$JoinRequestsTableFilterComposer,
+    $$JoinRequestsTableOrderingComposer,
+    $$JoinRequestsTableAnnotationComposer,
+    $$JoinRequestsTableCreateCompanionBuilder,
+    $$JoinRequestsTableUpdateCompanionBuilder,
+    (JoinRequest, $$JoinRequestsTableReferences),
+    JoinRequest,
+    PrefetchHooks Function({bool tourId, bool userId})> {
+  $$JoinRequestsTableTableManager(_$AppDatabase db, $JoinRequestsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$JoinRequestsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$JoinRequestsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$JoinRequestsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> tourId = const Value.absent(),
+            Value<String> userId = const Value.absent(),
+            Value<String> userName = const Value.absent(),
+            Value<String> status = const Value.absent(),
+            Value<bool> isSynced = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              JoinRequestsCompanion(
+            id: id,
+            tourId: tourId,
+            userId: userId,
+            userName: userName,
+            status: status,
+            isSynced: isSynced,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String tourId,
+            required String userId,
+            required String userName,
+            Value<String> status = const Value.absent(),
+            Value<bool> isSynced = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              JoinRequestsCompanion.insert(
+            id: id,
+            tourId: tourId,
+            userId: userId,
+            userName: userName,
+            status: status,
+            isSynced: isSynced,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable(table),
+                    $$JoinRequestsTableReferences(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: ({tourId = false, userId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (tourId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.tourId,
+                    referencedTable:
+                        $$JoinRequestsTableReferences._tourIdTable(db),
+                    referencedColumn:
+                        $$JoinRequestsTableReferences._tourIdTable(db).id,
+                  ) as T;
+                }
+                if (userId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.userId,
+                    referencedTable:
+                        $$JoinRequestsTableReferences._userIdTable(db),
+                    referencedColumn:
+                        $$JoinRequestsTableReferences._userIdTable(db).id,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$JoinRequestsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $JoinRequestsTable,
+    JoinRequest,
+    $$JoinRequestsTableFilterComposer,
+    $$JoinRequestsTableOrderingComposer,
+    $$JoinRequestsTableAnnotationComposer,
+    $$JoinRequestsTableCreateCompanionBuilder,
+    $$JoinRequestsTableUpdateCompanionBuilder,
+    (JoinRequest, $$JoinRequestsTableReferences),
+    JoinRequest,
+    PrefetchHooks Function({bool tourId, bool userId})>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -8044,4 +8954,6 @@ class $AppDatabaseManager {
       $$MealRecordsTableTableManager(_db, _db.mealRecords);
   $$SyncMetadataTableTableManager get syncMetadata =>
       $$SyncMetadataTableTableManager(_db, _db.syncMetadata);
+  $$JoinRequestsTableTableManager get joinRequests =>
+      $$JoinRequestsTableTableManager(_db, _db.joinRequests);
 }

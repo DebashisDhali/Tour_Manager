@@ -38,21 +38,21 @@ exports.syncData = async (req, res) => {
         // Ensure creators are members (for tours created offline)
         const creatorMemberships = tours
           .filter(t => t.createdBy)
-          .map(t => ({ tour_id: t.id, user_id: t.createdBy, status: 'active', joined_at: now, updated_at: now }));
+          .map(t => ({ 
+            tour_id: t.id, 
+            user_id: t.createdBy, 
+            status: 'active', 
+            role: 'admin', // Owner should be admin
+            joined_at: now, 
+            updated_at: now 
+          }));
         
         if (creatorMemberships.length > 0) {
-           await TourMember.bulkCreate(creatorMemberships, { transaction, ignoreDuplicates: true });
+           await TourMember.bulkCreate(creatorMemberships, { transaction, ignoreDuplicates: true, updateOnDuplicate: ['role'] });
         }
       }
 
       if (expenses?.length > 0) {
-        const expenseIds = expenses.map(e => e.id);
-        // Optimize: Don't destroy if we can bulkCreate with updateOnDuplicate? 
-        // Splits/Payers don't have updateOnDuplicate for non-PK keys in many dialects.
-        // Keeping destroy for now but doing it in one shot
-        await ExpenseSplit.destroy({ where: { expense_id: expenseIds }, transaction });
-        await ExpensePayer.destroy({ where: { expense_id: expenseIds }, transaction });
-        
         await Expense.bulkCreate(expenses.map(e => ({
           id: e.id, tour_id: e.tourId, payer_id: e.payerId || null, amount: e.amount,
           title: e.title, category: e.category, mess_cost_type: e.messCostType, date: e.createdAt, updated_at: now

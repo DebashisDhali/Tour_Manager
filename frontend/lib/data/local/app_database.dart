@@ -41,6 +41,7 @@ class TourMembers extends Table {
   RealColumn get mealCount => real().withDefault(const Constant(0.0))(); // For Mess sessions
   DateTimeColumn get leftAt => dateTime().nullable()();
   TextColumn get status => text().withDefault(const Constant('active'))();
+  TextColumn get role => text().withDefault(const Constant('editor'))(); // 'admin', 'editor', 'viewer'
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
   
   @override
@@ -123,6 +124,18 @@ class MealRecords extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+class JoinRequests extends Table {
+  TextColumn get id => text()();
+  TextColumn get tourId => text().references(Tours, #id)();
+  TextColumn get userId => text().references(Users, #id)();
+  TextColumn get userName => text()();
+  TextColumn get status => text().withDefault(const Constant('pending'))(); // pending, approved, rejected
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 class SyncMetadata extends Table {
   TextColumn get key => text()();
   TextColumn get value => text()();
@@ -130,12 +143,12 @@ class SyncMetadata extends Table {
   Set<Column> get primaryKey => {key};
 }
 
-@DriftDatabase(tables: [Users, Tours, TourMembers, Expenses, ExpenseSplits, ExpensePayers, Settlements, ProgramIncomes, MealRecords, SyncMetadata])
+@DriftDatabase(tables: [Users, Tours, TourMembers, Expenses, ExpenseSplits, ExpensePayers, Settlements, ProgramIncomes, MealRecords, SyncMetadata, JoinRequests])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(connect());
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -192,6 +205,12 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 16) {
         await m.createTable(syncMetadata);
+      }
+      if (from < 17) {
+        await m.addColumn(tourMembers, tourMembers.role);
+      }
+      if (from < 18) {
+        await m.createTable(joinRequests);
       }
     },
   );
@@ -318,7 +337,11 @@ class AppDatabase extends _$AppDatabase {
   Future<void> markExpensePayerSynced(String id) => (update(expensePayers)..where((t) => t.id.equals(id))).write(ExpensePayersCompanion(isSynced: Value(true)));
   Future<void> markSettlementSynced(String id) => (update(settlements)..where((t) => t.id.equals(id))).write(SettlementsCompanion(isSynced: Value(true)));
   Future<void> markProgramIncomeSynced(String id) => (update(programIncomes)..where((t) => t.id.equals(id))).write(ProgramIncomesCompanion(isSynced: Value(true)));
+  Future<void> markJoinRequestSynced(String id) => (update(joinRequests)..where((t) => t.id.equals(id))).write(JoinRequestsCompanion(isSynced: const Value(true)));
   
+  Future<List<JoinRequest>> getUnsyncedJoinRequests() => (select(joinRequests)..where((t) => t.isSynced.equals(false))).get();
+  Future<List<JoinRequest>> getJoinRequestsByTour(String tourId) => (select(joinRequests)..where((t) => t.tourId.equals(tourId))).get();
+
   Future<void> markMemberAsLeft(String tourId, String userId) {
     return (update(tourMembers)
       ..where((t) => t.tourId.equals(tourId) & t.userId.equals(userId))
@@ -343,6 +366,12 @@ class AppDatabase extends _$AppDatabase {
     return (update(tourMembers)
       ..where((t) => t.tourId.equals(tourId) & t.userId.equals(userId))
     ).write(TourMembersCompanion(mealCount: Value(count), isSynced: const Value(false)));
+  }
+
+  Future<void> updateMemberRole(String tourId, String userId, String role) {
+    return (update(tourMembers)
+      ..where((t) => t.tourId.equals(tourId) & t.userId.equals(userId))
+    ).write(TourMembersCompanion(role: Value(role), isSynced: const Value(false)));
   }
 
   // Meal Records

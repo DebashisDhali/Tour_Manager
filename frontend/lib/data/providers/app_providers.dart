@@ -34,7 +34,19 @@ final dioProvider = Provider<Dio>((ref) {
 final authServiceProvider = Provider<AuthService>((ref) {
   final db = ref.watch(databaseProvider);
   final dio = Dio(); // Separate Dio for auth to avoid circular dependency or use base dio if safe
-  return AuthService(dio, db, 'https://tourmanager-production-fbbd.up.railway.app');
+  // TODO: Replace with your actual Vercel link below
+  // Use your real Vercel URL for production
+  String baseUrl = 'https://tour-manager-navy.vercel.app';
+  if (kDebugMode) {
+     if (kIsWeb) baseUrl = 'http://127.0.0.1:3000';
+     else {
+        try {
+           if (Platform.isAndroid) baseUrl = 'http://10.0.2.2:3000';
+           else baseUrl = 'http://localhost:3000';
+        } catch (e) { baseUrl = 'http://localhost:3000'; }
+     }
+  }
+  return AuthService(dio, db, baseUrl);
 });
 
 final syncServiceProvider = Provider<SyncService>((ref) {
@@ -66,9 +78,10 @@ final userListProvider = StreamProvider.autoDispose<List<User>>((ref) {
 class MemberWithStatus {
   final User user;
   final String status;
+  final String role;
   final DateTime? leftAt;
   final double mealCount;
-  MemberWithStatus(this.user, this.status, this.leftAt, {this.mealCount = 0.0});
+  MemberWithStatus(this.user, this.status, this.role, this.leftAt, {this.mealCount = 0.0});
 }
 
 final tourMembersProvider = StreamProvider.family.autoDispose<List<MemberWithStatus>, String>((ref, tourId) {
@@ -82,6 +95,7 @@ final tourMembersProvider = StreamProvider.family.autoDispose<List<MemberWithSta
     return MemberWithStatus(
       row.readTable(db.users),
       m.status,
+      m.role,
       m.leftAt,
       mealCount: m.mealCount,
     );

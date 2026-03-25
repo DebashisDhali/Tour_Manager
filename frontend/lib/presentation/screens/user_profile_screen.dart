@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../data/local/app_database.dart';
 import 'package:frontend/data/providers/app_providers.dart';
+import 'package:frontend/data/providers/theme_provider.dart';
 import 'welcome_screen.dart';
 
 class UserProfileScreen extends ConsumerStatefulWidget {
@@ -197,7 +198,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             const SizedBox(height: 8),
             Text(
               _emailController.text.isNotEmpty ? _emailController.text : "No email added",
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
             ),
           ] else
             const Text("Editing Profile", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal)),
@@ -216,7 +217,28 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         _buildDetailItem(Icons.email_outlined, "Email", _emailController.text.isNotEmpty ? _emailController.text : "Not provided"),
         _buildDetailItem(Icons.badge_outlined, "User ID", widget.user.id),
         _buildDetailItem(Icons.sync, "Sync Status", widget.user.isSynced ? "Synced with Cloud" : "Local Only"),
-        const SizedBox(height: 40),
+        
+        if (widget.isMe) ...[
+          const SizedBox(height: 24),
+          const Text("Preferences", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              ref.watch(themeProvider) == ThemeMode.dark ? Icons.dark_mode : Icons.light_mode,
+              color: Theme.of(context).primaryColor,
+            ),
+            title: const Text("Dark Theme", style: TextStyle(fontWeight: FontWeight.w500)),
+            subtitle: Text("Currently: ${ref.watch(themeProvider).name.toUpperCase()}"),
+            trailing: Switch(
+              value: ref.watch(themeProvider) == ThemeMode.dark,
+              onChanged: (val) {
+                ref.read(themeProvider.notifier).setTheme(val ? ThemeMode.dark : ThemeMode.light);
+              },
+            ),
+          ),
+        ],
+        const SizedBox(height: 32),
         const SizedBox(height: 24),
         if (widget.isMe) ...[
           SizedBox(

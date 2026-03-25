@@ -5,12 +5,20 @@ import 'presentation/screens/tour_list_screen.dart';
 import 'presentation/screens/welcome_screen.dart';
 import 'presentation/screens/onboarding_screen.dart';
 import 'data/providers/app_providers.dart';
+import 'presentation/widgets/sync_handler.dart';
+
+import 'data/providers/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final prefs = await SharedPreferences.getInstance();
+  
   runApp(
-    const ProviderScope(
-      child: MyApp(),
+    ProviderScope(
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(prefs),
+      ],
+      child: const MyApp(),
     ),
   );
 }
@@ -21,10 +29,13 @@ class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(currentUserProvider);
+    final themeMode = ref.watch(themeProvider);
 
-    return MaterialApp(
+    return SyncHandler(
+      child: MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Tour Manager',
+      title: 'Manager',
+      themeMode: themeMode,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
@@ -61,6 +72,40 @@ class MyApp extends ConsumerWidget {
         ),
         fontFamily: 'Roboto',
       ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        primaryColor: const Color(0xFF818CF8),
+        scaffoldBackgroundColor: const Color(0xFF0F172A),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF818CF8),
+          brightness: Brightness.dark,
+          primary: const Color(0xFF818CF8),
+          secondary: const Color(0xFF38BDF8),
+          surface: const Color(0xFF1E293B),
+        ),
+        appBarTheme: const AppBarTheme(
+          elevation: 0,
+          centerTitle: true,
+          backgroundColor: Color(0xFF1E293B),
+          foregroundColor: Colors.white,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: const Color(0xFF1E293B),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+          enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+          focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide:
+                  const BorderSide(color: Color(0xFF818CF8), width: 2)),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        ),
+        fontFamily: 'Roboto',
+      ),
       home: userAsync.when(
         data: (user) {
           if (user != null) return const TourListScreen();
@@ -70,6 +115,7 @@ class MyApp extends ConsumerWidget {
             const Scaffold(body: Center(child: CircularProgressIndicator())),
         error: (e, s) => Scaffold(body: Center(child: Text("Error: $e"))),
       ),
+    ),
     );
   }
 }

@@ -32,6 +32,10 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> {
           );
 
       ref.invalidate(currentUserProvider);
+      final newUser = await ref.read(currentUserProvider.future);
+      if (newUser != null) {
+        await ref.read(syncServiceProvider).startSync(newUser.id).catchError((e) => debugPrint("Final Sync failed: $e"));
+      }
       
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(

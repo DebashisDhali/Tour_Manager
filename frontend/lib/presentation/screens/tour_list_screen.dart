@@ -127,7 +127,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                 title: Column(
                   children: [
                      Text(config.pluralLabel, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, letterSpacing: -0.5)),
-                     Text(syncDisplay, style: TextStyle(fontSize: 10, color: Colors.black54, fontWeight: FontWeight.w600)),
+                     Text(syncDisplay, style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), fontWeight: FontWeight.w600)),
                   ],
                 ),
                 bottom: TabBar(
@@ -136,7 +136,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                   indicatorWeight: 3,
                   indicatorColor: config.color,
                   labelColor: config.color,
-                  unselectedLabelColor: Colors.black54,
+                  unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
                   labelStyle: const TextStyle(fontWeight: FontWeight.bold),
                   tabs: [
                     Tab(text: 'Activity Feed'),
@@ -144,6 +144,12 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                   ],
                 ),
                 actions: [
+                  IconButton(
+                    key: _joinCodeKey,
+                    onPressed: () => _showJoinDialog(context, config),
+                    icon: const Icon(Icons.qr_code_scanner_rounded),
+                    tooltip: 'Join with Code',
+                  ),
                   IconButton(
                     key: _syncKey,
                     onPressed: () => _syncData(context),
@@ -210,10 +216,11 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.history_toggle_off_rounded, size: 80, color: Colors.black26),
+                Icon(Icons.history_toggle_off_rounded, size: 80, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1)),
                 const SizedBox(height: 16),
-                const Text("No Recent Activity", style: TextStyle(fontSize: 18, color: Colors.black54, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 12),
+                const Text("No Recent Activity", style: TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.bold)),
+                if (items.isEmpty) ...[
+                const SizedBox(height: 24),
                 OutlinedButton.icon(
                   key: _joinCodeKey,
                   onPressed: () => _showJoinDialog(context, config),
@@ -225,6 +232,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 )
+                ],
               ],
             ),
           );
@@ -261,12 +269,12 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                         const SizedBox(height: 2),
                         Text(
                           "${item.type == 'expense' ? 'Paid by' : 'By'} ${item.user?.name ?? 'Someone'} • ${item.tour.name}", 
-                          style: TextStyle(color: Colors.black.withOpacity(0.7), fontSize: 10, fontWeight: FontWeight.w600)
+                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), fontSize: 10, fontWeight: FontWeight.w600)
                         ),
                         const SizedBox(height: 2),
                         Text(
                           DateFormat('MMM dd, hh:mm a').format(item.date), 
-                          style: const TextStyle(fontSize: 9, color: Colors.black45, fontWeight: FontWeight.w600)
+                          style: TextStyle(fontSize: 9, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4), fontWeight: FontWeight.w600)
                         ),
                       ],
                     ),
@@ -377,9 +385,30 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                       ),
                       child: Icon(tourConfig.icon, color: Colors.white, size: 22),
                     ),
-                    title: Text(
-                      tour.name, 
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: -0.5)
+                    title: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            tour.name, 
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (!tour.isSynced)
+                          Container(
+                            margin: const EdgeInsets.only(left: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(color: Colors.amber.withOpacity(0.1), borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.amber.withOpacity(0.3))),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.cloud_off_rounded, color: Colors.amber, size: 8),
+                                SizedBox(width: 4),
+                                Text("LOCAL", style: TextStyle(color: Colors.amber, fontSize: 7, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                          ),
+                      ],
                     ),
                     subtitle: Padding(
                       padding: const EdgeInsets.only(top: 2),
@@ -391,7 +420,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                             tour.startDate == null 
                               ? "Active ${tourConfig.label}" 
                               : DateFormat('MMM dd, yyyy').format(tour.startDate!),
-                            style: TextStyle(color: Colors.black.withOpacity(0.7), fontSize: 11, fontWeight: FontWeight.w600),
+                            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), fontSize: 11, fontWeight: FontWeight.w600),
                           ),
                         ],
                       ),
@@ -448,7 +477,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
       children: [
         Icon(icon, size: 12, color: color),
         const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.black.withOpacity(0.7))),
+        Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7))),
       ],
     );
   }
@@ -510,9 +539,9 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
               bottom: MediaQuery.of(context).viewInsets.bottom,
             ),
             child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
               ),
               padding: const EdgeInsets.all(32),
               child: Column(
@@ -524,7 +553,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                       width: 40, 
                       height: 5, 
                       margin: const EdgeInsets.only(bottom: 24),
-                      decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(10))
+                      decoration: BoxDecoration(color: Theme.of(context).dividerColor.withOpacity(0.1), borderRadius: BorderRadius.circular(10))
                     )
                   ),
                   Text(
@@ -535,7 +564,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'Enter the 6-digit code shared by your host',
-                    style: TextStyle(color: Colors.black54, fontSize: 15),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), fontSize: 15),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 32),
@@ -548,7 +577,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                     maxLength: 6,
                     decoration: InputDecoration(
                         hintText: 'CODE',
-                        hintStyle: TextStyle(color: Colors.black12, letterSpacing: 4),
+                        hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1), letterSpacing: 4),
                         fillColor: config.color.withOpacity(0.05),
                         filled: true,
                         counterText: "",
@@ -564,7 +593,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                         suffixIcon: Padding(
                           padding: const EdgeInsets.only(right: 8.0),
                           child: CircleAvatar(
-                            backgroundColor: Colors.white,
+                            backgroundColor: Theme.of(context).colorScheme.surface,
                             child: IconButton(
                               icon: Icon(Icons.paste_rounded, color: config.color, size: 20),
                               onPressed: isLoading ? null : () async {
@@ -606,24 +635,72 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                         
                         try {
                           final user = await ref.read(currentUserProvider.future);
-                          if (user != null) {
-                            await ref.read(syncServiceProvider).joinByInvite(
-                              code,
-                              user.id,
-                              user.name,
-                              email: user.email,
-                              avatarUrl: user.avatarUrl,
-                              purpose: user.purpose,
+                          if (user == null) return;
+
+                          // Try to Find first to see if it's restricted
+                          final tour = await ref.read(syncServiceProvider).findTourByCode(code);
+                          if (tour == null) {
+                            setState(() => errorText = "Tour not found");
+                            return;
+                          }
+
+                          // Show Search Results
+                          if (context.mounted) {
+                            final proceed = await showDialog<bool>(
+                              context: context,
+                              builder: (c) => AlertDialog(
+                                title: const Text("Tour Found!"),
+                                content: Text("Do you want to join '${tour['name']}'?"),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("Cancel")),
+                                  FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text("Join Now")),
+                                ],
+                              )
                             );
-                            ref.invalidate(tourListProvider);
-                            if (context.mounted) Navigator.pop(context);
+
+                            if (proceed == true) {
+                               await ref.read(syncServiceProvider).joinByInvite(
+                                code,
+                                user.id,
+                                user.name,
+                                email: user.email,
+                                avatarUrl: user.avatarUrl,
+                                purpose: user.purpose,
+                              );
+                              ref.invalidate(tourListProvider);
+                              if (context.mounted) Navigator.pop(context);
+                            }
                           }
                         } catch (e) {
-                           setState(() {
-                             String msg = e.toString().replaceAll("Exception:", "").trim();
-                             if (msg.contains("404")) msg = "Invalid Code";
-                             errorText = msg;
-                           });
+                           String msg = e.toString().contains("403") ? "Request Needed" : e.toString();
+                           if (msg.contains("Request Needed")) {
+                             // Offer Request flow
+                             if (context.mounted) {
+                                final tour = await ref.read(syncServiceProvider).findTourByCode(code);
+                                if (tour != null) {
+                                   final req = await showDialog<bool>(
+                                     context: context,
+                                     builder: (c) => AlertDialog(
+                                       title: const Text("Restricted Tour"),
+                                       content: Text("'${tour['name']}' is private. Send a join request?"),
+                                       actions: [
+                                         TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("No")),
+                                         FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text("Send Request")),
+                                       ],
+                                     )
+                                   );
+                                   if (req == true) {
+                                      await ref.read(syncServiceProvider).requestToJoin(tour['id']);
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Request sent to Admin")));
+                                        Navigator.pop(context);
+                                      }
+                                      return;
+                                   }
+                                }
+                             }
+                           }
+                           setState(() => errorText = msg.replaceAll("Exception:", "").trim());
                         } finally {
                           if (mounted) setState(() => isLoading = false);
                         }

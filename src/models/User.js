@@ -43,7 +43,9 @@ module.exports = (sequelize) => {
     createdAt: 'created_at',
     updatedAt: 'updated_at',
     indexes: [
-      { fields: ['updated_at'] }
+      { fields: ['updated_at'] },
+      { fields: ['phone'] },
+      { fields: ['email'] }
     ]
   });
 };

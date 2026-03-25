@@ -22,9 +22,12 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _inviteCodeController = TextEditingController();
   String _selectedPurpose = 'project'; 
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   @override
   void initState() {
@@ -38,6 +41,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose();
     _inviteCodeController.dispose();
     super.dispose();
   }
@@ -50,31 +54,28 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final db = ref.read(databaseProvider);
-      final userId = const Uuid().v4();
-      
-      final newUser = User(
-        id: userId,
-        name: _nameController.text.trim(),
-        purpose: _selectedPurpose, // Always use selected purpose, even when joining
-        isMe: true,
-        isSynced: false,
-        updatedAt: DateTime.now(),
+      // 1. Register on Server first to get token
+      await ref.read(authServiceProvider).register(
+        _nameController.text.trim(),
+        _emailController.text.trim(),
+        _phoneController.text.trim(),
+        _passwordController.text.trim(),
       );
 
-      await db.createUser(newUser);
+      // 2. Get the newly created user (AuthService._saveAuthData saves it locally with isMe: true)
+      final currentUser = await ref.read(currentUserProvider.future);
+      if (currentUser == null) throw Exception("Failed to retrieve profile after registration.");
       
-      // Force riverpod to pick up the new user immediately
-      ref.invalidate(currentUserProvider);
-      await ref.read(currentUserProvider.future);
-      
-      // If there's an invite code, join immediately
+      // 3. Sync profile metadata
+      await ref.read(syncServiceProvider).startSync(currentUser.id).catchError((e) => debugPrint("Profile Sync failed: $e"));
+
+      // 4. If there's an invite code, join immediately
       if (enteredInviteCode.isNotEmpty) {
         await ref.read(syncServiceProvider).joinByInvite(
           enteredInviteCode,
-          userId,
-          _nameController.text.trim(),
-          email: _emailController.text.trim(),
+          currentUser.id,
+          currentUser.name,
+          email: currentUser.email,
           purpose: _selectedPurpose,
         );
       }
@@ -88,7 +89,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: ${e.toString()}"), backgroundColor: Colors.red),
+          SnackBar(content: Text("Error: ${e.toString().replaceAll('Exception: ', '')}"), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -182,11 +183,31 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                               keyboardType: TextInputType.emailAddress,
                               validator: (v) => v == null || v.isEmpty ? "Required" : null,
                             ),
+                            const SizedBox(height: 16),
+                            _buildTextField(
+                              controller: _phoneController,
+                              label: "Phone Number (Searchable)",
+                              icon: Icons.phone_rounded,
+                              keyboardType: TextInputType.phone,
+                              validator: (v) => v == null || v.isEmpty ? "Required" : null,
+                            ),
+                            const SizedBox(height: 16),
+                            _buildTextField(
+                              controller: _passwordController,
+                              label: "Password",
+                              icon: Icons.lock_rounded,
+                              obscureText: _obscurePassword,
+                              suffixIcon: IconButton(
+                                icon: Icon(_obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded),
+                                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                              ),
+                              validator: (v) => v != null && v.length < 6 ? "Min 6 characters" : (v == null || v.isEmpty ? "Required" : null),
+                            ),
                             
                             const SizedBox(height: 32),
-                            const Text(
+                            Text(
                               "What's the occasion?",
-                              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.black87),
+                              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8)),
                             ),
                             const SizedBox(height: 16),
                             
@@ -200,16 +221,16 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                               ),
                             ),
                             
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 24),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 24),
                               child: Row(
                                 children: [
-                                  Expanded(child: Divider()),
+                                  const Expanded(child: Divider()),
                                   Padding(
-                                    padding: EdgeInsets.symmetric(horizontal: 16),
-                                    child: Text("OR JOIN", style: TextStyle(color: Colors.black45, fontSize: 10, fontWeight: FontWeight.w800)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                                    child: Text("OR JOIN", style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4), fontSize: 10, fontWeight: FontWeight.w800)),
                                   ),
-                                  Expanded(child: Divider()),
+                                  const Expanded(child: Divider()),
                                 ],
                               ),
                             ),
@@ -281,6 +302,8 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     bool filled = false,
     Color? fillColor,
     Color? borderColor,
+    bool obscureText = false,
+    Widget? suffixIcon,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
     Function(String)? onChanged,
@@ -289,6 +312,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
       controller: controller,
       maxLength: maxLength,
       keyboardType: keyboardType,
+      obscureText: obscureText,
       onChanged: onChanged,
       validator: validator,
       style: const TextStyle(fontWeight: FontWeight.w600),
@@ -296,11 +320,12 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
         labelText: label,
         hintText: hint,
         prefixIcon: Icon(icon, size: 22),
+        suffixIcon: suffixIcon,
         filled: filled,
         fillColor: fillColor,
         counterText: "",
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.black12)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: borderColor ?? Colors.black12)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 2)),
         floatingLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
       ),
@@ -323,18 +348,18 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
         decoration: BoxDecoration(
           color: isSelected ? config.color : Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? Colors.transparent : Colors.black12),
+          border: Border.all(color: isSelected ? Colors.transparent : (Theme.of(context).brightness == Brightness.dark ? Colors.white12 : Colors.black12)),
           boxShadow: isSelected ? [BoxShadow(color: config.color.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 5))] : null,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(config.icon, color: isSelected ? Colors.white : Colors.black54, size: 28),
+            Icon(config.icon, color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface.withOpacity(0.6), size: 28),
             const SizedBox(height: 8),
             Text(
               config.name,
               style: TextStyle(
-                color: isSelected ? Colors.white : Colors.black.withOpacity(0.7),
+                color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
               ),

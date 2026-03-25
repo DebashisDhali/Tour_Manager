@@ -126,7 +126,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             return Scaffold(
               appBar: AppBar(
                 title: Text(widget.initialExpense == null ? config.addExpenseLabel : "Edit Details", style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: -0.5)),
-                backgroundColor: Colors.transparent,
+                backgroundColor: config.color,
                 elevation: 0,
                 flexibleSpace: Container(decoration: BoxDecoration(gradient: config.gradient)),
                 foregroundColor: Colors.white,
@@ -179,7 +179,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                   if (n.isNotEmpty) setState(() => _messCostType = n.first);
                                 },
                                 style: SegmentedButton.styleFrom(
-                                  backgroundColor: Colors.white,
+                                  backgroundColor: Theme.of(context).colorScheme.surface,
                                   selectedBackgroundColor: config.color,
                                   selectedForegroundColor: Colors.white,
                                   side: BorderSide(color: config.color.withOpacity(0.2)),
@@ -265,7 +265,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                               children: members.where((m) => m.status.toLowerCase().trim() == 'active' || _involvedMemberIds.contains(m.user.id)).map((m) {
                                 final isSelected = _involvedMemberIds.contains(m.user.id);
                                 return FilterChip(
-                                  label: Text(m.user.name, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : Colors.black87)),
+                                  label: Text(m.user.name, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface)),
                                   selected: isSelected,
                                   onSelected: (v) {
                                     setState(() {
@@ -368,7 +368,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           Text(title.toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: color, letterSpacing: 1.2)),
           Row(
             children: [
-              Text(switchLabel, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black38)),
+              Text(switchLabel, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3))),
               const SizedBox(width: 8),
               SizedBox(
                 height: 24,

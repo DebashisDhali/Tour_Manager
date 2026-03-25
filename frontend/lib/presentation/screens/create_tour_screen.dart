@@ -103,6 +103,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                tourId: tourId,
                userId: currentUser.id,
                status: 'active',
+               role: 'admin',
                mealCount: 0.0,
                isSynced: false
            ));
@@ -121,6 +122,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                tourId: tourId,
                userId: memberId,
                status: 'active',
+               role: 'editor',
                mealCount: 0.0,
                isSynced: false,
              ));
@@ -149,6 +151,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                tourId: widget.initialTour!.id,
                userId: memberId,
                status: 'active',
+               role: 'editor',
                mealCount: 0.0,
                isSynced: false,
              ));
@@ -172,6 +175,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.initialTour == null ? 'Create ${config.label}' : 'Edit ${config.label}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+        backgroundColor: config.color,
         flexibleSpace: Container(decoration: BoxDecoration(gradient: config.gradient)),
         foregroundColor: Colors.white,
       ),

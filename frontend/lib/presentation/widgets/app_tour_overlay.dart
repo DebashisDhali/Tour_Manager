@@ -423,53 +423,55 @@ class _SpotlightPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Semi-transparent dark overlay
-    final bgPaint = Paint()..color = const Color(0xCC0F172A);
-    canvas.drawRect(Offset.zero & size, bgPaint);
-
-    if (targetRect != null) {
-      final pulse = pulseAnimation.value;
-      final expandedRect = targetRect!.inflate(8 + pulse);
-      final radius = Radius.circular(16);
-
-      // Cut out the spotlight area
-      final path = Path.combine(
-        PathOperation.difference,
-        Path()..addRect(Offset.zero & size),
-        Path()
-          ..addRRect(RRect.fromRectAndRadius(expandedRect, radius))
-          ..close(),
-      );
-      canvas.drawPath(path, bgPaint);
-
-      // Draw the transparent spotlight area (cuts through the dark)
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(expandedRect, radius),
-        Paint()
-          ..blendMode = BlendMode.clear,
-      );
-
-      // Glowing border around target
-      final glowPaint = Paint()
-        ..color = accentColor.withOpacity(0.6 - pulse * 0.03)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.0
-        ..maskFilter = const MaskFilter.blur(BlurStyle.outer, 8);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(expandedRect, radius),
-        glowPaint,
-      );
-
-      // Solid border
-      final borderPaint = Paint()
-        ..color = accentColor.withOpacity(0.8)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5;
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(expandedRect, radius),
-        borderPaint,
-      );
+    if (targetRect == null) {
+      // Semi-transparent dark overlay for the whole screen
+      canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xCC0F172A));
+      return;
     }
+
+    final pulse = pulseAnimation.value;
+    final expandedRect = targetRect!.inflate(8 + pulse);
+    final radius = Radius.circular(16);
+
+    // Create a new layer to handle blending correctly
+    canvas.saveLayer(Offset.zero & size, Paint());
+
+    // 1. Draw the dark overlay on the entire screen
+    canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xCC0F172A));
+
+    // 2. Cut out the hole for the spotlight using BlendMode.clear
+    final holeRRect = RRect.fromRectAndRadius(expandedRect, radius);
+    canvas.drawRRect(holeRRect, Paint()..blendMode = BlendMode.clear);
+
+    // 3. Draw a VERY slight tint inside the hole to make it feel special (optional premium touch)
+    canvas.drawRRect(
+      holeRRect, 
+      Paint()..color = accentColor.withOpacity(0.05)
+    );
+
+    canvas.restore();
+
+    // 4. Glowing border around target
+    final glowPaint = Paint()
+      ..color = accentColor.withOpacity(0.6 - pulse * 0.03)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5
+      ..maskFilter = const MaskFilter.blur(BlurStyle.outer, 12);
+    canvas.drawRRect(holeRRect, glowPaint);
+
+    // 5. Solid sharp border
+    final borderPaint = Paint()
+      ..color = accentColor.withOpacity(0.9)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    canvas.drawRRect(holeRRect, borderPaint);
+
+    // 6. Optional: Subtle inner glow to guide the eye
+    final innerGlowPaint = Paint()
+      ..color = accentColor.withOpacity(0.1)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+    canvas.drawRRect(holeRRect.deflate(2), innerGlowPaint);
   }
 
   @override

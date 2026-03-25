@@ -23,6 +23,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
   final _phoneController = TextEditingController();
   final _searchController = TextEditingController();
   List<dynamic> _searchResults = [];
+  final Set<Map<String, dynamic>> _selectedUsers = {};
   bool _isLoading = false;
   bool _isSearching = false;
 
@@ -41,50 +42,73 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
     }
     setState(() => _isSearching = true);
     final syncService = ref.read(syncServiceProvider);
-    final results = await syncService.searchUsers(query);
-    if (mounted) {
-      setState(() {
-        _searchResults = results;
-        _isSearching = false;
-      });
+    try {
+      final results = await syncService.searchUsers(query);
+      if (mounted) {
+        setState(() {
+          _searchResults = results;
+          _isSearching = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isSearching = false);
     }
   }
 
-  Future<void> _addExistingUser(dynamic user) async {
+  void _toggleUserSelection(dynamic user) {
+    setState(() {
+      final userData = Map<String, dynamic>.from(user);
+      final exists = _selectedUsers.any((u) => u['id'] == userData['id']);
+      if (exists) {
+        _selectedUsers.removeWhere((u) => u['id'] == userData['id']);
+      } else {
+        _selectedUsers.add(userData);
+      }
+    });
+  }
+
+  Future<void> _addSelectedUsers() async {
+    if (_selectedUsers.isEmpty) return;
+    
     setState(() => _isLoading = true);
+    final db = ref.read(databaseProvider);
+    final syncService = ref.read(syncServiceProvider);
+    int count = 0;
+
     try {
-      final syncService = ref.read(syncServiceProvider);
-      await syncService.addMemberToTour(widget.tourId, user['id']);
-      
-      // Also add found user locally to avoid broken relationships before sync
-      final db = ref.read(databaseProvider);
-      await db.createUser(User(
-        id: user['id'],
-        name: user['name'],
-        phone: user['phone'],
-        isMe: false,
-        isSynced: true,
-        updatedAt: DateTime.now(),
-      ));
-      
-      await db.into(db.tourMembers).insert(TourMember(
-        tourId: widget.tourId,
-        userId: user['id'],
-        status: 'active',
-        mealCount: 0.0,
-        isSynced: true,
-      ), mode: InsertMode.insertOrReplace);
+      for (var user in _selectedUsers) {
+        try {
+          // 1. Add locally
+          await db.createUser(User(
+            id: user['id'],
+            name: user['name'],
+            phone: user['phone'],
+            isMe: false,
+            isSynced: true,
+            updatedAt: DateTime.now(),
+          ));
+          
+          await db.into(db.tourMembers).insert(TourMember(
+            tourId: widget.tourId,
+            userId: user['id'],
+            status: 'active',
+            role: 'editor',
+            mealCount: 0.0,
+            isSynced: true,
+          ), mode: InsertMode.insertOrReplace);
+
+          // 2. Add to server
+          await syncService.addMemberToTour(widget.tourId, user['id']);
+          count++;
+        } catch (e) {
+          debugPrint("Failed to add user ${user['name']}: $e");
+        }
+      }
 
       if (mounted) {
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${user['name']} added to tour!')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Added $count ${count == 1 ? 'member' : 'members'} successfully!')),
         );
       }
     } finally {
@@ -92,7 +116,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
     }
   }
 
-  Future<void> _addMember() async {
+  Future<void> _addMemberManually() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       try {
@@ -114,6 +138,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
           tourId: widget.tourId,
           userId: userId,
           status: 'active',
+          role: 'editor',
           mealCount: 0.0,
           isSynced: false,
         ));
@@ -142,116 +167,161 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
     final config = PurposeConfig.getConfig(tourAsync.value?.purpose);
 
     return AlertDialog(
-      title: Text('Add ${config.memberLabel}'),
+      title: Row(
+        children: [
+          Icon(Icons.person_add_rounded, color: config.color),
+          const SizedBox(width: 12),
+          Text('Add ${config.memberLabel}'),
+        ],
+      ),
       content: SizedBox(
-        width: double.maxFinite,
+        width: MediaQuery.of(context).size.width * 0.9,
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Search Bar
-              const Text("Search Global Users", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
-              const SizedBox(height: 8),
+              // Search Section
+              const Text("SEARCH GLOBAL PROFILES", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Colors.grey, letterSpacing: 1)),
+              const SizedBox(height: 12),
               TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
-                  hintText: 'Search by Name or Phone...',
+                  hintText: 'Name or Phone number...',
+                  filled: true,
+                  fillColor: Colors.grey.withOpacity(0.05),
                   isDense: true,
-                  prefixIcon: const Icon(Icons.search, size: 20),
+                  prefixIcon: Icon(Icons.search, size: 20, color: config.color),
                   suffixIcon: _isSearching 
                       ? const SizedBox(width: 16, height: 16, child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2)))
                       : IconButton(icon: const Icon(Icons.arrow_forward), onPressed: () => _searchUsers(_searchController.text)),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 ),
                 onSubmitted: _searchUsers,
               ),
+
               if (_searchResults.isNotEmpty) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Container(
-                  constraints: const BoxConstraints(maxHeight: 150),
+                  constraints: const BoxConstraints(maxHeight: 250),
                   decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(10),
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
                   ),
                   child: ListView.separated(
                     shrinkWrap: true,
+                    physics: const BouncingScrollPhysics(),
                     itemCount: _searchResults.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, __) => Divider(height: 1, color: Theme.of(context).dividerColor.withOpacity(0.1)),
                     itemBuilder: (context, index) {
                       final u = _searchResults[index];
+                      final isSelected = _selectedUsers.any((selected) => selected['id'] == u['id']);
+                      
                       return ListTile(
+                        onTap: () => _toggleUserSelection(u),
                         dense: true,
+                        leading: CircleAvatar(
+                          backgroundColor: isSelected ? config.color : config.color.withOpacity(0.1),
+                          child: isSelected 
+                            ? const Icon(Icons.check, color: Colors.white, size: 16)
+                            : Text(u['name'][0].toUpperCase(), style: TextStyle(color: config.color, fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
                         title: Text(u['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(u['phone'] ?? u['email'] ?? 'No contact info'),
-                        trailing: IconButton(
-                          icon: Icon(Icons.person_add_alt_1, color: config.color),
-                          onPressed: () => _addExistingUser(u),
+                        subtitle: Text(u['phone'] ?? u['email'] ?? 'No contact info', style: const TextStyle(fontSize: 10)),
+                        trailing: Checkbox(
+                          value: isSelected,
+                          activeColor: config.color,
+                          shape: const CircleBorder(),
+                          onChanged: (_) => _toggleUserSelection(u),
                         ),
                       );
                     },
                   ),
                 ),
               ],
-              const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 16),
 
-              // Option 1: Invite Code
+              if (_selectedUsers.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: config.color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      Text("${_selectedUsers.length} selected", style: TextStyle(fontWeight: FontWeight.bold, color: config.color)),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () => setState(() => _selectedUsers.clear()),
+                        child: const Text("Clear All", style: TextStyle(color: Colors.red, fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: FilledButton.icon(
+                    onPressed: _isLoading ? null : _addSelectedUsers,
+                    icon: const Icon(Icons.person_add_rounded, size: 18),
+                    label: Text("Add ${_selectedUsers.length} ${config.memberLabel}s"),
+                    style: FilledButton.styleFrom(backgroundColor: config.color, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  ),
+                ),
+              ],
+
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                child: Row(
+                  children: [
+                    const Expanded(child: Divider()),
+                    Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text("OR", style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4), fontWeight: FontWeight.bold))),
+                    const Expanded(child: Divider()),
+                  ],
+                ),
+              ),
+
+              // Invite Code Section
               tourAsync.maybeWhen(
                 data: (tour) => tour.inviteCode != null ? Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Share Invite Code", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: config.color)),
-                    const SizedBox(height: 8),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: config.color.withOpacity(0.05),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: config.color.withOpacity(0.1)),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(tour.inviteCode!, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 2)),
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: Icon(Icons.copy, size: 20, color: config.color),
-                                onPressed: () {
-                                  Clipboard.setData(ClipboardData(text: tour.inviteCode!));
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Code copied to clipboard!'), duration: Duration(seconds: 2)),
-                                  );
-                                },
-                                tooltip: 'Copy Code',
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.share, size: 20, color: config.color),
-                                onPressed: () {
-                                  final text = "Join my ${config.label.toLowerCase()} on Group Ledger! Code: ${tour.inviteCode}\n\nDownload the app to manage expenses together.";
-                                  Share.share(text);
-                                },
-                                tooltip: 'Share Code',
-                              ),
-                            ],
-                          )
-                        ],
+                    const Text("SHARE INVITE CODE", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Colors.grey, letterSpacing: 1)),
+                    const SizedBox(height: 12),
+                    InkWell(
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: tour.inviteCode!));
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code copied!')));
+                      },
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: config.color.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: config.color.withOpacity(0.1)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(tour.inviteCode!, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 4)),
+                            Icon(Icons.copy_all_rounded, color: config.color, size: 20),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    const Center(child: Text("OR", style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold))),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 24),
                   ],
                 ) : const SizedBox.shrink(),
                 orElse: () => const SizedBox.shrink(),
               ),
 
-              // Option 2: Manual Form
-              const Text("Add Manually", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
-              const SizedBox(height: 8),
+              // Manual Section
+              const Text("ADD MANUALLY", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Colors.grey, letterSpacing: 1)),
+              const SizedBox(height: 12),
               Form(
                 key: _formKey,
                 child: Column(
@@ -260,25 +330,42 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                       controller: _nameController,
                       decoration: InputDecoration(
                         labelText: 'Name',
-                        hintText: 'e.g. Abir Hossain',
                         isDense: true,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                        prefixIcon: const Icon(Icons.person, size: 20),
+                        filled: true,
+                        fillColor: Colors.grey.withOpacity(0.05),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        prefixIcon: const Icon(Icons.person_outline, size: 20),
                       ),
                       validator: (v) => v == null || v.isEmpty ? 'Required' : null,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     TextFormField(
                       controller: _phoneController,
                       decoration: InputDecoration(
                         labelText: 'Phone (Optional)',
                         isDense: true,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                        prefixIcon: const Icon(Icons.phone, size: 20),
+                        filled: true,
+                        fillColor: Colors.grey.withOpacity(0.05),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        prefixIcon: const Icon(Icons.phone_outlined, size: 20),
                       ),
                       keyboardType: TextInputType.phone,
                     ),
                   ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: OutlinedButton(
+                  onPressed: _isLoading ? null : _addMemberManually,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: config.color,
+                    side: BorderSide(color: config.color),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Add Manually', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -288,14 +375,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
       actions: [
         TextButton(
           onPressed: _isLoading ? null : () => Navigator.pop(context),
-          child: const Text('Close'),
-        ),
-        FilledButton(
-          onPressed: _isLoading ? null : _addMember,
-          style: FilledButton.styleFrom(backgroundColor: config.color),
-          child: _isLoading
-              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Add Manually'),
+          child: const Text('Cancel'),
         ),
       ],
     );
