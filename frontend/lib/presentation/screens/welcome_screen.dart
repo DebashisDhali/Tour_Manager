@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
-import '../../data/local/app_database.dart';
 import 'package:frontend/data/providers/app_providers.dart';
 import '../widgets/premium_card.dart';
-import '../../domain/logic/purpose_config.dart';
 import 'tour_list_screen.dart';
 import 'login_screen.dart';
 
@@ -25,7 +21,6 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _inviteCodeController = TextEditingController();
-  String _selectedPurpose = 'project'; 
   bool _isLoading = false;
   bool _obscurePassword = true;
 
@@ -76,7 +71,6 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
           currentUser.id,
           currentUser.name,
           email: currentUser.email,
-          purpose: _selectedPurpose,
         );
       }
       
@@ -99,15 +93,20 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final activeConfig = PurposeConfig.getConfig(_selectedPurpose);
+    const primaryColor = Color(0xFF6366F1); // Fixed indigo
 
     return Scaffold(
       body: Stack(
         children: [
           // Background Gradient
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 500),
-            decoration: BoxDecoration(gradient: activeConfig.gradient),
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF4F46E5), Color(0xFF7C3AED)],
+              ),
+            ),
           ),
           
           SafeArea(
@@ -205,41 +204,12 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                             ),
                             
                             const SizedBox(height: 32),
-                            Text(
-                              "What's the occasion?",
-                              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.8)),
-                            ),
-                            const SizedBox(height: 16),
-                            
-                            // Purpose Selection
-                            SizedBox(
-                              height: 90,
-                              child: ListView.builder(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: PurposeConfig.allConfigs.length,
-                                itemBuilder: (context, index) => _buildPurposeItem(PurposeConfig.allConfigs[index]),
-                              ),
-                            ),
-                            
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 24),
-                              child: Row(
-                                children: [
-                                  const Expanded(child: Divider()),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                                    child: Text("OR JOIN", style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4), fontSize: 10, fontWeight: FontWeight.w800)),
-                                  ),
-                                  const Expanded(child: Divider()),
-                                ],
-                              ),
-                            ),
                             
                             _buildTextField(
                               controller: _inviteCodeController,
-                              label: "Invite Code",
+                              label: "Invite Code (Optional)",
                               icon: Icons.qr_code_rounded,
-                              hint: "ABC-123",
+                              hint: "ABC123",
                               maxLength: 6,
                               filled: true,
                               fillColor: activeConfig.color.withOpacity(0.05),
@@ -255,10 +225,9 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                               child: FilledButton(
                                 onPressed: _isLoading ? null : _createProfile,
                                 style: FilledButton.styleFrom(
-                                  backgroundColor: activeConfig.color,
+                                  backgroundColor: primaryColor,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                                   elevation: 8,
-                                  shadowColor: activeConfig.shadowColor,
                                 ),
                                 child: _isLoading 
                                   ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
@@ -273,9 +242,9 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                             Center(
                               child: TextButton(
                                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
-                                child: Text(
+                                child: const Text(
                                   "Already have an account? Sign In",
-                                  style: TextStyle(color: activeConfig.color, fontWeight: FontWeight.w700),
+                                  style: TextStyle(color: primaryColor, fontWeight: FontWeight.w700),
                                 ),
                               ),
                             ),
@@ -329,44 +298,8 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 2)),
         floatingLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
       ),
-      textCapitalization: label == "Invite Code" ? TextCapitalization.characters : TextCapitalization.none,
-      inputFormatters: label == "Invite Code" ? [FilteringTextInputFormatter.allow(RegExp(r'[A-Z0-9-]'))] : null,
-    );
-  }
-
-  Widget _buildPurposeItem(PurposeConfig config) {
-    bool isSelected = _selectedPurpose == config.id;
-    return GestureDetector(
-      onTap: () => setState(() {
-        _selectedPurpose = config.id;
-        _inviteCodeController.clear();
-      }),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        width: 80,
-        margin: const EdgeInsets.only(right: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? config.color : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? Colors.transparent : (Theme.of(context).brightness == Brightness.dark ? Colors.white12 : Colors.black12)),
-          boxShadow: isSelected ? [BoxShadow(color: config.color.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 5))] : null,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(config.icon, color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface.withOpacity(0.6), size: 28),
-            const SizedBox(height: 8),
-            Text(
-              config.name,
-              style: TextStyle(
-                color: isSelected ? Colors.white : Theme.of(context).colorScheme.onSurface.withOpacity(0.8),
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
+      textCapitalization: label == "Invite Code (Optional)" ? TextCapitalization.characters : TextCapitalization.none,
+      inputFormatters: label == "Invite Code (Optional)" ? [FilteringTextInputFormatter.allow(RegExp(r'[A-Z0-9]'))] : null,
     );
   }
 }
