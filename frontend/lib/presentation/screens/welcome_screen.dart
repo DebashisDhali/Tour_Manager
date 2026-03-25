@@ -163,16 +163,25 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Text(
-                              "Get Started",
-                              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                              "Create Your Account",
+                              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.5),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              "All fields below are required",
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
                             ),
                             const SizedBox(height: 24),
                             
                             _buildTextField(
                               controller: _nameController,
-                              label: "Your Name",
+                              label: "Full Name",
                               icon: Icons.person_rounded,
-                              validator: (v) => v == null || v.isEmpty ? "Required" : null,
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) return "Name is required";
+                                if (v.trim().length < 2) return "Name must be at least 2 characters";
+                                return null;
+                              },
                             ),
                             const SizedBox(height: 16),
                             _buildTextField(
@@ -180,15 +189,25 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                               label: "Email Address",
                               icon: Icons.email_rounded,
                               keyboardType: TextInputType.emailAddress,
-                              validator: (v) => v == null || v.isEmpty ? "Required" : null,
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) return "Email is required";
+                                if (!RegExp(r'^[\w\.-]+@[\w\.-]+\.\w{2,}$').hasMatch(v.trim())) {
+                                  return "Enter a valid email (e.g. name@gmail.com)";
+                                }
+                                return null;
+                              },
                             ),
                             const SizedBox(height: 16),
                             _buildTextField(
                               controller: _phoneController,
-                              label: "Phone Number (Searchable)",
+                              label: "Phone Number",
                               icon: Icons.phone_rounded,
                               keyboardType: TextInputType.phone,
-                              validator: (v) => v == null || v.isEmpty ? "Required" : null,
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) return "Phone number is required";
+                                if (v.trim().length < 10) return "Enter a valid phone number (min 10 digits)";
+                                return null;
+                              },
                             ),
                             const SizedBox(height: 16),
                             _buildTextField(
@@ -200,7 +219,11 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                                 icon: Icon(_obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded),
                                 onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                               ),
-                              validator: (v) => v != null && v.length < 6 ? "Min 6 characters" : (v == null || v.isEmpty ? "Required" : null),
+                              validator: (v) {
+                                if (v == null || v.isEmpty) return "Password is required";
+                                if (v.length < 6) return "Password must be at least 6 characters";
+                                return null;
+                              },
                             ),
                             
                             const SizedBox(height: 32),
@@ -212,8 +235,8 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                               hint: "ABC123",
                               maxLength: 6,
                               filled: true,
-                              fillColor: activeConfig.color.withOpacity(0.05),
-                              borderColor: activeConfig.color.withOpacity(0.1),
+                              fillColor: const Color(0xFF6366F1).withOpacity(0.05),
+                              borderColor: const Color(0xFF6366F1).withOpacity(0.1),
                               onChanged: (v) => setState(() {}),
                             ),
 
