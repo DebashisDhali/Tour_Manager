@@ -11,6 +11,6 @@ router.get('/:id', auth, tourController.getTourDetails);
 router.post('/:tourId/add-member', auth, tourController.addMember);
 router.post('/delete', auth, tourController.deleteTour);
 router.post('/remove-member', auth, tourController.removeMember);
-
+router.patch('/:tourId/members/:userId/role', auth, tourController.updateMemberRole);
 
 module.exports = router;

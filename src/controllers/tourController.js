@@ -240,3 +240,31 @@ exports.addMember = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+exports.updateMemberRole = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { tourId, userId } = req.params;
+    const { role } = req.body; // 'admin', 'editor', 'viewer'
+    
+    // Authorization check could be added here (e.g., only admin can change)
+    // req.user has the current logged in user.
+    
+    const member = await TourMember.findOne({
+      where: { tour_id: tourId, user_id: userId },
+      transaction: t
+    });
+
+    if (!member) {
+      await t.rollback();
+      return res.status(404).json({ error: 'Member not found in this tour' });
+    }
+
+    await member.update({ role }, { transaction: t });
+    await t.commit();
+    res.json({ message: 'Role updated successfully', role });
+  } catch (err) {
+    if (t) await t.rollback();
+    res.status(500).json({ error: err.message });
+  }
+};
