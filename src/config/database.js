@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('pg'); // Explicitly require pg so Vercel does not exclude it from the build
 
 const config = process.env.DATABASE_URL 
   ? {
