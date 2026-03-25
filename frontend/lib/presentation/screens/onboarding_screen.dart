@@ -197,142 +197,152 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(32, 36, 32, 24),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Badge
-                        FadeTransition(
-                          opacity: _fadeAnim,
-                          child: SlideTransition(
-                            position: _slideAnim,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: page.indicatorColor.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                page.badge,
-                                style: TextStyle(
-                                    color: page.indicatorColor,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 12),
-                              ),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Badge
+                                FadeTransition(
+                                  opacity: _fadeAnim,
+                                  child: SlideTransition(
+                                    position: _slideAnim,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 14, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: page.indicatorColor.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Text(
+                                        page.badge,
+                                        style: TextStyle(
+                                            color: page.indicatorColor,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 12),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+        
+                                // Title
+                                FadeTransition(
+                                  opacity: _fadeAnim,
+                                  child: SlideTransition(
+                                    position: _slideAnim,
+                                    child: Text(
+                                      page.title,
+                                      style: const TextStyle(
+                                        fontSize: 30,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: -1,
+                                        color: Color(0xFF0F172A),
+                                        height: 1.15,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+        
+                                // Subtitle
+                                FadeTransition(
+                                  opacity: _fadeAnim,
+                                  child: Text(
+                                    page.subtitle,
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      color: Colors.black.withOpacity(0.55),
+                                      height: 1.6,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                              ],
                             ),
                           ),
                         ),
-                        const SizedBox(height: 16),
-
-                        // Title
-                        FadeTransition(
-                          opacity: _fadeAnim,
-                          child: SlideTransition(
-                            position: _slideAnim,
-                            child: Text(
-                              page.title,
-                              style: const TextStyle(
-                                fontSize: 30,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: -1,
-                                color: Color(0xFF0F172A),
-                                height: 1.15,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-
-                        // Subtitle
-                        FadeTransition(
-                          opacity: _fadeAnim,
-                          child: Text(
-                            page.subtitle,
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: Colors.black.withOpacity(0.55),
-                              height: 1.6,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-
-                        const Spacer(),
-
-                        // Dots + Next button
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            // Dots
-                            Row(
-                              children: List.generate(
-                                _pages.length,
-                                (i) => AnimatedContainer(
-                                  duration:
-                                      const Duration(milliseconds: 350),
-                                  margin:
-                                      const EdgeInsets.only(right: 8),
-                                  width: i == _currentPage ? 24 : 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: i == _currentPage
-                                        ? page.indicatorColor
-                                        : page.indicatorColor
-                                            .withOpacity(0.2),
-                                    borderRadius:
-                                        BorderRadius.circular(4),
+                        
+                        // Dots + Next button (Always visible at bottom)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              // Dots
+                              Row(
+                                children: List.generate(
+                                  _pages.length,
+                                  (i) => AnimatedContainer(
+                                    duration:
+                                        const Duration(milliseconds: 350),
+                                    margin:
+                                        const EdgeInsets.only(right: 8),
+                                    width: i == _currentPage ? 24 : 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: i == _currentPage
+                                          ? page.indicatorColor
+                                          : page.indicatorColor
+                                              .withOpacity(0.2),
+                                      borderRadius:
+                                          BorderRadius.circular(4),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-
-                            // Next / Get Started button
-                            GestureDetector(
-                              onTap: _nextPage,
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 350),
-                                padding: EdgeInsets.symmetric(
-                                  horizontal:
-                                      _currentPage == _pages.length - 1
-                                          ? 24
-                                          : 20,
-                                  vertical: 16,
-                                ),
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                      colors: page.gradientColors),
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: page.indicatorColor
-                                          .withOpacity(0.4),
-                                      blurRadius: 16,
-                                      offset: const Offset(0, 6),
-                                    )
-                                  ],
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      _currentPage == _pages.length - 1
-                                          ? 'Get Started'
-                                          : 'Next',
-                                      style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 15),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    const Icon(
-                                      Icons.arrow_forward_rounded,
-                                      color: Colors.white,
-                                      size: 18,
-                                    ),
-                                  ],
+        
+                              // Next / Get Started button
+                              GestureDetector(
+                                onTap: _nextPage,
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 350),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal:
+                                        _currentPage == _pages.length - 1
+                                            ? 24
+                                            : 20,
+                                    vertical: 16,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                        colors: page.gradientColors),
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: page.indicatorColor
+                                            .withOpacity(0.4),
+                                        blurRadius: 16,
+                                        offset: const Offset(0, 6),
+                                      )
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        _currentPage == _pages.length - 1
+                                            ? 'Get Started'
+                                            : 'Next',
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 15),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Icon(
+                                        Icons.arrow_forward_rounded,
+                                        color: Colors.white,
+                                        size: 18,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),
