@@ -526,10 +526,7 @@ class SyncService {
       
       String errorMsg = "Connection failed. ";
       if (e.type == DioExceptionType.connectionError) {
-        errorMsg += "Server unreachable on $baseUrl. ";
-        if (kDebugMode) {
-          errorMsg += "\nHints: \n1. Check if backend is running (npm run dev) \n2. Check port 3000 \n3. Is CORS allowed?";
-        }
+        errorMsg += "Server unreachable on $baseUrl. Check your network or Vercel status.";
       } else if (e.response?.data != null && e.response?.data['error'] != null) {
         errorMsg = e.response?.data['error'];
       } else {
