@@ -72,7 +72,7 @@ async function initDb() {
     console.log('✅ Database connected.');
     // In production/serverless, sync { alter: true } can be slow. 
     // Usually migrations are better, but we keep it for simplicity.
-    await sequelize.sync({ alter: true });
+    await sequelize.sync();
     console.log('✅ Database schema synced.');
     isDbInitialized = true;
   } catch (dbErr) {

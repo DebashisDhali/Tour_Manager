@@ -1,4 +1,5 @@
 const { User } = require('../models');
+const { Op } = require('sequelize');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -37,7 +38,6 @@ exports.register = async (req, res) => {
   }
 };
 
-const { Op } = require('sequelize');
 
 exports.login = async (req, res) => {
   try {
