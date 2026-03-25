@@ -498,6 +498,14 @@ class $ToursTable extends Tours with TableInfo<$ToursTable, Tour> {
   late final GeneratedColumn<String> createdBy = GeneratedColumn<String>(
       'created_by', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _purposeMeta =
+      const VerificationMeta('purpose');
+  @override
+  late final GeneratedColumn<String> purpose = GeneratedColumn<String>(
+      'purpose', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('tour'));
   static const VerificationMeta _isSyncedMeta =
       const VerificationMeta('isSynced');
   @override
@@ -524,6 +532,7 @@ class $ToursTable extends Tours with TableInfo<$ToursTable, Tour> {
         endDate,
         inviteCode,
         createdBy,
+        purpose,
         isSynced,
         updatedAt
       ];
@@ -568,6 +577,10 @@ class $ToursTable extends Tours with TableInfo<$ToursTable, Tour> {
     } else if (isInserting) {
       context.missing(_createdByMeta);
     }
+    if (data.containsKey('purpose')) {
+      context.handle(_purposeMeta,
+          purpose.isAcceptableOrUnknown(data['purpose']!, _purposeMeta));
+    }
     if (data.containsKey('is_synced')) {
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
@@ -597,6 +610,8 @@ class $ToursTable extends Tours with TableInfo<$ToursTable, Tour> {
           .read(DriftSqlType.string, data['${effectivePrefix}invite_code']),
       createdBy: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}created_by'])!,
+      purpose: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}purpose'])!,
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -617,6 +632,7 @@ class Tour extends DataClass implements Insertable<Tour> {
   final DateTime? endDate;
   final String? inviteCode;
   final String createdBy;
+  final String purpose;
   final bool isSynced;
   final DateTime updatedAt;
   const Tour(
@@ -626,6 +642,7 @@ class Tour extends DataClass implements Insertable<Tour> {
       this.endDate,
       this.inviteCode,
       required this.createdBy,
+      required this.purpose,
       required this.isSynced,
       required this.updatedAt});
   @override
@@ -643,6 +660,7 @@ class Tour extends DataClass implements Insertable<Tour> {
       map['invite_code'] = Variable<String>(inviteCode);
     }
     map['created_by'] = Variable<String>(createdBy);
+    map['purpose'] = Variable<String>(purpose);
     map['is_synced'] = Variable<bool>(isSynced);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -662,6 +680,7 @@ class Tour extends DataClass implements Insertable<Tour> {
           ? const Value.absent()
           : Value(inviteCode),
       createdBy: Value(createdBy),
+      purpose: Value(purpose),
       isSynced: Value(isSynced),
       updatedAt: Value(updatedAt),
     );
@@ -677,6 +696,7 @@ class Tour extends DataClass implements Insertable<Tour> {
       endDate: serializer.fromJson<DateTime?>(json['endDate']),
       inviteCode: serializer.fromJson<String?>(json['inviteCode']),
       createdBy: serializer.fromJson<String>(json['createdBy']),
+      purpose: serializer.fromJson<String>(json['purpose']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -691,6 +711,7 @@ class Tour extends DataClass implements Insertable<Tour> {
       'endDate': serializer.toJson<DateTime?>(endDate),
       'inviteCode': serializer.toJson<String?>(inviteCode),
       'createdBy': serializer.toJson<String>(createdBy),
+      'purpose': serializer.toJson<String>(purpose),
       'isSynced': serializer.toJson<bool>(isSynced),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -703,6 +724,7 @@ class Tour extends DataClass implements Insertable<Tour> {
           Value<DateTime?> endDate = const Value.absent(),
           Value<String?> inviteCode = const Value.absent(),
           String? createdBy,
+          String? purpose,
           bool? isSynced,
           DateTime? updatedAt}) =>
       Tour(
@@ -712,6 +734,7 @@ class Tour extends DataClass implements Insertable<Tour> {
         endDate: endDate.present ? endDate.value : this.endDate,
         inviteCode: inviteCode.present ? inviteCode.value : this.inviteCode,
         createdBy: createdBy ?? this.createdBy,
+        purpose: purpose ?? this.purpose,
         isSynced: isSynced ?? this.isSynced,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -724,6 +747,7 @@ class Tour extends DataClass implements Insertable<Tour> {
       inviteCode:
           data.inviteCode.present ? data.inviteCode.value : this.inviteCode,
       createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
+      purpose: data.purpose.present ? data.purpose.value : this.purpose,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -738,6 +762,7 @@ class Tour extends DataClass implements Insertable<Tour> {
           ..write('endDate: $endDate, ')
           ..write('inviteCode: $inviteCode, ')
           ..write('createdBy: $createdBy, ')
+          ..write('purpose: $purpose, ')
           ..write('isSynced: $isSynced, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -745,8 +770,8 @@ class Tour extends DataClass implements Insertable<Tour> {
   }
 
   @override
-  int get hashCode => Object.hash(
-      id, name, startDate, endDate, inviteCode, createdBy, isSynced, updatedAt);
+  int get hashCode => Object.hash(id, name, startDate, endDate, inviteCode,
+      createdBy, purpose, isSynced, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -757,6 +782,7 @@ class Tour extends DataClass implements Insertable<Tour> {
           other.endDate == this.endDate &&
           other.inviteCode == this.inviteCode &&
           other.createdBy == this.createdBy &&
+          other.purpose == this.purpose &&
           other.isSynced == this.isSynced &&
           other.updatedAt == this.updatedAt);
 }
@@ -768,6 +794,7 @@ class ToursCompanion extends UpdateCompanion<Tour> {
   final Value<DateTime?> endDate;
   final Value<String?> inviteCode;
   final Value<String> createdBy;
+  final Value<String> purpose;
   final Value<bool> isSynced;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -778,6 +805,7 @@ class ToursCompanion extends UpdateCompanion<Tour> {
     this.endDate = const Value.absent(),
     this.inviteCode = const Value.absent(),
     this.createdBy = const Value.absent(),
+    this.purpose = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -789,6 +817,7 @@ class ToursCompanion extends UpdateCompanion<Tour> {
     this.endDate = const Value.absent(),
     this.inviteCode = const Value.absent(),
     required String createdBy,
+    this.purpose = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -802,6 +831,7 @@ class ToursCompanion extends UpdateCompanion<Tour> {
     Expression<DateTime>? endDate,
     Expression<String>? inviteCode,
     Expression<String>? createdBy,
+    Expression<String>? purpose,
     Expression<bool>? isSynced,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -813,6 +843,7 @@ class ToursCompanion extends UpdateCompanion<Tour> {
       if (endDate != null) 'end_date': endDate,
       if (inviteCode != null) 'invite_code': inviteCode,
       if (createdBy != null) 'created_by': createdBy,
+      if (purpose != null) 'purpose': purpose,
       if (isSynced != null) 'is_synced': isSynced,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -826,6 +857,7 @@ class ToursCompanion extends UpdateCompanion<Tour> {
       Value<DateTime?>? endDate,
       Value<String?>? inviteCode,
       Value<String>? createdBy,
+      Value<String>? purpose,
       Value<bool>? isSynced,
       Value<DateTime>? updatedAt,
       Value<int>? rowid}) {
@@ -836,6 +868,7 @@ class ToursCompanion extends UpdateCompanion<Tour> {
       endDate: endDate ?? this.endDate,
       inviteCode: inviteCode ?? this.inviteCode,
       createdBy: createdBy ?? this.createdBy,
+      purpose: purpose ?? this.purpose,
       isSynced: isSynced ?? this.isSynced,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -863,6 +896,9 @@ class ToursCompanion extends UpdateCompanion<Tour> {
     if (createdBy.present) {
       map['created_by'] = Variable<String>(createdBy.value);
     }
+    if (purpose.present) {
+      map['purpose'] = Variable<String>(purpose.value);
+    }
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
@@ -884,6 +920,7 @@ class ToursCompanion extends UpdateCompanion<Tour> {
           ..write('endDate: $endDate, ')
           ..write('inviteCode: $inviteCode, ')
           ..write('createdBy: $createdBy, ')
+          ..write('purpose: $purpose, ')
           ..write('isSynced: $isSynced, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -914,11 +951,26 @@ class $TourMembersTable extends TourMembers
       requiredDuringInsert: true,
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('REFERENCES users (id)'));
+  static const VerificationMeta _mealCountMeta =
+      const VerificationMeta('mealCount');
+  @override
+  late final GeneratedColumn<double> mealCount = GeneratedColumn<double>(
+      'meal_count', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0.0));
   static const VerificationMeta _leftAtMeta = const VerificationMeta('leftAt');
   @override
   late final GeneratedColumn<DateTime> leftAt = GeneratedColumn<DateTime>(
       'left_at', aliasedName, true,
       type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('active'));
   static const VerificationMeta _isSyncedMeta =
       const VerificationMeta('isSynced');
   @override
@@ -930,7 +982,8 @@ class $TourMembersTable extends TourMembers
           GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
       defaultValue: const Constant(false));
   @override
-  List<GeneratedColumn> get $columns => [tourId, userId, leftAt, isSynced];
+  List<GeneratedColumn> get $columns =>
+      [tourId, userId, mealCount, leftAt, status, isSynced];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -953,9 +1006,17 @@ class $TourMembersTable extends TourMembers
     } else if (isInserting) {
       context.missing(_userIdMeta);
     }
+    if (data.containsKey('meal_count')) {
+      context.handle(_mealCountMeta,
+          mealCount.isAcceptableOrUnknown(data['meal_count']!, _mealCountMeta));
+    }
     if (data.containsKey('left_at')) {
       context.handle(_leftAtMeta,
           leftAt.isAcceptableOrUnknown(data['left_at']!, _leftAtMeta));
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
     }
     if (data.containsKey('is_synced')) {
       context.handle(_isSyncedMeta,
@@ -974,8 +1035,12 @@ class $TourMembersTable extends TourMembers
           .read(DriftSqlType.string, data['${effectivePrefix}tour_id'])!,
       userId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}user_id'])!,
+      mealCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}meal_count'])!,
       leftAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}left_at']),
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
     );
@@ -990,21 +1055,27 @@ class $TourMembersTable extends TourMembers
 class TourMember extends DataClass implements Insertable<TourMember> {
   final String tourId;
   final String userId;
+  final double mealCount;
   final DateTime? leftAt;
+  final String status;
   final bool isSynced;
   const TourMember(
       {required this.tourId,
       required this.userId,
+      required this.mealCount,
       this.leftAt,
+      required this.status,
       required this.isSynced});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['tour_id'] = Variable<String>(tourId);
     map['user_id'] = Variable<String>(userId);
+    map['meal_count'] = Variable<double>(mealCount);
     if (!nullToAbsent || leftAt != null) {
       map['left_at'] = Variable<DateTime>(leftAt);
     }
+    map['status'] = Variable<String>(status);
     map['is_synced'] = Variable<bool>(isSynced);
     return map;
   }
@@ -1013,8 +1084,10 @@ class TourMember extends DataClass implements Insertable<TourMember> {
     return TourMembersCompanion(
       tourId: Value(tourId),
       userId: Value(userId),
+      mealCount: Value(mealCount),
       leftAt:
           leftAt == null && nullToAbsent ? const Value.absent() : Value(leftAt),
+      status: Value(status),
       isSynced: Value(isSynced),
     );
   }
@@ -1025,7 +1098,9 @@ class TourMember extends DataClass implements Insertable<TourMember> {
     return TourMember(
       tourId: serializer.fromJson<String>(json['tourId']),
       userId: serializer.fromJson<String>(json['userId']),
+      mealCount: serializer.fromJson<double>(json['mealCount']),
       leftAt: serializer.fromJson<DateTime?>(json['leftAt']),
+      status: serializer.fromJson<String>(json['status']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
     );
   }
@@ -1035,7 +1110,9 @@ class TourMember extends DataClass implements Insertable<TourMember> {
     return <String, dynamic>{
       'tourId': serializer.toJson<String>(tourId),
       'userId': serializer.toJson<String>(userId),
+      'mealCount': serializer.toJson<double>(mealCount),
       'leftAt': serializer.toJson<DateTime?>(leftAt),
+      'status': serializer.toJson<String>(status),
       'isSynced': serializer.toJson<bool>(isSynced),
     };
   }
@@ -1043,19 +1120,25 @@ class TourMember extends DataClass implements Insertable<TourMember> {
   TourMember copyWith(
           {String? tourId,
           String? userId,
+          double? mealCount,
           Value<DateTime?> leftAt = const Value.absent(),
+          String? status,
           bool? isSynced}) =>
       TourMember(
         tourId: tourId ?? this.tourId,
         userId: userId ?? this.userId,
+        mealCount: mealCount ?? this.mealCount,
         leftAt: leftAt.present ? leftAt.value : this.leftAt,
+        status: status ?? this.status,
         isSynced: isSynced ?? this.isSynced,
       );
   TourMember copyWithCompanion(TourMembersCompanion data) {
     return TourMember(
       tourId: data.tourId.present ? data.tourId.value : this.tourId,
       userId: data.userId.present ? data.userId.value : this.userId,
+      mealCount: data.mealCount.present ? data.mealCount.value : this.mealCount,
       leftAt: data.leftAt.present ? data.leftAt.value : this.leftAt,
+      status: data.status.present ? data.status.value : this.status,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
     );
   }
@@ -1065,41 +1148,52 @@ class TourMember extends DataClass implements Insertable<TourMember> {
     return (StringBuffer('TourMember(')
           ..write('tourId: $tourId, ')
           ..write('userId: $userId, ')
+          ..write('mealCount: $mealCount, ')
           ..write('leftAt: $leftAt, ')
+          ..write('status: $status, ')
           ..write('isSynced: $isSynced')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(tourId, userId, leftAt, isSynced);
+  int get hashCode =>
+      Object.hash(tourId, userId, mealCount, leftAt, status, isSynced);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is TourMember &&
           other.tourId == this.tourId &&
           other.userId == this.userId &&
+          other.mealCount == this.mealCount &&
           other.leftAt == this.leftAt &&
+          other.status == this.status &&
           other.isSynced == this.isSynced);
 }
 
 class TourMembersCompanion extends UpdateCompanion<TourMember> {
   final Value<String> tourId;
   final Value<String> userId;
+  final Value<double> mealCount;
   final Value<DateTime?> leftAt;
+  final Value<String> status;
   final Value<bool> isSynced;
   final Value<int> rowid;
   const TourMembersCompanion({
     this.tourId = const Value.absent(),
     this.userId = const Value.absent(),
+    this.mealCount = const Value.absent(),
     this.leftAt = const Value.absent(),
+    this.status = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TourMembersCompanion.insert({
     required String tourId,
     required String userId,
+    this.mealCount = const Value.absent(),
     this.leftAt = const Value.absent(),
+    this.status = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : tourId = Value(tourId),
@@ -1107,14 +1201,18 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
   static Insertable<TourMember> custom({
     Expression<String>? tourId,
     Expression<String>? userId,
+    Expression<double>? mealCount,
     Expression<DateTime>? leftAt,
+    Expression<String>? status,
     Expression<bool>? isSynced,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (tourId != null) 'tour_id': tourId,
       if (userId != null) 'user_id': userId,
+      if (mealCount != null) 'meal_count': mealCount,
       if (leftAt != null) 'left_at': leftAt,
+      if (status != null) 'status': status,
       if (isSynced != null) 'is_synced': isSynced,
       if (rowid != null) 'rowid': rowid,
     });
@@ -1123,13 +1221,17 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
   TourMembersCompanion copyWith(
       {Value<String>? tourId,
       Value<String>? userId,
+      Value<double>? mealCount,
       Value<DateTime?>? leftAt,
+      Value<String>? status,
       Value<bool>? isSynced,
       Value<int>? rowid}) {
     return TourMembersCompanion(
       tourId: tourId ?? this.tourId,
       userId: userId ?? this.userId,
+      mealCount: mealCount ?? this.mealCount,
       leftAt: leftAt ?? this.leftAt,
+      status: status ?? this.status,
       isSynced: isSynced ?? this.isSynced,
       rowid: rowid ?? this.rowid,
     );
@@ -1144,8 +1246,14 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
     if (userId.present) {
       map['user_id'] = Variable<String>(userId.value);
     }
+    if (mealCount.present) {
+      map['meal_count'] = Variable<double>(mealCount.value);
+    }
     if (leftAt.present) {
       map['left_at'] = Variable<DateTime>(leftAt.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
     }
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
@@ -1161,7 +1269,9 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
     return (StringBuffer('TourMembersCompanion(')
           ..write('tourId: $tourId, ')
           ..write('userId: $userId, ')
+          ..write('mealCount: $mealCount, ')
           ..write('leftAt: $leftAt, ')
+          ..write('status: $status, ')
           ..write('isSynced: $isSynced, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -1212,6 +1322,12 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
   late final GeneratedColumn<String> category = GeneratedColumn<String>(
       'category', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _messCostTypeMeta =
+      const VerificationMeta('messCostType');
+  @override
+  late final GeneratedColumn<String> messCostType = GeneratedColumn<String>(
+      'mess_cost_type', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _isSyncedMeta =
       const VerificationMeta('isSynced');
   @override
@@ -1231,8 +1347,17 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
       requiredDuringInsert: false,
       defaultValue: currentDateAndTime);
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, tourId, payerId, amount, title, category, isSynced, createdAt];
+  List<GeneratedColumn> get $columns => [
+        id,
+        tourId,
+        payerId,
+        amount,
+        title,
+        category,
+        messCostType,
+        isSynced,
+        createdAt
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1276,6 +1401,12 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     } else if (isInserting) {
       context.missing(_categoryMeta);
     }
+    if (data.containsKey('mess_cost_type')) {
+      context.handle(
+          _messCostTypeMeta,
+          messCostType.isAcceptableOrUnknown(
+              data['mess_cost_type']!, _messCostTypeMeta));
+    }
     if (data.containsKey('is_synced')) {
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
@@ -1305,6 +1436,8 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
           .read(DriftSqlType.string, data['${effectivePrefix}title'])!,
       category: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}category'])!,
+      messCostType: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}mess_cost_type']),
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
       createdAt: attachedDatabase.typeMapping
@@ -1325,6 +1458,7 @@ class Expense extends DataClass implements Insertable<Expense> {
   final double amount;
   final String title;
   final String category;
+  final String? messCostType;
   final bool isSynced;
   final DateTime createdAt;
   const Expense(
@@ -1334,6 +1468,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       required this.amount,
       required this.title,
       required this.category,
+      this.messCostType,
       required this.isSynced,
       required this.createdAt});
   @override
@@ -1347,6 +1482,9 @@ class Expense extends DataClass implements Insertable<Expense> {
     map['amount'] = Variable<double>(amount);
     map['title'] = Variable<String>(title);
     map['category'] = Variable<String>(category);
+    if (!nullToAbsent || messCostType != null) {
+      map['mess_cost_type'] = Variable<String>(messCostType);
+    }
     map['is_synced'] = Variable<bool>(isSynced);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
@@ -1362,6 +1500,9 @@ class Expense extends DataClass implements Insertable<Expense> {
       amount: Value(amount),
       title: Value(title),
       category: Value(category),
+      messCostType: messCostType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(messCostType),
       isSynced: Value(isSynced),
       createdAt: Value(createdAt),
     );
@@ -1377,6 +1518,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       amount: serializer.fromJson<double>(json['amount']),
       title: serializer.fromJson<String>(json['title']),
       category: serializer.fromJson<String>(json['category']),
+      messCostType: serializer.fromJson<String?>(json['messCostType']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
@@ -1391,6 +1533,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       'amount': serializer.toJson<double>(amount),
       'title': serializer.toJson<String>(title),
       'category': serializer.toJson<String>(category),
+      'messCostType': serializer.toJson<String?>(messCostType),
       'isSynced': serializer.toJson<bool>(isSynced),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
@@ -1403,6 +1546,7 @@ class Expense extends DataClass implements Insertable<Expense> {
           double? amount,
           String? title,
           String? category,
+          Value<String?> messCostType = const Value.absent(),
           bool? isSynced,
           DateTime? createdAt}) =>
       Expense(
@@ -1412,6 +1556,8 @@ class Expense extends DataClass implements Insertable<Expense> {
         amount: amount ?? this.amount,
         title: title ?? this.title,
         category: category ?? this.category,
+        messCostType:
+            messCostType.present ? messCostType.value : this.messCostType,
         isSynced: isSynced ?? this.isSynced,
         createdAt: createdAt ?? this.createdAt,
       );
@@ -1423,6 +1569,9 @@ class Expense extends DataClass implements Insertable<Expense> {
       amount: data.amount.present ? data.amount.value : this.amount,
       title: data.title.present ? data.title.value : this.title,
       category: data.category.present ? data.category.value : this.category,
+      messCostType: data.messCostType.present
+          ? data.messCostType.value
+          : this.messCostType,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
@@ -1437,6 +1586,7 @@ class Expense extends DataClass implements Insertable<Expense> {
           ..write('amount: $amount, ')
           ..write('title: $title, ')
           ..write('category: $category, ')
+          ..write('messCostType: $messCostType, ')
           ..write('isSynced: $isSynced, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
@@ -1444,8 +1594,8 @@ class Expense extends DataClass implements Insertable<Expense> {
   }
 
   @override
-  int get hashCode => Object.hash(
-      id, tourId, payerId, amount, title, category, isSynced, createdAt);
+  int get hashCode => Object.hash(id, tourId, payerId, amount, title, category,
+      messCostType, isSynced, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1456,6 +1606,7 @@ class Expense extends DataClass implements Insertable<Expense> {
           other.amount == this.amount &&
           other.title == this.title &&
           other.category == this.category &&
+          other.messCostType == this.messCostType &&
           other.isSynced == this.isSynced &&
           other.createdAt == this.createdAt);
 }
@@ -1467,6 +1618,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
   final Value<double> amount;
   final Value<String> title;
   final Value<String> category;
+  final Value<String?> messCostType;
   final Value<bool> isSynced;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
@@ -1477,6 +1629,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     this.amount = const Value.absent(),
     this.title = const Value.absent(),
     this.category = const Value.absent(),
+    this.messCostType = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1488,6 +1641,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     required double amount,
     required String title,
     required String category,
+    this.messCostType = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1503,6 +1657,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Expression<double>? amount,
     Expression<String>? title,
     Expression<String>? category,
+    Expression<String>? messCostType,
     Expression<bool>? isSynced,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
@@ -1514,6 +1669,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       if (amount != null) 'amount': amount,
       if (title != null) 'title': title,
       if (category != null) 'category': category,
+      if (messCostType != null) 'mess_cost_type': messCostType,
       if (isSynced != null) 'is_synced': isSynced,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
@@ -1527,6 +1683,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       Value<double>? amount,
       Value<String>? title,
       Value<String>? category,
+      Value<String?>? messCostType,
       Value<bool>? isSynced,
       Value<DateTime>? createdAt,
       Value<int>? rowid}) {
@@ -1537,6 +1694,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       amount: amount ?? this.amount,
       title: title ?? this.title,
       category: category ?? this.category,
+      messCostType: messCostType ?? this.messCostType,
       isSynced: isSynced ?? this.isSynced,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
@@ -1564,6 +1722,9 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     if (category.present) {
       map['category'] = Variable<String>(category.value);
     }
+    if (messCostType.present) {
+      map['mess_cost_type'] = Variable<String>(messCostType.value);
+    }
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
@@ -1585,6 +1746,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
           ..write('amount: $amount, ')
           ..write('title: $title, ')
           ..write('category: $category, ')
+          ..write('messCostType: $messCostType, ')
           ..write('isSynced: $isSynced, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
@@ -2609,6 +2771,976 @@ class SettlementsCompanion extends UpdateCompanion<Settlement> {
   }
 }
 
+class $ProgramIncomesTable extends ProgramIncomes
+    with TableInfo<$ProgramIncomesTable, ProgramIncome> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ProgramIncomesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tourIdMeta = const VerificationMeta('tourId');
+  @override
+  late final GeneratedColumn<String> tourId = GeneratedColumn<String>(
+      'tour_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES tours (id)'));
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+      'amount', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+      'source', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _descriptionMeta =
+      const VerificationMeta('description');
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+      'description', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _collectedByMeta =
+      const VerificationMeta('collectedBy');
+  @override
+  late final GeneratedColumn<String> collectedBy = GeneratedColumn<String>(
+      'collected_by', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES users (id)'));
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
+      'date', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
+  static const VerificationMeta _isSyncedMeta =
+      const VerificationMeta('isSynced');
+  @override
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+      'is_synced', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, tourId, amount, source, description, collectedBy, date, isSynced];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'program_incomes';
+  @override
+  VerificationContext validateIntegrity(Insertable<ProgramIncome> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('tour_id')) {
+      context.handle(_tourIdMeta,
+          tourId.isAcceptableOrUnknown(data['tour_id']!, _tourIdMeta));
+    } else if (isInserting) {
+      context.missing(_tourIdMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(_amountMeta,
+          amount.isAcceptableOrUnknown(data['amount']!, _amountMeta));
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('source')) {
+      context.handle(_sourceMeta,
+          source.isAcceptableOrUnknown(data['source']!, _sourceMeta));
+    } else if (isInserting) {
+      context.missing(_sourceMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+          _descriptionMeta,
+          description.isAcceptableOrUnknown(
+              data['description']!, _descriptionMeta));
+    }
+    if (data.containsKey('collected_by')) {
+      context.handle(
+          _collectedByMeta,
+          collectedBy.isAcceptableOrUnknown(
+              data['collected_by']!, _collectedByMeta));
+    } else if (isInserting) {
+      context.missing(_collectedByMeta);
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+          _dateMeta, date.isAcceptableOrUnknown(data['date']!, _dateMeta));
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(_isSyncedMeta,
+          isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ProgramIncome map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ProgramIncome(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      tourId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tour_id'])!,
+      amount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}amount'])!,
+      source: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}source'])!,
+      description: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}description']),
+      collectedBy: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}collected_by'])!,
+      date: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}date'])!,
+      isSynced: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+    );
+  }
+
+  @override
+  $ProgramIncomesTable createAlias(String alias) {
+    return $ProgramIncomesTable(attachedDatabase, alias);
+  }
+}
+
+class ProgramIncome extends DataClass implements Insertable<ProgramIncome> {
+  final String id;
+  final String tourId;
+  final double amount;
+  final String source;
+  final String? description;
+  final String collectedBy;
+  final DateTime date;
+  final bool isSynced;
+  const ProgramIncome(
+      {required this.id,
+      required this.tourId,
+      required this.amount,
+      required this.source,
+      this.description,
+      required this.collectedBy,
+      required this.date,
+      required this.isSynced});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['tour_id'] = Variable<String>(tourId);
+    map['amount'] = Variable<double>(amount);
+    map['source'] = Variable<String>(source);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    map['collected_by'] = Variable<String>(collectedBy);
+    map['date'] = Variable<DateTime>(date);
+    map['is_synced'] = Variable<bool>(isSynced);
+    return map;
+  }
+
+  ProgramIncomesCompanion toCompanion(bool nullToAbsent) {
+    return ProgramIncomesCompanion(
+      id: Value(id),
+      tourId: Value(tourId),
+      amount: Value(amount),
+      source: Value(source),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      collectedBy: Value(collectedBy),
+      date: Value(date),
+      isSynced: Value(isSynced),
+    );
+  }
+
+  factory ProgramIncome.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ProgramIncome(
+      id: serializer.fromJson<String>(json['id']),
+      tourId: serializer.fromJson<String>(json['tourId']),
+      amount: serializer.fromJson<double>(json['amount']),
+      source: serializer.fromJson<String>(json['source']),
+      description: serializer.fromJson<String?>(json['description']),
+      collectedBy: serializer.fromJson<String>(json['collectedBy']),
+      date: serializer.fromJson<DateTime>(json['date']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'tourId': serializer.toJson<String>(tourId),
+      'amount': serializer.toJson<double>(amount),
+      'source': serializer.toJson<String>(source),
+      'description': serializer.toJson<String?>(description),
+      'collectedBy': serializer.toJson<String>(collectedBy),
+      'date': serializer.toJson<DateTime>(date),
+      'isSynced': serializer.toJson<bool>(isSynced),
+    };
+  }
+
+  ProgramIncome copyWith(
+          {String? id,
+          String? tourId,
+          double? amount,
+          String? source,
+          Value<String?> description = const Value.absent(),
+          String? collectedBy,
+          DateTime? date,
+          bool? isSynced}) =>
+      ProgramIncome(
+        id: id ?? this.id,
+        tourId: tourId ?? this.tourId,
+        amount: amount ?? this.amount,
+        source: source ?? this.source,
+        description: description.present ? description.value : this.description,
+        collectedBy: collectedBy ?? this.collectedBy,
+        date: date ?? this.date,
+        isSynced: isSynced ?? this.isSynced,
+      );
+  ProgramIncome copyWithCompanion(ProgramIncomesCompanion data) {
+    return ProgramIncome(
+      id: data.id.present ? data.id.value : this.id,
+      tourId: data.tourId.present ? data.tourId.value : this.tourId,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      source: data.source.present ? data.source.value : this.source,
+      description:
+          data.description.present ? data.description.value : this.description,
+      collectedBy:
+          data.collectedBy.present ? data.collectedBy.value : this.collectedBy,
+      date: data.date.present ? data.date.value : this.date,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProgramIncome(')
+          ..write('id: $id, ')
+          ..write('tourId: $tourId, ')
+          ..write('amount: $amount, ')
+          ..write('source: $source, ')
+          ..write('description: $description, ')
+          ..write('collectedBy: $collectedBy, ')
+          ..write('date: $date, ')
+          ..write('isSynced: $isSynced')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id, tourId, amount, source, description, collectedBy, date, isSynced);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ProgramIncome &&
+          other.id == this.id &&
+          other.tourId == this.tourId &&
+          other.amount == this.amount &&
+          other.source == this.source &&
+          other.description == this.description &&
+          other.collectedBy == this.collectedBy &&
+          other.date == this.date &&
+          other.isSynced == this.isSynced);
+}
+
+class ProgramIncomesCompanion extends UpdateCompanion<ProgramIncome> {
+  final Value<String> id;
+  final Value<String> tourId;
+  final Value<double> amount;
+  final Value<String> source;
+  final Value<String?> description;
+  final Value<String> collectedBy;
+  final Value<DateTime> date;
+  final Value<bool> isSynced;
+  final Value<int> rowid;
+  const ProgramIncomesCompanion({
+    this.id = const Value.absent(),
+    this.tourId = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.source = const Value.absent(),
+    this.description = const Value.absent(),
+    this.collectedBy = const Value.absent(),
+    this.date = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ProgramIncomesCompanion.insert({
+    required String id,
+    required String tourId,
+    required double amount,
+    required String source,
+    this.description = const Value.absent(),
+    required String collectedBy,
+    this.date = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        tourId = Value(tourId),
+        amount = Value(amount),
+        source = Value(source),
+        collectedBy = Value(collectedBy);
+  static Insertable<ProgramIncome> custom({
+    Expression<String>? id,
+    Expression<String>? tourId,
+    Expression<double>? amount,
+    Expression<String>? source,
+    Expression<String>? description,
+    Expression<String>? collectedBy,
+    Expression<DateTime>? date,
+    Expression<bool>? isSynced,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (tourId != null) 'tour_id': tourId,
+      if (amount != null) 'amount': amount,
+      if (source != null) 'source': source,
+      if (description != null) 'description': description,
+      if (collectedBy != null) 'collected_by': collectedBy,
+      if (date != null) 'date': date,
+      if (isSynced != null) 'is_synced': isSynced,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ProgramIncomesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? tourId,
+      Value<double>? amount,
+      Value<String>? source,
+      Value<String?>? description,
+      Value<String>? collectedBy,
+      Value<DateTime>? date,
+      Value<bool>? isSynced,
+      Value<int>? rowid}) {
+    return ProgramIncomesCompanion(
+      id: id ?? this.id,
+      tourId: tourId ?? this.tourId,
+      amount: amount ?? this.amount,
+      source: source ?? this.source,
+      description: description ?? this.description,
+      collectedBy: collectedBy ?? this.collectedBy,
+      date: date ?? this.date,
+      isSynced: isSynced ?? this.isSynced,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (tourId.present) {
+      map['tour_id'] = Variable<String>(tourId.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (collectedBy.present) {
+      map['collected_by'] = Variable<String>(collectedBy.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<DateTime>(date.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ProgramIncomesCompanion(')
+          ..write('id: $id, ')
+          ..write('tourId: $tourId, ')
+          ..write('amount: $amount, ')
+          ..write('source: $source, ')
+          ..write('description: $description, ')
+          ..write('collectedBy: $collectedBy, ')
+          ..write('date: $date, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MealRecordsTable extends MealRecords
+    with TableInfo<$MealRecordsTable, MealRecord> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MealRecordsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tourIdMeta = const VerificationMeta('tourId');
+  @override
+  late final GeneratedColumn<String> tourId = GeneratedColumn<String>(
+      'tour_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES tours (id)'));
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+      'user_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('REFERENCES users (id)'));
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
+      'date', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _countMeta = const VerificationMeta('count');
+  @override
+  late final GeneratedColumn<double> count = GeneratedColumn<double>(
+      'count', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _isSyncedMeta =
+      const VerificationMeta('isSynced');
+  @override
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+      'is_synced', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, tourId, userId, date, count, isSynced];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'meal_records';
+  @override
+  VerificationContext validateIntegrity(Insertable<MealRecord> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('tour_id')) {
+      context.handle(_tourIdMeta,
+          tourId.isAcceptableOrUnknown(data['tour_id']!, _tourIdMeta));
+    } else if (isInserting) {
+      context.missing(_tourIdMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(_userIdMeta,
+          userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta));
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+          _dateMeta, date.isAcceptableOrUnknown(data['date']!, _dateMeta));
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('count')) {
+      context.handle(
+          _countMeta, count.isAcceptableOrUnknown(data['count']!, _countMeta));
+    } else if (isInserting) {
+      context.missing(_countMeta);
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(_isSyncedMeta,
+          isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MealRecord map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MealRecord(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      tourId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tour_id'])!,
+      userId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}user_id'])!,
+      date: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}date'])!,
+      count: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}count'])!,
+      isSynced: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+    );
+  }
+
+  @override
+  $MealRecordsTable createAlias(String alias) {
+    return $MealRecordsTable(attachedDatabase, alias);
+  }
+}
+
+class MealRecord extends DataClass implements Insertable<MealRecord> {
+  final String id;
+  final String tourId;
+  final String userId;
+  final DateTime date;
+  final double count;
+  final bool isSynced;
+  const MealRecord(
+      {required this.id,
+      required this.tourId,
+      required this.userId,
+      required this.date,
+      required this.count,
+      required this.isSynced});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['tour_id'] = Variable<String>(tourId);
+    map['user_id'] = Variable<String>(userId);
+    map['date'] = Variable<DateTime>(date);
+    map['count'] = Variable<double>(count);
+    map['is_synced'] = Variable<bool>(isSynced);
+    return map;
+  }
+
+  MealRecordsCompanion toCompanion(bool nullToAbsent) {
+    return MealRecordsCompanion(
+      id: Value(id),
+      tourId: Value(tourId),
+      userId: Value(userId),
+      date: Value(date),
+      count: Value(count),
+      isSynced: Value(isSynced),
+    );
+  }
+
+  factory MealRecord.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MealRecord(
+      id: serializer.fromJson<String>(json['id']),
+      tourId: serializer.fromJson<String>(json['tourId']),
+      userId: serializer.fromJson<String>(json['userId']),
+      date: serializer.fromJson<DateTime>(json['date']),
+      count: serializer.fromJson<double>(json['count']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'tourId': serializer.toJson<String>(tourId),
+      'userId': serializer.toJson<String>(userId),
+      'date': serializer.toJson<DateTime>(date),
+      'count': serializer.toJson<double>(count),
+      'isSynced': serializer.toJson<bool>(isSynced),
+    };
+  }
+
+  MealRecord copyWith(
+          {String? id,
+          String? tourId,
+          String? userId,
+          DateTime? date,
+          double? count,
+          bool? isSynced}) =>
+      MealRecord(
+        id: id ?? this.id,
+        tourId: tourId ?? this.tourId,
+        userId: userId ?? this.userId,
+        date: date ?? this.date,
+        count: count ?? this.count,
+        isSynced: isSynced ?? this.isSynced,
+      );
+  MealRecord copyWithCompanion(MealRecordsCompanion data) {
+    return MealRecord(
+      id: data.id.present ? data.id.value : this.id,
+      tourId: data.tourId.present ? data.tourId.value : this.tourId,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      date: data.date.present ? data.date.value : this.date,
+      count: data.count.present ? data.count.value : this.count,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MealRecord(')
+          ..write('id: $id, ')
+          ..write('tourId: $tourId, ')
+          ..write('userId: $userId, ')
+          ..write('date: $date, ')
+          ..write('count: $count, ')
+          ..write('isSynced: $isSynced')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, tourId, userId, date, count, isSynced);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MealRecord &&
+          other.id == this.id &&
+          other.tourId == this.tourId &&
+          other.userId == this.userId &&
+          other.date == this.date &&
+          other.count == this.count &&
+          other.isSynced == this.isSynced);
+}
+
+class MealRecordsCompanion extends UpdateCompanion<MealRecord> {
+  final Value<String> id;
+  final Value<String> tourId;
+  final Value<String> userId;
+  final Value<DateTime> date;
+  final Value<double> count;
+  final Value<bool> isSynced;
+  final Value<int> rowid;
+  const MealRecordsCompanion({
+    this.id = const Value.absent(),
+    this.tourId = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.date = const Value.absent(),
+    this.count = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MealRecordsCompanion.insert({
+    required String id,
+    required String tourId,
+    required String userId,
+    required DateTime date,
+    required double count,
+    this.isSynced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        tourId = Value(tourId),
+        userId = Value(userId),
+        date = Value(date),
+        count = Value(count);
+  static Insertable<MealRecord> custom({
+    Expression<String>? id,
+    Expression<String>? tourId,
+    Expression<String>? userId,
+    Expression<DateTime>? date,
+    Expression<double>? count,
+    Expression<bool>? isSynced,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (tourId != null) 'tour_id': tourId,
+      if (userId != null) 'user_id': userId,
+      if (date != null) 'date': date,
+      if (count != null) 'count': count,
+      if (isSynced != null) 'is_synced': isSynced,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MealRecordsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? tourId,
+      Value<String>? userId,
+      Value<DateTime>? date,
+      Value<double>? count,
+      Value<bool>? isSynced,
+      Value<int>? rowid}) {
+    return MealRecordsCompanion(
+      id: id ?? this.id,
+      tourId: tourId ?? this.tourId,
+      userId: userId ?? this.userId,
+      date: date ?? this.date,
+      count: count ?? this.count,
+      isSynced: isSynced ?? this.isSynced,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (tourId.present) {
+      map['tour_id'] = Variable<String>(tourId.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<DateTime>(date.value);
+    }
+    if (count.present) {
+      map['count'] = Variable<double>(count.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MealRecordsCompanion(')
+          ..write('id: $id, ')
+          ..write('tourId: $tourId, ')
+          ..write('userId: $userId, ')
+          ..write('date: $date, ')
+          ..write('count: $count, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $SyncMetadataTable extends SyncMetadata
+    with TableInfo<$SyncMetadataTable, SyncMetadataData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SyncMetadataTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _keyMeta = const VerificationMeta('key');
+  @override
+  late final GeneratedColumn<String> key = GeneratedColumn<String>(
+      'key', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _valueMeta = const VerificationMeta('value');
+  @override
+  late final GeneratedColumn<String> value = GeneratedColumn<String>(
+      'value', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [key, value];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'sync_metadata';
+  @override
+  VerificationContext validateIntegrity(Insertable<SyncMetadataData> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('key')) {
+      context.handle(
+          _keyMeta, key.isAcceptableOrUnknown(data['key']!, _keyMeta));
+    } else if (isInserting) {
+      context.missing(_keyMeta);
+    }
+    if (data.containsKey('value')) {
+      context.handle(
+          _valueMeta, value.isAcceptableOrUnknown(data['value']!, _valueMeta));
+    } else if (isInserting) {
+      context.missing(_valueMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {key};
+  @override
+  SyncMetadataData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return SyncMetadataData(
+      key: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}key'])!,
+      value: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}value'])!,
+    );
+  }
+
+  @override
+  $SyncMetadataTable createAlias(String alias) {
+    return $SyncMetadataTable(attachedDatabase, alias);
+  }
+}
+
+class SyncMetadataData extends DataClass
+    implements Insertable<SyncMetadataData> {
+  final String key;
+  final String value;
+  const SyncMetadataData({required this.key, required this.value});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['key'] = Variable<String>(key);
+    map['value'] = Variable<String>(value);
+    return map;
+  }
+
+  SyncMetadataCompanion toCompanion(bool nullToAbsent) {
+    return SyncMetadataCompanion(
+      key: Value(key),
+      value: Value(value),
+    );
+  }
+
+  factory SyncMetadataData.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return SyncMetadataData(
+      key: serializer.fromJson<String>(json['key']),
+      value: serializer.fromJson<String>(json['value']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'key': serializer.toJson<String>(key),
+      'value': serializer.toJson<String>(value),
+    };
+  }
+
+  SyncMetadataData copyWith({String? key, String? value}) => SyncMetadataData(
+        key: key ?? this.key,
+        value: value ?? this.value,
+      );
+  SyncMetadataData copyWithCompanion(SyncMetadataCompanion data) {
+    return SyncMetadataData(
+      key: data.key.present ? data.key.value : this.key,
+      value: data.value.present ? data.value.value : this.value,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncMetadataData(')
+          ..write('key: $key, ')
+          ..write('value: $value')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(key, value);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is SyncMetadataData &&
+          other.key == this.key &&
+          other.value == this.value);
+}
+
+class SyncMetadataCompanion extends UpdateCompanion<SyncMetadataData> {
+  final Value<String> key;
+  final Value<String> value;
+  final Value<int> rowid;
+  const SyncMetadataCompanion({
+    this.key = const Value.absent(),
+    this.value = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SyncMetadataCompanion.insert({
+    required String key,
+    required String value,
+    this.rowid = const Value.absent(),
+  })  : key = Value(key),
+        value = Value(value);
+  static Insertable<SyncMetadataData> custom({
+    Expression<String>? key,
+    Expression<String>? value,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (key != null) 'key': key,
+      if (value != null) 'value': value,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SyncMetadataCompanion copyWith(
+      {Value<String>? key, Value<String>? value, Value<int>? rowid}) {
+    return SyncMetadataCompanion(
+      key: key ?? this.key,
+      value: value ?? this.value,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (key.present) {
+      map['key'] = Variable<String>(key.value);
+    }
+    if (value.present) {
+      map['value'] = Variable<String>(value.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SyncMetadataCompanion(')
+          ..write('key: $key, ')
+          ..write('value: $value, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2619,6 +3751,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ExpenseSplitsTable expenseSplits = $ExpenseSplitsTable(this);
   late final $ExpensePayersTable expensePayers = $ExpensePayersTable(this);
   late final $SettlementsTable settlements = $SettlementsTable(this);
+  late final $ProgramIncomesTable programIncomes = $ProgramIncomesTable(this);
+  late final $MealRecordsTable mealRecords = $MealRecordsTable(this);
+  late final $SyncMetadataTable syncMetadata = $SyncMetadataTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2630,7 +3765,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         expenses,
         expenseSplits,
         expensePayers,
-        settlements
+        settlements,
+        programIncomes,
+        mealRecords,
+        syncMetadata
       ];
 }
 
@@ -2717,6 +3855,35 @@ final class $$UsersTableReferences
         .filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_expensePayersRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+
+  static MultiTypedResultKey<$ProgramIncomesTable, List<ProgramIncome>>
+      _programIncomesRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.programIncomes,
+              aliasName: $_aliasNameGenerator(
+                  db.users.id, db.programIncomes.collectedBy));
+
+  $$ProgramIncomesTableProcessedTableManager get programIncomesRefs {
+    final manager = $$ProgramIncomesTableTableManager($_db, $_db.programIncomes)
+        .filter((f) => f.collectedBy.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_programIncomesRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+
+  static MultiTypedResultKey<$MealRecordsTable, List<MealRecord>>
+      _mealRecordsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+          db.mealRecords,
+          aliasName: $_aliasNameGenerator(db.users.id, db.mealRecords.userId));
+
+  $$MealRecordsTableProcessedTableManager get mealRecordsRefs {
+    final manager = $$MealRecordsTableTableManager($_db, $_db.mealRecords)
+        .filter((f) => f.userId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_mealRecordsRefsTable($_db));
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: cache));
   }
@@ -2833,6 +4000,48 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
             $$ExpensePayersTableFilterComposer(
               $db: $db,
               $table: $db.expensePayers,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> programIncomesRefs(
+      Expression<bool> Function($$ProgramIncomesTableFilterComposer f) f) {
+    final $$ProgramIncomesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.programIncomes,
+        getReferencedColumn: (t) => t.collectedBy,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ProgramIncomesTableFilterComposer(
+              $db: $db,
+              $table: $db.programIncomes,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> mealRecordsRefs(
+      Expression<bool> Function($$MealRecordsTableFilterComposer f) f) {
+    final $$MealRecordsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.mealRecords,
+        getReferencedColumn: (t) => t.userId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$MealRecordsTableFilterComposer(
+              $db: $db,
+              $table: $db.mealRecords,
               $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
               joinBuilder: joinBuilder,
               $removeJoinBuilderFromRootComposer:
@@ -2998,6 +4207,48 @@ class $$UsersTableAnnotationComposer
             ));
     return f(composer);
   }
+
+  Expression<T> programIncomesRefs<T extends Object>(
+      Expression<T> Function($$ProgramIncomesTableAnnotationComposer a) f) {
+    final $$ProgramIncomesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.programIncomes,
+        getReferencedColumn: (t) => t.collectedBy,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ProgramIncomesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.programIncomes,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<T> mealRecordsRefs<T extends Object>(
+      Expression<T> Function($$MealRecordsTableAnnotationComposer a) f) {
+    final $$MealRecordsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.mealRecords,
+        getReferencedColumn: (t) => t.userId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$MealRecordsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.mealRecords,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
 }
 
 class $$UsersTableTableManager extends RootTableManager<
@@ -3015,7 +4266,9 @@ class $$UsersTableTableManager extends RootTableManager<
         {bool tourMembersRefs,
         bool expensesRefs,
         bool expenseSplitsRefs,
-        bool expensePayersRefs})> {
+        bool expensePayersRefs,
+        bool programIncomesRefs,
+        bool mealRecordsRefs})> {
   $$UsersTableTableManager(_$AppDatabase db, $UsersTable table)
       : super(TableManagerState(
           db: db,
@@ -3082,14 +4335,18 @@ class $$UsersTableTableManager extends RootTableManager<
               {tourMembersRefs = false,
               expensesRefs = false,
               expenseSplitsRefs = false,
-              expensePayersRefs = false}) {
+              expensePayersRefs = false,
+              programIncomesRefs = false,
+              mealRecordsRefs = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [
                 if (tourMembersRefs) db.tourMembers,
                 if (expensesRefs) db.expenses,
                 if (expenseSplitsRefs) db.expenseSplits,
-                if (expensePayersRefs) db.expensePayers
+                if (expensePayersRefs) db.expensePayers,
+                if (programIncomesRefs) db.programIncomes,
+                if (mealRecordsRefs) db.mealRecords
               ],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
@@ -3140,6 +4397,30 @@ class $$UsersTableTableManager extends RootTableManager<
                         referencedItemsForCurrentItem: (item,
                                 referencedItems) =>
                             referencedItems.where((e) => e.userId == item.id),
+                        typedResults: items),
+                  if (programIncomesRefs)
+                    await $_getPrefetchedData<User, $UsersTable, ProgramIncome>(
+                        currentTable: table,
+                        referencedTable:
+                            $$UsersTableReferences._programIncomesRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$UsersTableReferences(db, table, p0)
+                                .programIncomesRefs,
+                        referencedItemsForCurrentItem:
+                            (item, referencedItems) => referencedItems
+                                .where((e) => e.collectedBy == item.id),
+                        typedResults: items),
+                  if (mealRecordsRefs)
+                    await $_getPrefetchedData<User, $UsersTable, MealRecord>(
+                        currentTable: table,
+                        referencedTable:
+                            $$UsersTableReferences._mealRecordsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$UsersTableReferences(db, table, p0)
+                                .mealRecordsRefs,
+                        referencedItemsForCurrentItem: (item,
+                                referencedItems) =>
+                            referencedItems.where((e) => e.userId == item.id),
                         typedResults: items)
                 ];
               },
@@ -3163,7 +4444,9 @@ typedef $$UsersTableProcessedTableManager = ProcessedTableManager<
         {bool tourMembersRefs,
         bool expensesRefs,
         bool expenseSplitsRefs,
-        bool expensePayersRefs})>;
+        bool expensePayersRefs,
+        bool programIncomesRefs,
+        bool mealRecordsRefs})>;
 typedef $$ToursTableCreateCompanionBuilder = ToursCompanion Function({
   required String id,
   required String name,
@@ -3171,6 +4454,7 @@ typedef $$ToursTableCreateCompanionBuilder = ToursCompanion Function({
   Value<DateTime?> endDate,
   Value<String?> inviteCode,
   required String createdBy,
+  Value<String> purpose,
   Value<bool> isSynced,
   Value<DateTime> updatedAt,
   Value<int> rowid,
@@ -3182,6 +4466,7 @@ typedef $$ToursTableUpdateCompanionBuilder = ToursCompanion Function({
   Value<DateTime?> endDate,
   Value<String?> inviteCode,
   Value<String> createdBy,
+  Value<String> purpose,
   Value<bool> isSynced,
   Value<DateTime> updatedAt,
   Value<int> rowid,
@@ -3232,6 +4517,35 @@ final class $$ToursTableReferences
     return ProcessedTableManager(
         manager.$state.copyWith(prefetchedData: cache));
   }
+
+  static MultiTypedResultKey<$ProgramIncomesTable, List<ProgramIncome>>
+      _programIncomesRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.programIncomes,
+              aliasName:
+                  $_aliasNameGenerator(db.tours.id, db.programIncomes.tourId));
+
+  $$ProgramIncomesTableProcessedTableManager get programIncomesRefs {
+    final manager = $$ProgramIncomesTableTableManager($_db, $_db.programIncomes)
+        .filter((f) => f.tourId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_programIncomesRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+
+  static MultiTypedResultKey<$MealRecordsTable, List<MealRecord>>
+      _mealRecordsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+          db.mealRecords,
+          aliasName: $_aliasNameGenerator(db.tours.id, db.mealRecords.tourId));
+
+  $$MealRecordsTableProcessedTableManager get mealRecordsRefs {
+    final manager = $$MealRecordsTableTableManager($_db, $_db.mealRecords)
+        .filter((f) => f.tourId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_mealRecordsRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
 }
 
 class $$ToursTableFilterComposer extends Composer<_$AppDatabase, $ToursTable> {
@@ -3259,6 +4573,9 @@ class $$ToursTableFilterComposer extends Composer<_$AppDatabase, $ToursTable> {
 
   ColumnFilters<String> get createdBy => $composableBuilder(
       column: $table.createdBy, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get purpose => $composableBuilder(
+      column: $table.purpose, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
@@ -3328,6 +4645,48 @@ class $$ToursTableFilterComposer extends Composer<_$AppDatabase, $ToursTable> {
             ));
     return f(composer);
   }
+
+  Expression<bool> programIncomesRefs(
+      Expression<bool> Function($$ProgramIncomesTableFilterComposer f) f) {
+    final $$ProgramIncomesTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.programIncomes,
+        getReferencedColumn: (t) => t.tourId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ProgramIncomesTableFilterComposer(
+              $db: $db,
+              $table: $db.programIncomes,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<bool> mealRecordsRefs(
+      Expression<bool> Function($$MealRecordsTableFilterComposer f) f) {
+    final $$MealRecordsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.mealRecords,
+        getReferencedColumn: (t) => t.tourId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$MealRecordsTableFilterComposer(
+              $db: $db,
+              $table: $db.mealRecords,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
 }
 
 class $$ToursTableOrderingComposer
@@ -3356,6 +4715,9 @@ class $$ToursTableOrderingComposer
 
   ColumnOrderings<String> get createdBy => $composableBuilder(
       column: $table.createdBy, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get purpose => $composableBuilder(
+      column: $table.purpose, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
@@ -3390,6 +4752,9 @@ class $$ToursTableAnnotationComposer
 
   GeneratedColumn<String> get createdBy =>
       $composableBuilder(column: $table.createdBy, builder: (column) => column);
+
+  GeneratedColumn<String> get purpose =>
+      $composableBuilder(column: $table.purpose, builder: (column) => column);
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
@@ -3459,6 +4824,48 @@ class $$ToursTableAnnotationComposer
             ));
     return f(composer);
   }
+
+  Expression<T> programIncomesRefs<T extends Object>(
+      Expression<T> Function($$ProgramIncomesTableAnnotationComposer a) f) {
+    final $$ProgramIncomesTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.programIncomes,
+        getReferencedColumn: (t) => t.tourId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ProgramIncomesTableAnnotationComposer(
+              $db: $db,
+              $table: $db.programIncomes,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+
+  Expression<T> mealRecordsRefs<T extends Object>(
+      Expression<T> Function($$MealRecordsTableAnnotationComposer a) f) {
+    final $$MealRecordsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.mealRecords,
+        getReferencedColumn: (t) => t.tourId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$MealRecordsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.mealRecords,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
 }
 
 class $$ToursTableTableManager extends RootTableManager<
@@ -3473,7 +4880,11 @@ class $$ToursTableTableManager extends RootTableManager<
     (Tour, $$ToursTableReferences),
     Tour,
     PrefetchHooks Function(
-        {bool tourMembersRefs, bool expensesRefs, bool settlementsRefs})> {
+        {bool tourMembersRefs,
+        bool expensesRefs,
+        bool settlementsRefs,
+        bool programIncomesRefs,
+        bool mealRecordsRefs})> {
   $$ToursTableTableManager(_$AppDatabase db, $ToursTable table)
       : super(TableManagerState(
           db: db,
@@ -3491,6 +4902,7 @@ class $$ToursTableTableManager extends RootTableManager<
             Value<DateTime?> endDate = const Value.absent(),
             Value<String?> inviteCode = const Value.absent(),
             Value<String> createdBy = const Value.absent(),
+            Value<String> purpose = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -3502,6 +4914,7 @@ class $$ToursTableTableManager extends RootTableManager<
             endDate: endDate,
             inviteCode: inviteCode,
             createdBy: createdBy,
+            purpose: purpose,
             isSynced: isSynced,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -3513,6 +4926,7 @@ class $$ToursTableTableManager extends RootTableManager<
             Value<DateTime?> endDate = const Value.absent(),
             Value<String?> inviteCode = const Value.absent(),
             required String createdBy,
+            Value<String> purpose = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -3524,6 +4938,7 @@ class $$ToursTableTableManager extends RootTableManager<
             endDate: endDate,
             inviteCode: inviteCode,
             createdBy: createdBy,
+            purpose: purpose,
             isSynced: isSynced,
             updatedAt: updatedAt,
             rowid: rowid,
@@ -3535,13 +4950,17 @@ class $$ToursTableTableManager extends RootTableManager<
           prefetchHooksCallback: (
               {tourMembersRefs = false,
               expensesRefs = false,
-              settlementsRefs = false}) {
+              settlementsRefs = false,
+              programIncomesRefs = false,
+              mealRecordsRefs = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [
                 if (tourMembersRefs) db.tourMembers,
                 if (expensesRefs) db.expenses,
-                if (settlementsRefs) db.settlements
+                if (settlementsRefs) db.settlements,
+                if (programIncomesRefs) db.programIncomes,
+                if (mealRecordsRefs) db.mealRecords
               ],
               addJoins: null,
               getPrefetchedDataCallback: (items) async {
@@ -3580,6 +4999,30 @@ class $$ToursTableTableManager extends RootTableManager<
                         referencedItemsForCurrentItem: (item,
                                 referencedItems) =>
                             referencedItems.where((e) => e.tourId == item.id),
+                        typedResults: items),
+                  if (programIncomesRefs)
+                    await $_getPrefetchedData<Tour, $ToursTable, ProgramIncome>(
+                        currentTable: table,
+                        referencedTable:
+                            $$ToursTableReferences._programIncomesRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$ToursTableReferences(db, table, p0)
+                                .programIncomesRefs,
+                        referencedItemsForCurrentItem: (item,
+                                referencedItems) =>
+                            referencedItems.where((e) => e.tourId == item.id),
+                        typedResults: items),
+                  if (mealRecordsRefs)
+                    await $_getPrefetchedData<Tour, $ToursTable, MealRecord>(
+                        currentTable: table,
+                        referencedTable:
+                            $$ToursTableReferences._mealRecordsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$ToursTableReferences(db, table, p0)
+                                .mealRecordsRefs,
+                        referencedItemsForCurrentItem: (item,
+                                referencedItems) =>
+                            referencedItems.where((e) => e.tourId == item.id),
                         typedResults: items)
                 ];
               },
@@ -3600,12 +5043,18 @@ typedef $$ToursTableProcessedTableManager = ProcessedTableManager<
     (Tour, $$ToursTableReferences),
     Tour,
     PrefetchHooks Function(
-        {bool tourMembersRefs, bool expensesRefs, bool settlementsRefs})>;
+        {bool tourMembersRefs,
+        bool expensesRefs,
+        bool settlementsRefs,
+        bool programIncomesRefs,
+        bool mealRecordsRefs})>;
 typedef $$TourMembersTableCreateCompanionBuilder = TourMembersCompanion
     Function({
   required String tourId,
   required String userId,
+  Value<double> mealCount,
   Value<DateTime?> leftAt,
+  Value<String> status,
   Value<bool> isSynced,
   Value<int> rowid,
 });
@@ -3613,7 +5062,9 @@ typedef $$TourMembersTableUpdateCompanionBuilder = TourMembersCompanion
     Function({
   Value<String> tourId,
   Value<String> userId,
+  Value<double> mealCount,
   Value<DateTime?> leftAt,
+  Value<String> status,
   Value<bool> isSynced,
   Value<int> rowid,
 });
@@ -3660,8 +5111,14 @@ class $$TourMembersTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<double> get mealCount => $composableBuilder(
+      column: $table.mealCount, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<DateTime> get leftAt => $composableBuilder(
       column: $table.leftAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
@@ -3716,8 +5173,14 @@ class $$TourMembersTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<double> get mealCount => $composableBuilder(
+      column: $table.mealCount, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get leftAt => $composableBuilder(
       column: $table.leftAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get status => $composableBuilder(
+      column: $table.status, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
@@ -3772,8 +5235,14 @@ class $$TourMembersTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<double> get mealCount =>
+      $composableBuilder(column: $table.mealCount, builder: (column) => column);
+
   GeneratedColumn<DateTime> get leftAt =>
       $composableBuilder(column: $table.leftAt, builder: (column) => column);
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
@@ -3844,28 +5313,36 @@ class $$TourMembersTableTableManager extends RootTableManager<
           updateCompanionCallback: ({
             Value<String> tourId = const Value.absent(),
             Value<String> userId = const Value.absent(),
+            Value<double> mealCount = const Value.absent(),
             Value<DateTime?> leftAt = const Value.absent(),
+            Value<String> status = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               TourMembersCompanion(
             tourId: tourId,
             userId: userId,
+            mealCount: mealCount,
             leftAt: leftAt,
+            status: status,
             isSynced: isSynced,
             rowid: rowid,
           ),
           createCompanionCallback: ({
             required String tourId,
             required String userId,
+            Value<double> mealCount = const Value.absent(),
             Value<DateTime?> leftAt = const Value.absent(),
+            Value<String> status = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               TourMembersCompanion.insert(
             tourId: tourId,
             userId: userId,
+            mealCount: mealCount,
             leftAt: leftAt,
+            status: status,
             isSynced: isSynced,
             rowid: rowid,
           ),
@@ -3942,6 +5419,7 @@ typedef $$ExpensesTableCreateCompanionBuilder = ExpensesCompanion Function({
   required double amount,
   required String title,
   required String category,
+  Value<String?> messCostType,
   Value<bool> isSynced,
   Value<DateTime> createdAt,
   Value<int> rowid,
@@ -3953,6 +5431,7 @@ typedef $$ExpensesTableUpdateCompanionBuilder = ExpensesCompanion Function({
   Value<double> amount,
   Value<String> title,
   Value<String> category,
+  Value<String?> messCostType,
   Value<bool> isSynced,
   Value<DateTime> createdAt,
   Value<int> rowid,
@@ -4041,6 +5520,9 @@ class $$ExpensesTableFilterComposer
 
   ColumnFilters<String> get category => $composableBuilder(
       column: $table.category, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get messCostType => $composableBuilder(
+      column: $table.messCostType, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
@@ -4152,6 +5634,10 @@ class $$ExpensesTableOrderingComposer
   ColumnOrderings<String> get category => $composableBuilder(
       column: $table.category, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get messCostType => $composableBuilder(
+      column: $table.messCostType,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
 
@@ -4219,6 +5705,9 @@ class $$ExpensesTableAnnotationComposer
 
   GeneratedColumn<String> get category =>
       $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<String> get messCostType => $composableBuilder(
+      column: $table.messCostType, builder: (column) => column);
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
@@ -4342,6 +5831,7 @@ class $$ExpensesTableTableManager extends RootTableManager<
             Value<double> amount = const Value.absent(),
             Value<String> title = const Value.absent(),
             Value<String> category = const Value.absent(),
+            Value<String?> messCostType = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -4353,6 +5843,7 @@ class $$ExpensesTableTableManager extends RootTableManager<
             amount: amount,
             title: title,
             category: category,
+            messCostType: messCostType,
             isSynced: isSynced,
             createdAt: createdAt,
             rowid: rowid,
@@ -4364,6 +5855,7 @@ class $$ExpensesTableTableManager extends RootTableManager<
             required double amount,
             required String title,
             required String category,
+            Value<String?> messCostType = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -4375,6 +5867,7 @@ class $$ExpensesTableTableManager extends RootTableManager<
             amount: amount,
             title: title,
             category: category,
+            messCostType: messCostType,
             isSynced: isSynced,
             createdAt: createdAt,
             rowid: rowid,
@@ -5637,6 +7130,896 @@ typedef $$SettlementsTableProcessedTableManager = ProcessedTableManager<
     (Settlement, $$SettlementsTableReferences),
     Settlement,
     PrefetchHooks Function({bool tourId, bool fromId, bool toId})>;
+typedef $$ProgramIncomesTableCreateCompanionBuilder = ProgramIncomesCompanion
+    Function({
+  required String id,
+  required String tourId,
+  required double amount,
+  required String source,
+  Value<String?> description,
+  required String collectedBy,
+  Value<DateTime> date,
+  Value<bool> isSynced,
+  Value<int> rowid,
+});
+typedef $$ProgramIncomesTableUpdateCompanionBuilder = ProgramIncomesCompanion
+    Function({
+  Value<String> id,
+  Value<String> tourId,
+  Value<double> amount,
+  Value<String> source,
+  Value<String?> description,
+  Value<String> collectedBy,
+  Value<DateTime> date,
+  Value<bool> isSynced,
+  Value<int> rowid,
+});
+
+final class $$ProgramIncomesTableReferences
+    extends BaseReferences<_$AppDatabase, $ProgramIncomesTable, ProgramIncome> {
+  $$ProgramIncomesTableReferences(
+      super.$_db, super.$_table, super.$_typedResult);
+
+  static $ToursTable _tourIdTable(_$AppDatabase db) => db.tours
+      .createAlias($_aliasNameGenerator(db.programIncomes.tourId, db.tours.id));
+
+  $$ToursTableProcessedTableManager get tourId {
+    final $_column = $_itemColumn<String>('tour_id')!;
+
+    final manager = $$ToursTableTableManager($_db, $_db.tours)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_tourIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static $UsersTable _collectedByTable(_$AppDatabase db) =>
+      db.users.createAlias(
+          $_aliasNameGenerator(db.programIncomes.collectedBy, db.users.id));
+
+  $$UsersTableProcessedTableManager get collectedBy {
+    final $_column = $_itemColumn<String>('collected_by')!;
+
+    final manager = $$UsersTableTableManager($_db, $_db.users)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_collectedByTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+}
+
+class $$ProgramIncomesTableFilterComposer
+    extends Composer<_$AppDatabase, $ProgramIncomesTable> {
+  $$ProgramIncomesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get amount => $composableBuilder(
+      column: $table.amount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get date => $composableBuilder(
+      column: $table.date, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isSynced => $composableBuilder(
+      column: $table.isSynced, builder: (column) => ColumnFilters(column));
+
+  $$ToursTableFilterComposer get tourId {
+    final $$ToursTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.tourId,
+        referencedTable: $db.tours,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ToursTableFilterComposer(
+              $db: $db,
+              $table: $db.tours,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$UsersTableFilterComposer get collectedBy {
+    final $$UsersTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.collectedBy,
+        referencedTable: $db.users,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$UsersTableFilterComposer(
+              $db: $db,
+              $table: $db.users,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$ProgramIncomesTableOrderingComposer
+    extends Composer<_$AppDatabase, $ProgramIncomesTable> {
+  $$ProgramIncomesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+      column: $table.amount, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get source => $composableBuilder(
+      column: $table.source, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get date => $composableBuilder(
+      column: $table.date, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isSynced => $composableBuilder(
+      column: $table.isSynced, builder: (column) => ColumnOrderings(column));
+
+  $$ToursTableOrderingComposer get tourId {
+    final $$ToursTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.tourId,
+        referencedTable: $db.tours,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ToursTableOrderingComposer(
+              $db: $db,
+              $table: $db.tours,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$UsersTableOrderingComposer get collectedBy {
+    final $$UsersTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.collectedBy,
+        referencedTable: $db.users,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$UsersTableOrderingComposer(
+              $db: $db,
+              $table: $db.users,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$ProgramIncomesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ProgramIncomesTable> {
+  $$ProgramIncomesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+      column: $table.description, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  $$ToursTableAnnotationComposer get tourId {
+    final $$ToursTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.tourId,
+        referencedTable: $db.tours,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ToursTableAnnotationComposer(
+              $db: $db,
+              $table: $db.tours,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$UsersTableAnnotationComposer get collectedBy {
+    final $$UsersTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.collectedBy,
+        referencedTable: $db.users,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$UsersTableAnnotationComposer(
+              $db: $db,
+              $table: $db.users,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$ProgramIncomesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ProgramIncomesTable,
+    ProgramIncome,
+    $$ProgramIncomesTableFilterComposer,
+    $$ProgramIncomesTableOrderingComposer,
+    $$ProgramIncomesTableAnnotationComposer,
+    $$ProgramIncomesTableCreateCompanionBuilder,
+    $$ProgramIncomesTableUpdateCompanionBuilder,
+    (ProgramIncome, $$ProgramIncomesTableReferences),
+    ProgramIncome,
+    PrefetchHooks Function({bool tourId, bool collectedBy})> {
+  $$ProgramIncomesTableTableManager(
+      _$AppDatabase db, $ProgramIncomesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ProgramIncomesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ProgramIncomesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ProgramIncomesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> tourId = const Value.absent(),
+            Value<double> amount = const Value.absent(),
+            Value<String> source = const Value.absent(),
+            Value<String?> description = const Value.absent(),
+            Value<String> collectedBy = const Value.absent(),
+            Value<DateTime> date = const Value.absent(),
+            Value<bool> isSynced = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ProgramIncomesCompanion(
+            id: id,
+            tourId: tourId,
+            amount: amount,
+            source: source,
+            description: description,
+            collectedBy: collectedBy,
+            date: date,
+            isSynced: isSynced,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String tourId,
+            required double amount,
+            required String source,
+            Value<String?> description = const Value.absent(),
+            required String collectedBy,
+            Value<DateTime> date = const Value.absent(),
+            Value<bool> isSynced = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ProgramIncomesCompanion.insert(
+            id: id,
+            tourId: tourId,
+            amount: amount,
+            source: source,
+            description: description,
+            collectedBy: collectedBy,
+            date: date,
+            isSynced: isSynced,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable(table),
+                    $$ProgramIncomesTableReferences(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: ({tourId = false, collectedBy = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (tourId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.tourId,
+                    referencedTable:
+                        $$ProgramIncomesTableReferences._tourIdTable(db),
+                    referencedColumn:
+                        $$ProgramIncomesTableReferences._tourIdTable(db).id,
+                  ) as T;
+                }
+                if (collectedBy) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.collectedBy,
+                    referencedTable:
+                        $$ProgramIncomesTableReferences._collectedByTable(db),
+                    referencedColumn: $$ProgramIncomesTableReferences
+                        ._collectedByTable(db)
+                        .id,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$ProgramIncomesTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ProgramIncomesTable,
+    ProgramIncome,
+    $$ProgramIncomesTableFilterComposer,
+    $$ProgramIncomesTableOrderingComposer,
+    $$ProgramIncomesTableAnnotationComposer,
+    $$ProgramIncomesTableCreateCompanionBuilder,
+    $$ProgramIncomesTableUpdateCompanionBuilder,
+    (ProgramIncome, $$ProgramIncomesTableReferences),
+    ProgramIncome,
+    PrefetchHooks Function({bool tourId, bool collectedBy})>;
+typedef $$MealRecordsTableCreateCompanionBuilder = MealRecordsCompanion
+    Function({
+  required String id,
+  required String tourId,
+  required String userId,
+  required DateTime date,
+  required double count,
+  Value<bool> isSynced,
+  Value<int> rowid,
+});
+typedef $$MealRecordsTableUpdateCompanionBuilder = MealRecordsCompanion
+    Function({
+  Value<String> id,
+  Value<String> tourId,
+  Value<String> userId,
+  Value<DateTime> date,
+  Value<double> count,
+  Value<bool> isSynced,
+  Value<int> rowid,
+});
+
+final class $$MealRecordsTableReferences
+    extends BaseReferences<_$AppDatabase, $MealRecordsTable, MealRecord> {
+  $$MealRecordsTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $ToursTable _tourIdTable(_$AppDatabase db) => db.tours
+      .createAlias($_aliasNameGenerator(db.mealRecords.tourId, db.tours.id));
+
+  $$ToursTableProcessedTableManager get tourId {
+    final $_column = $_itemColumn<String>('tour_id')!;
+
+    final manager = $$ToursTableTableManager($_db, $_db.tours)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_tourIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+
+  static $UsersTable _userIdTable(_$AppDatabase db) => db.users
+      .createAlias($_aliasNameGenerator(db.mealRecords.userId, db.users.id));
+
+  $$UsersTableProcessedTableManager get userId {
+    final $_column = $_itemColumn<String>('user_id')!;
+
+    final manager = $$UsersTableTableManager($_db, $_db.users)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_userIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+}
+
+class $$MealRecordsTableFilterComposer
+    extends Composer<_$AppDatabase, $MealRecordsTable> {
+  $$MealRecordsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get date => $composableBuilder(
+      column: $table.date, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get count => $composableBuilder(
+      column: $table.count, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isSynced => $composableBuilder(
+      column: $table.isSynced, builder: (column) => ColumnFilters(column));
+
+  $$ToursTableFilterComposer get tourId {
+    final $$ToursTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.tourId,
+        referencedTable: $db.tours,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ToursTableFilterComposer(
+              $db: $db,
+              $table: $db.tours,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$UsersTableFilterComposer get userId {
+    final $$UsersTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.userId,
+        referencedTable: $db.users,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$UsersTableFilterComposer(
+              $db: $db,
+              $table: $db.users,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$MealRecordsTableOrderingComposer
+    extends Composer<_$AppDatabase, $MealRecordsTable> {
+  $$MealRecordsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get date => $composableBuilder(
+      column: $table.date, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get count => $composableBuilder(
+      column: $table.count, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get isSynced => $composableBuilder(
+      column: $table.isSynced, builder: (column) => ColumnOrderings(column));
+
+  $$ToursTableOrderingComposer get tourId {
+    final $$ToursTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.tourId,
+        referencedTable: $db.tours,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ToursTableOrderingComposer(
+              $db: $db,
+              $table: $db.tours,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$UsersTableOrderingComposer get userId {
+    final $$UsersTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.userId,
+        referencedTable: $db.users,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$UsersTableOrderingComposer(
+              $db: $db,
+              $table: $db.users,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$MealRecordsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MealRecordsTable> {
+  $$MealRecordsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<double> get count =>
+      $composableBuilder(column: $table.count, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  $$ToursTableAnnotationComposer get tourId {
+    final $$ToursTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.tourId,
+        referencedTable: $db.tours,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ToursTableAnnotationComposer(
+              $db: $db,
+              $table: $db.tours,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+
+  $$UsersTableAnnotationComposer get userId {
+    final $$UsersTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.userId,
+        referencedTable: $db.users,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$UsersTableAnnotationComposer(
+              $db: $db,
+              $table: $db.users,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$MealRecordsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $MealRecordsTable,
+    MealRecord,
+    $$MealRecordsTableFilterComposer,
+    $$MealRecordsTableOrderingComposer,
+    $$MealRecordsTableAnnotationComposer,
+    $$MealRecordsTableCreateCompanionBuilder,
+    $$MealRecordsTableUpdateCompanionBuilder,
+    (MealRecord, $$MealRecordsTableReferences),
+    MealRecord,
+    PrefetchHooks Function({bool tourId, bool userId})> {
+  $$MealRecordsTableTableManager(_$AppDatabase db, $MealRecordsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MealRecordsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MealRecordsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MealRecordsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> tourId = const Value.absent(),
+            Value<String> userId = const Value.absent(),
+            Value<DateTime> date = const Value.absent(),
+            Value<double> count = const Value.absent(),
+            Value<bool> isSynced = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MealRecordsCompanion(
+            id: id,
+            tourId: tourId,
+            userId: userId,
+            date: date,
+            count: count,
+            isSynced: isSynced,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String tourId,
+            required String userId,
+            required DateTime date,
+            required double count,
+            Value<bool> isSynced = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MealRecordsCompanion.insert(
+            id: id,
+            tourId: tourId,
+            userId: userId,
+            date: date,
+            count: count,
+            isSynced: isSynced,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable(table),
+                    $$MealRecordsTableReferences(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: ({tourId = false, userId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (tourId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.tourId,
+                    referencedTable:
+                        $$MealRecordsTableReferences._tourIdTable(db),
+                    referencedColumn:
+                        $$MealRecordsTableReferences._tourIdTable(db).id,
+                  ) as T;
+                }
+                if (userId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.userId,
+                    referencedTable:
+                        $$MealRecordsTableReferences._userIdTable(db),
+                    referencedColumn:
+                        $$MealRecordsTableReferences._userIdTable(db).id,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$MealRecordsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $MealRecordsTable,
+    MealRecord,
+    $$MealRecordsTableFilterComposer,
+    $$MealRecordsTableOrderingComposer,
+    $$MealRecordsTableAnnotationComposer,
+    $$MealRecordsTableCreateCompanionBuilder,
+    $$MealRecordsTableUpdateCompanionBuilder,
+    (MealRecord, $$MealRecordsTableReferences),
+    MealRecord,
+    PrefetchHooks Function({bool tourId, bool userId})>;
+typedef $$SyncMetadataTableCreateCompanionBuilder = SyncMetadataCompanion
+    Function({
+  required String key,
+  required String value,
+  Value<int> rowid,
+});
+typedef $$SyncMetadataTableUpdateCompanionBuilder = SyncMetadataCompanion
+    Function({
+  Value<String> key,
+  Value<String> value,
+  Value<int> rowid,
+});
+
+class $$SyncMetadataTableFilterComposer
+    extends Composer<_$AppDatabase, $SyncMetadataTable> {
+  $$SyncMetadataTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get key => $composableBuilder(
+      column: $table.key, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get value => $composableBuilder(
+      column: $table.value, builder: (column) => ColumnFilters(column));
+}
+
+class $$SyncMetadataTableOrderingComposer
+    extends Composer<_$AppDatabase, $SyncMetadataTable> {
+  $$SyncMetadataTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get key => $composableBuilder(
+      column: $table.key, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get value => $composableBuilder(
+      column: $table.value, builder: (column) => ColumnOrderings(column));
+}
+
+class $$SyncMetadataTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SyncMetadataTable> {
+  $$SyncMetadataTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get key =>
+      $composableBuilder(column: $table.key, builder: (column) => column);
+
+  GeneratedColumn<String> get value =>
+      $composableBuilder(column: $table.value, builder: (column) => column);
+}
+
+class $$SyncMetadataTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $SyncMetadataTable,
+    SyncMetadataData,
+    $$SyncMetadataTableFilterComposer,
+    $$SyncMetadataTableOrderingComposer,
+    $$SyncMetadataTableAnnotationComposer,
+    $$SyncMetadataTableCreateCompanionBuilder,
+    $$SyncMetadataTableUpdateCompanionBuilder,
+    (
+      SyncMetadataData,
+      BaseReferences<_$AppDatabase, $SyncMetadataTable, SyncMetadataData>
+    ),
+    SyncMetadataData,
+    PrefetchHooks Function()> {
+  $$SyncMetadataTableTableManager(_$AppDatabase db, $SyncMetadataTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SyncMetadataTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SyncMetadataTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SyncMetadataTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> key = const Value.absent(),
+            Value<String> value = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SyncMetadataCompanion(
+            key: key,
+            value: value,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String key,
+            required String value,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              SyncMetadataCompanion.insert(
+            key: key,
+            value: value,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$SyncMetadataTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $SyncMetadataTable,
+    SyncMetadataData,
+    $$SyncMetadataTableFilterComposer,
+    $$SyncMetadataTableOrderingComposer,
+    $$SyncMetadataTableAnnotationComposer,
+    $$SyncMetadataTableCreateCompanionBuilder,
+    $$SyncMetadataTableUpdateCompanionBuilder,
+    (
+      SyncMetadataData,
+      BaseReferences<_$AppDatabase, $SyncMetadataTable, SyncMetadataData>
+    ),
+    SyncMetadataData,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5655,4 +8038,10 @@ class $AppDatabaseManager {
       $$ExpensePayersTableTableManager(_db, _db.expensePayers);
   $$SettlementsTableTableManager get settlements =>
       $$SettlementsTableTableManager(_db, _db.settlements);
+  $$ProgramIncomesTableTableManager get programIncomes =>
+      $$ProgramIncomesTableTableManager(_db, _db.programIncomes);
+  $$MealRecordsTableTableManager get mealRecords =>
+      $$MealRecordsTableTableManager(_db, _db.mealRecords);
+  $$SyncMetadataTableTableManager get syncMetadata =>
+      $$SyncMetadataTableTableManager(_db, _db.syncMetadata);
 }

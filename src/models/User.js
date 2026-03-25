@@ -13,14 +13,20 @@ module.exports = (sequelize) => {
     },
     phone: {
       type: DataTypes.STRING,
+      unique: true,
       allowNull: true
     },
     email: {
       type: DataTypes.STRING,
+      unique: true,
+      allowNull: true
+    },
+    password: {
+      type: DataTypes.STRING,
       allowNull: true
     },
     avatar_url: {
-      type: DataTypes.STRING,
+      type: DataTypes.TEXT,
       allowNull: true
     },
     purpose: {
@@ -32,5 +38,12 @@ module.exports = (sequelize) => {
         type: DataTypes.BOOLEAN,
         defaultValue: false
     }
+  }, {
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+    indexes: [
+      { fields: ['updated_at'] }
+    ]
   });
 };

@@ -16,17 +16,22 @@ const ExpenseSplit = require('./ExpenseSplit')(sequelize);
 const JoinRequest = require('./JoinRequest')(sequelize);
 const Settlement = require('./Settlement')(sequelize);
 const ExpensePayer = require('./ExpensePayer')(sequelize);
+const TourMember = require('./TourMember')(sequelize);
 
+const ProgramIncome = require('./ProgramIncome')(sequelize);
 
 // Relations
-User.belongsToMany(Tour, { through: 'TourMembers', onDelete: 'CASCADE' });
-Tour.belongsToMany(User, { through: 'TourMembers', onDelete: 'CASCADE' });
+User.belongsToMany(Tour, { through: TourMember, onDelete: 'CASCADE' });
+Tour.belongsToMany(User, { through: TourMember, onDelete: 'CASCADE' });
 
 Tour.hasMany(Expense, { foreignKey: 'tour_id', onDelete: 'CASCADE' });
 Expense.belongsTo(Tour, { foreignKey: 'tour_id' });
 
 Tour.hasMany(Settlement, { foreignKey: 'tour_id', onDelete: 'CASCADE' });
 Settlement.belongsTo(Tour, { foreignKey: 'tour_id' });
+
+Tour.hasMany(ProgramIncome, { foreignKey: 'tour_id', onDelete: 'CASCADE' });
+ProgramIncome.belongsTo(Tour, { foreignKey: 'tour_id' });
 
 User.hasMany(Expense, { foreignKey: 'payer_id' }); // kept for backward compatibility (primary payer)
 Expense.belongsTo(User, { foreignKey: 'payer_id', as: 'payer' });
@@ -42,6 +47,9 @@ User.hasMany(Settlement, { foreignKey: 'to_id', as: 'IncomingSettlements' });
 Settlement.belongsTo(User, { foreignKey: 'from_id', as: 'sender' });
 Settlement.belongsTo(User, { foreignKey: 'to_id', as: 'receiver' });
 
+User.hasMany(ProgramIncome, { foreignKey: 'collected_by' });
+ProgramIncome.belongsTo(User, { foreignKey: 'collected_by', as: 'collector' });
+
 Expense.hasMany(ExpenseSplit, { foreignKey: 'expense_id' });
 ExpenseSplit.belongsTo(Expense, { foreignKey: 'expense_id' });
 
@@ -56,5 +64,7 @@ module.exports = {
   ExpenseSplit,
   JoinRequest,
   Settlement,
-  ExpensePayer
+  ExpensePayer,
+  ProgramIncome,
+  TourMember
 };

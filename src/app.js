@@ -39,12 +39,17 @@ const tourRoutes = require('./routes/tourRoutes');
 const expenseRoutes = require('./routes/expenseRoutes');
 const syncRoutes = require('./routes/syncRoutes');
 const settlementRoutes = require('./routes/settlementRoutes');
+const programIncomeRoutes = require('./routes/programIncomeRoutes');
+const authRoutes = require('./routes/authRoutes');
+const auth = require('./middleware/auth');
 
-app.use('/users', userRoutes);
-app.use('/tours', tourRoutes);
-app.use('/expenses', expenseRoutes);
-app.use('/sync', syncRoutes);
-app.use('/settlements', settlementRoutes);
+app.use('/auth', authRoutes);
+app.use('/users', auth, userRoutes);
+app.use('/tours', auth, tourRoutes);
+app.use('/expenses', auth, expenseRoutes);
+app.use('/sync', auth, syncRoutes);
+app.use('/settlements', auth, settlementRoutes);
+app.use('/incomes', auth, programIncomeRoutes);
 
 
 // Global error handlers to prevent silent crashes
@@ -56,34 +61,52 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('🔥 FATAL: Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
-// Database Connection & Server Start
-async function startServer() {
+// Database Connection initialization (Safe for Serverless)
+let isDbInitialized = false;
+async function initDb() {
+  if (isDbInitialized) return;
   try {
-    // Start listening IMMEDIATELY to satisfy Railway healthchecks
-    const server = app.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 Server is listening on port ${PORT}`);
-    });
-
-    server.on('error', (err) => {
-      console.error('❌ Server Listen Error:', err);
-    });
-
-    // Initialize Database asynchronously
-    console.log('🔄 Initializing Database...');
-    try {
-      await sequelize.authenticate();
-      console.log('✅ Database connected.');
-      await sequelize.sync();
-      console.log('✅ Database schema synced.');
-    } catch (dbErr) {
-      console.error('❌ Database Sync Failed:', dbErr);
-      // Don't exit, let healthcheck pass so we can debug via logs
-    }
-
-  } catch (startupErr) {
-    console.error('💥 Critical Startup Error:', startupErr);
-    process.exit(1);
+    console.log('🔄 Initializing Database Connection...');
+    await sequelize.authenticate();
+    console.log('✅ Database connected.');
+    // In production/serverless, sync { alter: true } can be slow. 
+    // Usually migrations are better, but we keep it for simplicity.
+    await sequelize.sync({ alter: true });
+    console.log('✅ Database schema synced.');
+    isDbInitialized = true;
+  } catch (dbErr) {
+    console.error('❌ Database Initialization Failed:', dbErr);
   }
 }
 
-startServer();
+// Global error handlers to prevent silent crashes
+process.on('uncaughtException', (err) => {
+  console.error('🔥 FATAL: Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🔥 FATAL: Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// Middleware to ensure DB is initialized
+app.use(async (req, res, next) => {
+  if (!isDbInitialized) {
+    await initDb();
+  }
+  next();
+});
+
+// Helper for Railway/Local - Vercel will use exported app
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server is listening on port ${PORT}`);
+    initDb(); // Background init
+  });
+
+  server.on('error', (err) => {
+    console.error('❌ Server Listen Error:', err);
+  });
+}
+
+// Export the Express app for Vercel
+module.exports = app;

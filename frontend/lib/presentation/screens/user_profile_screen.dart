@@ -4,8 +4,8 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../data/local/app_database.dart';
-import '../../main.dart';
-import '../../data/providers/app_providers.dart';
+import 'package:frontend/data/providers/app_providers.dart';
+import 'welcome_screen.dart';
 
 class UserProfileScreen extends ConsumerStatefulWidget {
   final User user;
@@ -31,7 +31,18 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.user.name);
+    
+    // Smart name resolution: If name is Unknown but email exists, use email username
+    String displayName = widget.user.name;
+    if ((displayName.isEmpty || displayName.toLowerCase() == 'unknown') && 
+        widget.user.email != null && widget.user.email!.contains('@')) {
+       final parts = widget.user.email!.split('@');
+       if (parts.isNotEmpty && parts[0].isNotEmpty) {
+         displayName = parts[0][0].toUpperCase() + parts[0].substring(1);
+       }
+    }
+
+    _nameController = TextEditingController(text: displayName);
     _phoneController = TextEditingController(text: widget.user.phone ?? "");
     _emailController = TextEditingController(text: widget.user.email ?? "");
     _avatarController = TextEditingController(text: widget.user.avatarUrl ?? "");
@@ -206,6 +217,46 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         _buildDetailItem(Icons.badge_outlined, "User ID", widget.user.id),
         _buildDetailItem(Icons.sync, "Sync Status", widget.user.isSynced ? "Synced with Cloud" : "Local Only"),
         const SizedBox(height: 40),
+        const SizedBox(height: 24),
+        if (widget.isMe) ...[
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text("Logout"),
+                    content: const Text("Are you sure you want to logout?"),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
+                      TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Logout", style: TextStyle(color: Colors.red))),
+                    ],
+                  ),
+                );
+
+                if (confirm == true) {
+                  await ref.read(authServiceProvider).logout();
+                  ref.invalidate(currentUserProvider);
+                  if (mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+                      (route) => false,
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.logout),
+              label: const Text("Logout"),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.red.shade700,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(

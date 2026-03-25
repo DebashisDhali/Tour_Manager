@@ -3,10 +3,10 @@ const { Expense, ExpenseSplit, ExpensePayer, sequelize } = require('../models');
 exports.createExpense = async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { id, tour_id, payer_id, amount, title, category, splits, payers } = req.body;
+    const { id, tour_id, payer_id, amount, title, category, mess_cost_type, splits, payers } = req.body;
     
     const expense = await Expense.create({
-        id, tour_id, payer_id, amount, title, category, synced_at: new Date()
+        id, tour_id, payer_id, amount, title, category, mess_cost_type, synced_at: new Date()
     }, { transaction: t });
 
     if (splits && splits.length > 0) {
@@ -52,7 +52,7 @@ exports.getExpensesByTour = async (req, res) => {
 exports.updateExpense = async (req, res) => {
     const t = await sequelize.transaction();
     try {
-        const { amount, title, category, splits, payers } = req.body;
+        const { amount, title, category, mess_cost_type, splits, payers } = req.body;
         const expenseId = req.params.id;
 
         const expense = await Expense.findByPk(expenseId);
@@ -61,7 +61,7 @@ exports.updateExpense = async (req, res) => {
             return res.status(404).json({ error: 'Expense not found' });
         }
 
-        await expense.update({ amount, title, category, synced_at: new Date() }, { transaction: t });
+        await expense.update({ amount, title, category, mess_cost_type, synced_at: new Date() }, { transaction: t });
 
         if (splits && splits.length > 0) {
             await ExpenseSplit.destroy({ where: { expense_id: expenseId }, transaction: t });

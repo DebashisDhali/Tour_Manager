@@ -1,4 +1,4 @@
-const { Tour, User, JoinRequest, Expense, ExpenseSplit, ExpensePayer, Settlement, sequelize } = require('../models');
+const { Tour, User, JoinRequest, Expense, ExpenseSplit, ExpensePayer, Settlement, TourMember, sequelize } = require('../models');
 const { v4: uuidv4 } = require('uuid');
 
 exports.createTour = async (req, res) => {
@@ -42,7 +42,12 @@ exports.getAllTours = async (req, res) => {
 exports.getTourDetails = async (req, res) => {
     try {
         const tour = await Tour.findByPk(req.params.id, {
-            include: [{ model: User }]
+            include: [
+              { 
+                model: User,
+                through: { attributes: ['status', 'joined_at', 'removed_at', 'meal_count'] }
+              }
+            ]
         });
         if (!tour) return res.status(404).json({ message: 'Tour not found' });
         res.json(tour);
@@ -70,9 +75,13 @@ exports.joinTour = async (req, res) => {
       return res.status(404).json({ error: 'Invalid invite code' });
     }
 
-    // Check if already member
-    const isMember = await tour.hasUser(user_id, { transaction: t });
-    if (isMember) {
+    // Check if already member (including removed ones)
+    const existingConnection = await TourMember.findOne({
+      where: { tour_id: tour.id, user_id: user_id },
+      transaction: t
+    });
+
+    if (existingConnection && existingConnection.status === 'active') {
       await t.rollback();
       return res.status(400).json({ error: 'You are already a member' });
     }
@@ -97,8 +106,16 @@ exports.joinTour = async (req, res) => {
       }, { transaction: t });
     }
 
-    // Join directly
-    await tour.addUser(user, { transaction: t });
+    // Join or Reactivate
+    if (existingConnection) {
+      await existingConnection.update({ 
+        status: 'active', 
+        removed_at: null,
+        joined_at: new Date() // Refresh join date? Or keep original? Let's refresh.
+      }, { transaction: t });
+    } else {
+      await tour.addUser(user, { transaction: t });
+    }
     
     // Commit the transaction
     await t.commit();
@@ -106,12 +123,16 @@ exports.joinTour = async (req, res) => {
     // Fetch the complete tour with all members, expenses, and settlements to return
     const completeTour = await Tour.findByPk(tour.id, {
       include: [
-        { model: User }, // Members
+        { 
+          model: User,
+          through: { attributes: ['status', 'joined_at', 'removed_at', 'meal_count'] }
+        },
         { 
           model: Expense,
           include: [ExpenseSplit, ExpensePayer]
         },
-        { model: Settlement }
+        { model: Settlement },
+        { model: ProgramIncome }
       ]
     });
     console.log(`Join successful for ${user_name} to Tour ${completeTour.name}`);
@@ -147,4 +168,75 @@ exports.deleteTour = async (req, res) => {
   }
 };
 
+exports.removeMember = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { tourId, userId } = req.body;
+    
+    const connection = await TourMember.findOne({
+      where: { tour_id: tourId, user_id: userId },
+      transaction: t
+    });
 
+    if (!connection) {
+      await t.rollback();
+      return res.status(404).json({ error: 'Member not found in this tour' });
+    }
+
+    if (connection.status === 'removed') {
+      await t.rollback();
+      return res.status(400).json({ error: 'Member is already removed' });
+    }
+
+    // Soft remove
+    await connection.update({ 
+      status: 'removed', 
+      removed_at: new Date() 
+    }, { transaction: t });
+
+    await t.commit();
+    res.json({ message: 'Member removed successfully' });
+  } catch (err) {
+    if (t) await t.rollback();
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+exports.addMember = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { tourId } = req.params;
+    const { userId } = req.body;
+    
+    const tour = await Tour.findByPk(tourId, { transaction: t });
+    const user = await User.findByPk(userId, { transaction: t });
+    
+    if (!tour || !user) {
+      await t.rollback();
+      return res.status(404).json({ error: 'Tour or User not found' });
+    }
+
+    const existingMember = await TourMember.findOne({
+      where: { tour_id: tourId, user_id: userId },
+      transaction: t
+    });
+
+    if (existingMember) {
+      if (existingMember.status === 'active') {
+        await t.rollback();
+        return res.status(400).json({ error: 'Already a member' });
+      } else {
+        await existingMember.update({ status: 'active', removed_at: null }, { transaction: t });
+      }
+    } else {
+      await tour.addUser(user, { transaction: t });
+    }
+
+    await t.commit();
+    res.json({ message: 'Member added successfully' });
+  } catch (err) {
+    if (t) await t.rollback();
+    res.status(500).json({ error: err.message });
+  }
+};

@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/providers/app_providers.dart';
+import 'package:frontend/data/providers/app_providers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'create_tour_screen.dart';
 import 'tour_details_screen.dart';
 import 'package:intl/intl.dart';
 import 'user_profile_screen.dart';
 import '../../domain/logic/purpose_config.dart';
 import '../../data/local/app_database.dart' as models;
-import '../../main.dart';
+import '../widgets/premium_card.dart';
+import '../widgets/app_tour_overlay.dart';
 
 class TourListScreen extends ConsumerStatefulWidget {
   const TourListScreen({super.key});
@@ -18,11 +20,77 @@ class TourListScreen extends ConsumerStatefulWidget {
 }
 
 class _TourListScreenState extends ConsumerState<TourListScreen> {
+  // ── App Tour GlobalKeys ──
+  final _syncKey = GlobalKey();
+  final _tabBarKey = GlobalKey();
+  final _fabKey = GlobalKey();
+  final _profileKey = GlobalKey();
+  final _joinCodeKey = GlobalKey();
+  final _tourOverlayKey = GlobalKey<AppTourOverlayState>();
+
   @override
   void initState() {
     super.initState();
-    // Auto-sync on startup
     Future.microtask(() => _triggerInitialSync());
+    // Check if app tour needs to run (after first frame renders)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndStartTour();
+    });
+  }
+
+  Future<void> _checkAndStartTour() async {
+    final prefs = await SharedPreferences.getInstance();
+    final tourDone = prefs.getBool('app_tour_done') ?? false;
+    if (!tourDone && mounted) {
+      // Slight delay so the UI is fully rendered
+      await Future.delayed(const Duration(milliseconds: 800));
+      _tourOverlayKey.currentState?.startTour();
+    }
+  }
+
+  Future<void> _completeAppTour() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('app_tour_done', true);
+  }
+
+  List<TourStep> _buildTourSteps() {
+    return [
+      TourStep(
+        targetKey: _tabBarKey,
+        title: 'আপনার ড্যাশবোর্ড',
+        description: 'Activity Feed-এ সাম্প্রতিক খরচ ও ইনকাম দেখুন। Tours ট্যাবে আপনার সব ট্যুর-এর তালিকা পাবেন।',
+        icon: Icons.dashboard_rounded,
+        accentColor: const Color(0xFF6366F1),
+      ),
+      TourStep(
+        targetKey: _syncKey,
+        title: 'ডেটা সিঙ্ক করুন',
+        description: 'এই বাটনে ট্যাপ করলে আপনার সব ডেটা সার্ভারের সাথে আপডেট হবে। অন্য মেম্বাররাও তখন আপডেট পাবেন।',
+        icon: Icons.sync_rounded,
+        accentColor: const Color(0xFF0EA5E9),
+      ),
+      TourStep(
+        targetKey: _profileKey,
+        title: 'আপনার প্রোফাইল',
+        description: 'এখানে আপনার নাম, ইমেইল আর সেটিংস পরিবর্তন করতে পারবেন।',
+        icon: Icons.person_rounded,
+        accentColor: const Color(0xFF8B5CF6),
+      ),
+      TourStep(
+        targetKey: _fabKey,
+        title: 'নতুন ট্যুর তৈরি করুন',
+        description: 'এই + বাটনে ক্লিক করে নতুন ট্যুর, ট্রিপ, ইভেন্ট বা মেস তৈরি করুন। সবার খরচ এক জায়গায় হিসাব হবে!',
+        icon: Icons.add_circle_rounded,
+        accentColor: const Color(0xFF10B981),
+      ),
+      TourStep(
+        targetKey: _joinCodeKey,
+        title: 'কোড দিয়ে যোগ দিন',
+        description: 'অন্যের ট্যুরে যোগ দিতে 6-digit invite code ব্যবহার করুন। Home screen-এ "Join with Code" অপশনটি ব্যবহার করুন।',
+        icon: Icons.qr_code_rounded,
+        accentColor: const Color(0xFFF59E0B),
+      ),
+    ];
   }
 
   Future<void> _triggerInitialSync() async {
@@ -31,7 +99,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
       try {
         await ref.read(syncServiceProvider).startSync(user.id);
       } catch (e) {
-        print("Initial auto-sync failed: $e");
+        debugPrint("Initial auto-sync failed: $e");
       }
     }
   }
@@ -43,58 +111,86 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
     return currentUserAsync.when(
       data: (user) {
         final config = PurposeConfig.getConfig(user?.purpose);
-        return DefaultTabController(
-          length: 2,
-          child: Scaffold(
-            appBar: AppBar(
-              title: Text('${config.label} Manager', style: const TextStyle(fontWeight: FontWeight.bold)),
-              bottom: TabBar(
-                tabs: [
-                  const Tab(icon: Icon(Icons.dashboard_outlined), text: 'Feed'),
-                  Tab(icon: Icon(Icons.map_outlined), text: 'My ${config.pluralLabel}'),
-                ],
-              ),
-              actions: [
-                IconButton(
-                  onPressed: () => _syncData(context),
-                  icon: const Icon(Icons.sync),
-                  tooltip: 'Sync Now',
+        final lastSync = user != null ? ref.watch(lastSyncProvider(user.id)).value : null;
+        final syncDisplay = lastSync != null 
+            ? 'Synced ${DateFormat('hh:mm a').format(DateTime.parse(lastSync))}' 
+            : 'Not synced';
+
+        return AppTourOverlay(
+          key: _tourOverlayKey,
+          steps: _buildTourSteps(),
+          onComplete: _completeAppTour,
+          child: DefaultTabController(
+            length: 2,
+            child: Scaffold(
+              appBar: AppBar(
+                title: Column(
+                  children: [
+                     Text(config.pluralLabel, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, letterSpacing: -0.5)),
+                     Text(syncDisplay, style: TextStyle(fontSize: 10, color: Colors.black54, fontWeight: FontWeight.w600)),
+                  ],
                 ),
-                IconButton(
-                  onPressed: () => _showJoinDialog(context, config),
-                  icon: const Icon(Icons.group_add_outlined),
-                  tooltip: 'Join ${config.label}',
+                bottom: TabBar(
+                  key: _tabBarKey,
+                  indicatorSize: TabBarIndicatorSize.label,
+                  indicatorWeight: 3,
+                  indicatorColor: config.color,
+                  labelColor: config.color,
+                  unselectedLabelColor: Colors.black54,
+                  labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+                  tabs: [
+                    Tab(text: 'Activity Feed'),
+                    Tab(text: config.pluralLabel),
+                  ],
                 ),
-                if (user != null) InkWell(
-                  onTap: () {
-                     Navigator.push(context, MaterialPageRoute(builder: (_) => UserProfileScreen(user: user, isMe: true)));
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: CircleAvatar(
-                      radius: 14,
-                      backgroundColor: config.color.withOpacity(0.8),
-                      backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
-                      child: user.avatarUrl == null ? Text(user.name[0].toUpperCase(), style: const TextStyle(fontSize: 10, color: Colors.white)) : null,
+                actions: [
+                  IconButton(
+                    key: _syncKey,
+                    onPressed: () => _syncData(context),
+                    icon: const Icon(Icons.sync_rounded),
+                    tooltip: 'Sync Now',
+                  ),
+                  if (user != null) InkWell(
+                    key: _profileKey,
+                    onTap: () {
+                       Navigator.push(context, MaterialPageRoute(builder: (_) => UserProfileScreen(user: user, isMe: true)));
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 16, left: 8),
+                      child: CircleAvatar(
+                        radius: 16,
+                        backgroundColor: config.color.withOpacity(0.1),
+                        backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
+                        child: user.avatarUrl == null ? Text(user.name[0].toUpperCase(), style: TextStyle(fontSize: 12, color: config.color, fontWeight: FontWeight.bold)) : null,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            body: TabBarView(
-              children: [
-                _buildCentralFeed(context, config),
-                _buildTourList(context, config, user),
-              ],
-            ),
-            floatingActionButton: FloatingActionButton.extended(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateTourScreen()));
-              },
-              label: Text('New ${config.label}'),
-              icon: const Icon(Icons.auto_awesome),
-              backgroundColor: config.color,
-              foregroundColor: Colors.white,
+                ],
+              ),
+              body: TabBarView(
+                children: [
+                  RefreshIndicator(
+                    onRefresh: () => _syncData(context),
+                    child: _buildCentralFeed(context, config),
+                  ),
+                  RefreshIndicator(
+                    onRefresh: () => _syncData(context),
+                    child: _buildTourList(context, config, user),
+                  ),
+                ],
+              ),
+              floatingActionButton: FloatingActionButton.extended(
+                key: _fabKey,
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateTourScreen()));
+                },
+                label: const Text('New', style: TextStyle(fontWeight: FontWeight.bold)),
+                icon: const Icon(Icons.add_rounded),
+                backgroundColor: config.color,
+                foregroundColor: Colors.white,
+                elevation: 4,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
             ),
           ),
         );
@@ -105,60 +201,81 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
   }
 
   Widget _buildCentralFeed(BuildContext context, PurposeConfig config) {
-    final recentExpensesAsync = ref.watch(globalRecentExpensesProvider);
+    final activityAsync = ref.watch(globalActivityProvider);
 
-    return recentExpensesAsync.when(
+    return activityAsync.when(
       data: (items) {
         if (items.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.history_toggle_off, size: 80, color: Colors.grey.shade300),
+                Icon(Icons.history_toggle_off_rounded, size: 80, color: Colors.black26),
                 const SizedBox(height: 16),
-                const Text("No Recent Expenses", style: TextStyle(fontSize: 18, color: Colors.grey)),
+                const Text("No Recent Activity", style: TextStyle(fontSize: 18, color: Colors.black54, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  key: _joinCodeKey,
+                  onPressed: () => _showJoinDialog(context, config),
+                  icon: const Icon(Icons.qr_code_scanner_rounded),
+                  label: const Text("Join with Code"),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: config.color,
+                    side: BorderSide(color: config.color.withOpacity(0.2)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                )
               ],
             ),
           );
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           itemCount: items.length,
           itemBuilder: (context, index) {
             final item = items[index];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 16),
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: Colors.grey.shade200),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.all(12),
-                leading: CircleAvatar(
-                  radius: 25,
-                  backgroundColor: Colors.teal.shade50,
-                  backgroundImage: item.payer?.avatarUrl != null ? NetworkImage(item.payer!.avatarUrl!) : null,
-                  child: item.payer?.avatarUrl == null 
-                    ? Text(item.payer?.name[0].toUpperCase() ?? 'M', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal)) 
-                    : null,
-                ),
-                title: Text(item.expense.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text("Paid by ${item.payer?.name ?? 'Combined'} • ${item.tour.name}", 
-                      style: TextStyle(color: Colors.teal.shade600, fontSize: 12)),
-                    Text(DateFormat('MMM dd, hh:mm a').format(item.expense.createdAt), 
-                      style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                  ],
-                ),
-                trailing: Text("${item.expense.amount.toStringAsFixed(0)} ৳", 
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.redAccent)),
-                onTap: () {
-                   Navigator.push(context, MaterialPageRoute(builder: (_) => TourDetailsScreen(tourId: item.tour.id, tourName: item.tour.name)));
-                },
+            return PremiumCard(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              onTap: () {
+                 Navigator.push(context, MaterialPageRoute(builder: (_) => TourDetailsScreen(tourId: item.tour.id, tourName: item.tour.name)));
+              },
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: config.color.withOpacity(0.1),
+                    backgroundImage: item.user?.avatarUrl != null ? NetworkImage(item.user!.avatarUrl!) : null,
+                    child: item.user?.avatarUrl == null 
+                      ? Text(item.user?.name[0].toUpperCase() ?? 'U', style: TextStyle(fontWeight: FontWeight.bold, color: config.color, fontSize: 11)) 
+                      : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(item.type == 'expense' ? item.item.title : (item.type == 'income' ? item.item.source : 'Settlement'), 
+                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        const SizedBox(height: 2),
+                        Text(
+                          "${item.type == 'expense' ? 'Paid by' : 'By'} ${item.user?.name ?? 'Someone'} • ${item.tour.name}", 
+                          style: TextStyle(color: Colors.black.withOpacity(0.7), fontSize: 10, fontWeight: FontWeight.w600)
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          DateFormat('MMM dd, hh:mm a').format(item.date), 
+                          style: const TextStyle(fontSize: 9, color: Colors.black45, fontWeight: FontWeight.w600)
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    "৳${item.amount.toStringAsFixed(0)}", 
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: item.type == 'expense' ? Colors.redAccent : Colors.green)
+                  ),
+                ],
               ),
             );
           },
@@ -176,72 +293,146 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
       data: (tours) {
         if (tours.isEmpty) {
           return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.beach_access_rounded, size: 80, color: Colors.grey),
-                const SizedBox(height: 16),
-                Text("No tours yet!", style: Theme.of(context).textTheme.headlineSmall),
-                const SizedBox(height: 8),
-                const Text("Time to plan a new adventure!"),
-              ],
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(32.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(color: config.color.withOpacity(0.05), shape: BoxShape.circle),
+                      child: Icon(config.icon, size: 60, color: config.color.withOpacity(0.3)),
+                    ),
+                    const SizedBox(height: 32),
+                    Text("No ${config.pluralLabel} yet!", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+                    const SizedBox(height: 12),
+                    Text("Create a new ${config.label.toLowerCase()} or join an existing one with a code to start tracking expenses.", 
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.black.withOpacity(0.7), fontSize: 15, height: 1.5)),
+                    const SizedBox(height: 40),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateTourScreen()));
+                        },
+                        icon: const Icon(Icons.add_rounded),
+                        label: Text("Create New ${config.label}"),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: config.color,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _showJoinDialog(context, config),
+                        icon: const Icon(Icons.qr_code_rounded),
+                        label: const Text("Join with Code"),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: config.color,
+                          side: BorderSide(color: config.color, width: 2),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           );
         }
+        
         return ListView.builder(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           itemCount: tours.length,
           itemBuilder: (context, index) {
             final tour = tours[index];
-            final isCreator = currentUser != null && tour.createdBy == currentUser.id;
+            final tourConfig = PurposeConfig.getConfig(tour.purpose);
             
-            return Card(
-              margin: const EdgeInsets.only(bottom: 16),
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: Colors.grey.shade200),
-              ),
-              child: ListTile(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => TourDetailsScreen(tourId: tour.id, tourName: tour.name)));
-                },
-                leading: Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(12),
+            return PremiumCard(
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => TourDetailsScreen(tourId: tour.id, tourName: tour.name)));
+              },
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    leading: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        gradient: tourConfig.gradient,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(color: tourConfig.color.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))
+                        ],
+                      ),
+                      child: Icon(tourConfig.icon, color: Colors.white, size: 22),
+                    ),
+                    title: Text(
+                      tour.name, 
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: -0.5)
+                    ),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Row(
+                        children: [
+                          Icon(Icons.calendar_today_rounded, size: 11, color: tourConfig.color),
+                          const SizedBox(width: 4),
+                          Text(
+                            tour.startDate == null 
+                              ? "Active ${tourConfig.label}" 
+                              : DateFormat('MMM dd, yyyy').format(tour.startDate!),
+                            style: TextStyle(color: Colors.black.withOpacity(0.7), fontSize: 11, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                    trailing: PopupMenuButton<String>(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      icon: const Icon(Icons.more_vert_rounded),
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => CreateTourScreen(initialTour: tour)));
+                        } else if (value == 'delete') {
+                          _confirmDeleteTour(context, tour);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(children: [Icon(Icons.edit_rounded, size: 18), SizedBox(width: 12), Text('Edit Details')]),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(children: [Icon(Icons.delete_outline_rounded, color: Colors.red, size: 18), SizedBox(width: 12), Text('Remove', style: TextStyle(color: Colors.red))]),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Icon(Icons.map_rounded, color: Colors.blue.shade700),
-                ),
-                title: Text(tour.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                subtitle: Text(
-                  tour.startDate == null 
-                    ? "Active Adventure" 
-                    : "${DateFormat('MMM dd').format(tour.startDate!)} - ${DateFormat('MMM dd, yyyy').format(tour.endDate ?? tour.startDate!)}",
-                  style: TextStyle(color: Colors.blue.shade700, fontSize: 12),
-                ),
-                trailing: isCreator ? PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'edit') {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => CreateTourScreen(initialTour: tour)));
-                    } else if (value == 'delete') {
-                      _confirmDeleteTour(context, tour);
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'edit',
-                      child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Edit')]),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: tourConfig.color.withOpacity(0.05),
+                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
                     ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Row(children: [Icon(Icons.delete, color: Colors.red, size: 18), SizedBox(width: 8), Text('Delete', style: TextStyle(color: Colors.red))]),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildStatIndicator(Icons.people_alt_rounded, tourConfig.memberLabel, tourConfig.color),
+                        _buildStatIndicator(Icons.payments_rounded, tourConfig.expenseListLabel, tourConfig.color),
+                      ],
                     ),
-                  ],
-                ) : const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
+                  )
+                ],
               ),
             );
           },
@@ -252,12 +443,24 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
     );
   }
 
+  Widget _buildStatIndicator(IconData icon, String label, Color color) {
+    return Row(
+      children: [
+        Icon(icon, size: 12, color: color),
+        const SizedBox(width: 4),
+        Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.black.withOpacity(0.7))),
+      ],
+    );
+  }
+
   void _confirmDeleteTour(BuildContext context, models.Tour tour) {
+    final tourConfig = PurposeConfig.getConfig(tour.purpose);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Delete Tour"),
-        content: Text("Are you sure you want to delete '${tour.name}'? This will delete all expenses and records associated with it."),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Text("Delete ${tourConfig.label}"),
+        content: Text("Are you sure you want to delete '${tour.name}'? This will delete all data associated with it."),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
           TextButton(
@@ -266,10 +469,10 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
               await db.deleteTourWithDetails(tour.id);
               if (context.mounted) {
                 Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Tour deleted")));
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${tourConfig.label} deleted")));
               }
             }, 
-            child: const Text("Delete", style: TextStyle(color: Colors.red))
+            child: const Text("Delete", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))
           ),
         ],
       ),
@@ -279,7 +482,14 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
   Future<void> _syncData(BuildContext context) async {
     final user = await ref.read(currentUserProvider.future);
     if (user != null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Syncing...'), duration: Duration(seconds: 1)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Syncing data with server...'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          duration: const Duration(seconds: 1)
+        )
+      );
       await ref.read(syncServiceProvider).startSync(user.id);
     }
   }
@@ -302,9 +512,9 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
             child: Container(
               decoration: const BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
               ),
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(32),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -312,20 +522,20 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                   Center(
                     child: Container(
                       width: 40, 
-                      height: 4, 
-                      margin: const EdgeInsets.only(bottom: 20),
-                      decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))
+                      height: 5, 
+                      margin: const EdgeInsets.only(bottom: 24),
+                      decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(10))
                     )
                   ),
                   Text(
                     'Join ${config.label}', 
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -0.5),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Enter the 6-digit code shared with you',
-                    style: TextStyle(color: Colors.grey.shade600),
+                    'Enter the 6-digit code shared by your host',
+                    style: TextStyle(color: Colors.black54, fontSize: 15),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 32),
@@ -333,119 +543,102 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                     controller: controller,
                     enabled: !isLoading,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 24, letterSpacing: 8, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 32, letterSpacing: 12, fontWeight: FontWeight.bold, color: config.color),
                     textCapitalization: TextCapitalization.characters,
                     maxLength: 6,
                     decoration: InputDecoration(
                         hintText: 'CODE',
-                        hintStyle: TextStyle(color: Colors.grey.shade300, letterSpacing: 2),
+                        hintStyle: TextStyle(color: Colors.black12, letterSpacing: 4),
                         fillColor: config.color.withOpacity(0.05),
                         filled: true,
                         counterText: "",
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(20),
                           borderSide: BorderSide.none,
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(20),
                           borderSide: BorderSide(color: config.color, width: 2),
                         ),
                         errorText: errorText,
-                        suffixIcon: IconButton(
-                          icon: Icon(Icons.paste, color: config.color),
-                          onPressed: isLoading ? null : () async {
-                            try {
-                              final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
-                              if (clipboardData != null && clipboardData.text != null) {
-                                final pastedText = clipboardData.text!.trim().toUpperCase();
-                                // Only paste if it looks like a valid code (6 alphanumeric characters)
-                                if (pastedText.length == 6 && RegExp(r'^[A-Z0-9]+$').hasMatch(pastedText)) {
-                                  controller.text = pastedText;
-                                  setState(() => errorText = null);
-                                } else {
-                                  setState(() => errorText = "Invalid code format");
+                        suffixIcon: Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: CircleAvatar(
+                            backgroundColor: Colors.white,
+                            child: IconButton(
+                              icon: Icon(Icons.paste_rounded, color: config.color, size: 20),
+                              onPressed: isLoading ? null : () async {
+                                try {
+                                  final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+                                  if (clipboardData != null && clipboardData.text != null) {
+                                    final pastedText = clipboardData.text!.trim().toUpperCase();
+                                    if (pastedText.length == 6 && RegExp(r'^[A-Z0-9]+$').hasMatch(pastedText)) {
+                                      controller.text = pastedText;
+                                      setState(() => errorText = null);
+                                    } else {
+                                      setState(() => errorText = "Invalid format");
+                                    }
+                                  }
+                                } catch (e) {
+                                  setState(() => errorText = "Failed to paste");
                                 }
-                              }
-                            } catch (e) {
-                              setState(() => errorText = "Failed to paste");
-                            }
-                          },
+                              },
+                            ),
+                          ),
                         ) 
                     ),
                     onChanged: (val) {
                       if (errorText != null) setState(() => errorText = null);
                     },
                   ),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: isLoading ? null : () async {
-                      final code = controller.text.trim().toUpperCase();
-                      if (code.length != 6) {
-                        setState(() => errorText = "Code must be 6 digits");
-                        return;
-                      }
-
-                      setState(() {
-                        isLoading = true; 
-                        errorText = null;
-                      });
-                      
-                      try {
-                        final user = await ref.read(currentUserProvider.future);
-                        if (user != null) {
-                          await ref.read(syncServiceProvider).joinByInvite(
-                            code,
-                            user.id,
-                            user.name,
-                            email: user.email,
-                            avatarUrl: user.avatarUrl,
-                            purpose: user.purpose,
-                          );
-                          
-                          // Force refresh
-                          ref.invalidate(tourListProvider);
-                          
-                          if (context.mounted) {
-                            Navigator.pop(context); // Close sheet
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Row(
-                                  children: [
-                                    const Icon(Icons.check_circle, color: Colors.white),
-                                    const SizedBox(width: 12),
-                                    Text('Joined ${config.label} successfully!'),
-                                  ],
-                                ),
-                                backgroundColor: Colors.green.shade600,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                            );
-                          }
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    height: 60,
+                    child: FilledButton(
+                      onPressed: isLoading ? null : () async {
+                        final code = controller.text.trim().toUpperCase();
+                        if (code.length != 6) {
+                          setState(() => errorText = "6 digits required");
+                          return;
                         }
-                      } catch (e) {
-                         setState(() {
-                           // Extract clean message
-                           String msg = e.toString().replaceAll("Exception:", "").trim();
-                           if (msg.contains("404")) msg = "Invalid Invite Code";
-                           else if (msg.contains("Connection failed")) msg = "Network Error. Check connection.";
-                           errorText = msg;
-                         });
-                      } finally {
-                        setState(() => isLoading = false);
-                      }
-                    },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: config.color,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 0,
+
+                        setState(() { isLoading = true; errorText = null; });
+                        
+                        try {
+                          final user = await ref.read(currentUserProvider.future);
+                          if (user != null) {
+                            await ref.read(syncServiceProvider).joinByInvite(
+                              code,
+                              user.id,
+                              user.name,
+                              email: user.email,
+                              avatarUrl: user.avatarUrl,
+                              purpose: user.purpose,
+                            );
+                            ref.invalidate(tourListProvider);
+                            if (context.mounted) Navigator.pop(context);
+                          }
+                        } catch (e) {
+                           setState(() {
+                             String msg = e.toString().replaceAll("Exception:", "").trim();
+                             if (msg.contains("404")) msg = "Invalid Code";
+                             errorText = msg;
+                           });
+                        } finally {
+                          if (mounted) setState(() => isLoading = false);
+                        }
+                      },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: config.color,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                        elevation: 0,
+                      ),
+                      child: isLoading 
+                        ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 3)
+                        : const Text('Join Team Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
-                    child: isLoading 
-                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Join Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
@@ -455,6 +648,3 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
     );
   }
 }
-
-
-

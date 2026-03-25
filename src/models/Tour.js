@@ -27,9 +27,21 @@ module.exports = (sequelize) => {
         type: DataTypes.UUID,
         allowNull: false
     },
+    purpose: {
+        type: DataTypes.STRING,
+        defaultValue: 'tour'
+    },
     status: {
         type: DataTypes.ENUM('active', 'completed'),
         defaultValue: 'active'
     }
+  }, {
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+    indexes: [
+      { fields: ['updated_at'] },
+      { unique: true, fields: ['invite_code'] }
+    ]
   });
 };

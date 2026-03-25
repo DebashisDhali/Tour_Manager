@@ -31,5 +31,13 @@ module.exports = (sequelize) => {
         type: DataTypes.ENUM('completed', 'pending'),
         defaultValue: 'completed'
     }
+  }, {
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+    indexes: [
+      { fields: ['tour_id'] },
+      { fields: ['updated_at'] }
+    ]
   });
 };

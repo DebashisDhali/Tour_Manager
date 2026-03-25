@@ -1,0 +1,66 @@
+Launching lib\main.dart on SM G998N in debug mode...
+Running Gradle task 'assembleDebug'...                          
+flutter : lib/presentation/w
+idgets/add_member_dialog.dar
+t:48:56: Error: Required 
+named parameter 'mealCount' 
+must be provided.
+At line:1 char:1
++ flutter run -d 
+R3CR50PSBJE > errors.txt 
+2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          
+    : NotSpecified: (lib/p  
+  resentatio...st be prov   
+ ided.:String) [], Remot    
+eException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
+        await db.into(db.tou
+rMembers).insert(TourMember(
+                            
+                           ^
+lib/data/local/app_database.
+g.dart:1048:9: Context: 
+Found this candidate, but 
+the arguments don't match.
+  const TourMember(
+        ^^^^^^^^^^
+Target 
+kernel_snapshot_program 
+failed: Exception
+
+
+FAILURE: Build failed with 
+an exception.
+
+* What went wrong:
+Execution failed for task ':
+app:compileFlutterBuildDebug
+'.
+> Process 'command 'D:\C 
+Drive Download\flutter_windo
+ws_3.32.7-stable\flutter\bin
+\flutter.bat'' finished 
+with non-zero exit value 1
+
+* Try:
+> Run with --stacktrace 
+option to get the stack 
+trace.
+> Run with --info or 
+--debug option to get more 
+log output.
+> Run with --scan to get 
+full insights.
+> Get more help at 
+https://help.gradle.org.
+
+BUILD FAILED in 32s
+Running Gradle task 'assembleDebug'...                             34.1s
+Error: Gradle task 
+assembleDebug failed with 
+exit code 1

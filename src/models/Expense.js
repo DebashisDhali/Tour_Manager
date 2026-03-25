@@ -28,6 +28,10 @@ module.exports = (sequelize) => {
         defaultValue: 'Others'
     },
     note: DataTypes.TEXT,
+    mess_cost_type: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
     date: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW
@@ -36,5 +40,13 @@ module.exports = (sequelize) => {
         type: DataTypes.DATE,
         allowNull: true
     }
+  }, {
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+    indexes: [
+      { fields: ['tour_id'] },
+      { fields: ['updated_at'] }
+    ]
   });
 };

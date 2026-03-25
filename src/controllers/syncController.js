@@ -1,186 +1,156 @@
-const { Tour, User, Expense, ExpenseSplit, ExpensePayer, Settlement, sequelize } = require('../models');
+const { Tour, User, Expense, ExpenseSplit, ExpensePayer, Settlement, ProgramIncome, TourMember, sequelize } = require('../models');
+const { Op } = require('sequelize');
 
 exports.syncData = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
-    const { userId, unsyncedData } = req.body;
+    const { userId, unsyncedData, lastSync } = req.body;
+    const lastSyncDate = lastSync ? new Date(lastSync) : new Date(0);
+    const now = new Date();
+
     if (!userId) {
+      if (transaction) await transaction.rollback();
       return res.status(400).json({ error: "userId is required" });
     }
 
-    // Ensure the current user exists in the DB (might have been synced before)
-    await User.upsert({ 
-      id: userId,
-      name: 'Unknown User', // Temporary fallback
-      updated_at: new Date()
-    }, { transaction });
+    // Ensure user exists
+    await User.upsert({ id: userId, updated_at: now }, { transaction });
 
     // 1. Process Unsynced Data from Client (Push)
     if (unsyncedData) {
-      const { tours, users, expenses, splits, payers, settlements } = unsyncedData;
+      const { tours, users, expenses, splits, payers, settlements, incomes, members } = unsyncedData;
 
-      // 1. Bulk Upsert Users
-      if (users && users.length > 0) {
-        console.log(`📡 Sync: Bulk pushing ${users.length} users...`);
+      if (users?.length > 0) {
         await User.bulkCreate(users.map(u => ({
-          id: u.id,
-          name: u.name,
-          phone: u.phone,
-          email: u.email,
-          avatar_url: u.avatarUrl,
-          purpose: u.purpose,
-          updated_at: new Date()
-        })), { 
-          transaction,
-          updateOnDuplicate: ['name', 'phone', 'email', 'avatar_url', 'purpose', 'updated_at']
-        });
+          id: u.id, name: u.name, phone: u.phone, email: u.email,
+          avatar_url: u.avatarUrl, purpose: u.purpose, updated_at: now
+        })), { transaction, updateOnDuplicate: ['name', 'phone', 'email', 'avatar_url', 'purpose', 'updated_at'] });
       }
 
-      // 2. Sync Tours (Individual due to association logic)
-      if (tours && tours.length > 0) {
-        console.log(`📡 Sync: Pushing ${tours.length} tours...`);
-        for (const t of tours) {
-          await Tour.upsert({ 
-            id: t.id, 
-            name: t.name, 
-            created_by: t.createdBy, 
-            invite_code: t.inviteCode,
-            start_date: t.startDate, 
-            end_date: t.endDate 
-          }, { transaction });
-
-          const tourInstance = await Tour.findByPk(t.id, { transaction });
-          if (tourInstance && t.createdBy) {
-            const creator = await User.findByPk(t.createdBy, { transaction });
-            if (creator) await tourInstance.addUser(creator, { transaction });
-          }
+      if (tours?.length > 0) {
+        // Bulk Upsert Tours
+        await Tour.bulkCreate(tours.map(t => ({
+          id: t.id, name: t.name, created_by: t.createdBy, 
+          invite_code: t.inviteCode, start_date: t.startDate, 
+          end_date: t.endDate, updated_at: now 
+        })), { transaction, updateOnDuplicate: ['name', 'created_by', 'invite_code', 'start_date', 'end_date', 'updated_at'] });
+        
+        // Ensure creators are members (for tours created offline)
+        const creatorMemberships = tours
+          .filter(t => t.createdBy)
+          .map(t => ({ tour_id: t.id, user_id: t.createdBy, status: 'active', joined_at: now, updated_at: now }));
+        
+        if (creatorMemberships.length > 0) {
+           await TourMember.bulkCreate(creatorMemberships, { transaction, ignoreDuplicates: true });
         }
       }
 
-      // 3. Bulk Upsert Expenses
-      if (expenses && expenses.length > 0) {
-        console.log(`📡 Sync: Bulk pushing ${expenses.length} expenses...`);
+      if (expenses?.length > 0) {
+        const expenseIds = expenses.map(e => e.id);
+        // Optimize: Don't destroy if we can bulkCreate with updateOnDuplicate? 
+        // Splits/Payers don't have updateOnDuplicate for non-PK keys in many dialects.
+        // Keeping destroy for now but doing it in one shot
+        await ExpenseSplit.destroy({ where: { expense_id: expenseIds }, transaction });
+        await ExpensePayer.destroy({ where: { expense_id: expenseIds }, transaction });
+        
         await Expense.bulkCreate(expenses.map(e => ({
-          id: e.id,
-          tour_id: e.tourId,
-          payer_id: e.payerId,
-          amount: e.amount,
-          title: e.title,
-          category: e.category,
-          date: e.createdAt
-        })), { 
-          transaction,
-          updateOnDuplicate: ['amount', 'title', 'category', 'date', 'payer_id']
-        });
+          id: e.id, tour_id: e.tourId, payer_id: e.payerId || null, amount: e.amount,
+          title: e.title, category: e.category, mess_cost_type: e.messCostType, date: e.createdAt, updated_at: now
+        })), { transaction, updateOnDuplicate: ['amount', 'title', 'category', 'date', 'payer_id', 'mess_cost_type', 'updated_at'] });
       }
 
-      // 4. Bulk Upsert Splits
-      if (splits && splits.length > 0) {
-        await ExpenseSplit.bulkCreate(splits.map(s => ({
-          id: s.id,
-          expense_id: s.expenseId,
-          user_id: s.userId,
-          amount: s.amount
-        })), { 
-          transaction,
-          updateOnDuplicate: ['amount']
-        });
+      if (splits?.length > 0) {
+        await ExpenseSplit.bulkCreate(splits.map(s => ({ id: s.id, expense_id: s.expenseId, user_id: s.userId, amount: s.amount })), { transaction, updateOnDuplicate: ['amount'] });
       }
 
-      // 5. Bulk Upsert Payers
-      if (payers && payers.length > 0) {
-        await ExpensePayer.bulkCreate(payers.map(p => ({
-          id: p.id,
-          expense_id: p.expenseId,
-          user_id: p.userId,
-          amount: p.amount
-        })), { 
-          transaction,
-          updateOnDuplicate: ['amount']
-        });
+      if (payers?.length > 0) {
+        await ExpensePayer.bulkCreate(payers.map(p => ({ id: p.id, expense_id: p.expenseId, user_id: p.userId, amount: p.amount })), { transaction, updateOnDuplicate: ['amount'] });
       }
 
-      // 6. Bulk Upsert Settlements
-      if (settlements && settlements.length > 0) {
+      if (settlements?.length > 0) {
         await Settlement.bulkCreate(settlements.map(s => ({
-          id: s.id,
-          tour_id: s.tourId,
-          from_id: s.fromId,
-          to_id: s.toId,
-          amount: s.amount,
-          date: s.date
-        })), { 
-          transaction,
-          updateOnDuplicate: ['amount', 'date']
-        });
+          id: s.id, tour_id: s.tourId, from_id: s.fromId, to_id: s.toId, amount: s.amount, date: s.date, updated_at: now
+        })), { transaction, updateOnDuplicate: ['amount', 'date', 'updated_at'] });
+      }
+      
+      if (incomes?.length > 0) {
+        await ProgramIncome.bulkCreate(incomes.map(i => ({
+          id: i.id, tour_id: i.tourId, amount: i.amount, source: i.source,
+          description: i.description, collected_by: i.collectedBy, date: i.date, updated_at: now
+        })), { transaction, updateOnDuplicate: ['amount', 'source', 'description', 'collected_by', 'date', 'updated_at'] });
       }
 
-      // 7. Sync Tour Members (Manually as they are a junction table without a separate primary ID usually)
-      if (unsyncedData.members && unsyncedData.members.length > 0) {
-        console.log(`📡 Sync: Pushing ${unsyncedData.members.length} member connections...`);
-        for (const m of unsyncedData.members) {
-           const tour = await Tour.findByPk(m.tourId, { transaction });
-           const user = await User.findByPk(m.userId, { transaction });
-           if (tour && user) {
-             await tour.addUser(user, { transaction });
-             // Update left_at if present
-             if (m.leftAt) {
-               await (sequelize.model('TourMember')).update(
-                 { left_at: m.leftAt },
-                 { where: { tour_id: m.tourId, user_id: m.userId }, transaction }
-               );
-             }
-           }
-        }
+      if (members?.length > 0) {
+        // Bulk Upsert Tour Memberships
+        await TourMember.bulkCreate(members.map(m => ({
+          tour_id: m.tourId,
+          user_id: m.userId,
+          status: m.leftAt ? 'removed' : 'active',
+          removed_at: m.leftAt || null,
+          meal_count: m.mealCount || 0.0,
+          updated_at: now
+        })), { 
+          transaction, 
+          updateOnDuplicate: ['status', 'removed_at', 'meal_count', 'updated_at'] 
+        });
       }
     }
 
     await transaction.commit();
-    console.log(`✅ Sync: Data for user ${userId} pushed successfully.`);
 
-    // 2. Fetch All Data for the User's Tours to send back (Pull)
-    // Optimized: Fetch tours first, then fetch details to avoid massive join slowdown
-    const tours = await Tour.findAll({
-      include: [{
-        model: User,
-        where: { id: userId },
-        attributes: [] // Just to filter tours this user belongs to
-      }]
+    // 2. Optimized Incremental Pull
+    const activeTourRecords = await TourMember.findAll({
+      where: { user_id: userId, status: 'active' },
+      attributes: ['tour_id'],
+      raw: true
     });
+    const tourIds = activeTourRecords.map(r => r.tour_id);
 
-    const tourIds = tours.map(t => t.id);
-    
-    // Fetch full data for these tours
-    const fullTours = await Tour.findAll({
-      where: { id: tourIds },
+    // Fetch only tours that have been updated since lastSync OR have updated children
+    const pullCondition = { [Op.gt]: lastSyncDate };
+
+    const tours = await Tour.findAll({
+      where: { 
+        id: tourIds,
+        // Optional optimization: Only pull tours that had ANY change? 
+        // But sub-resource children might have changed. 
+      },
       include: [
-        { model: User }, // Members
+        { 
+          model: User,
+          through: { 
+            attributes: ['status', 'joined_at', 'removed_at', 'meal_count'],
+            where: lastSync ? { updated_at: pullCondition } : {} 
+          },
+          required: false 
+        }, 
         { 
           model: Expense,
+          where: lastSync ? { updated_at: pullCondition } : {},
+          required: false,
           include: [ExpenseSplit, ExpensePayer]
         },
-        { model: Settlement }
+        { 
+          model: Settlement, 
+          where: lastSync ? { updated_at: pullCondition } : {}, 
+          required: false 
+        },
+        { 
+          model: ProgramIncome, 
+          where: lastSync ? { updated_at: pullCondition } : {}, 
+          required: false 
+        }
       ]
     });
 
     res.json({
-      timestamp: new Date().toISOString(),
-      tours: fullTours
+      timestamp: now.toISOString(),
+      tours: tours,
+      allTourIds: tourIds 
     });
 
   } catch (err) {
-    if (transaction && !transaction.finished) {
-      try {
-        await transaction.rollback();
-      } catch (rbErr) {
-        console.error("Rollback Error:", rbErr);
-      }
-    }
-    console.error("Sync Error:", err);
-    res.status(500).json({ 
-      error: "Synchronization failed", 
-      details: err.message,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-    });
+    if (transaction && !transaction.finished) await transaction.rollback();
+    res.status(500).json({ error: "Sync failed", details: err.message });
   }
 };

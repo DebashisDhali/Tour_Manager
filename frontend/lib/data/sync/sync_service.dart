@@ -12,16 +12,21 @@ class SyncService {
   final Dio dio;
   
   String get baseUrl {
+    // For now, force Production URL so Phone (Real) and Laptop (Debug) talk to same DB
+    // To test locally, uncomment the localhost line
+    return 'https://tourmanager-production-fbbd.up.railway.app';
+    
+    /* 
     if (kDebugMode) {
       if (kIsWeb) {
         return 'http://127.0.0.1:3000';
       } else {
-        // Use Railway for real devices, localhost for iOS/Android emulators
-        bool isEmulator = !Platform.isAndroid && !Platform.isIOS; // Simplify for now
+        bool isEmulator = !Platform.isAndroid && !Platform.isIOS; 
         return isEmulator ? 'http://localhost:3000' : 'https://tourmanager-production-fbbd.up.railway.app';
       }
     }
     return 'https://tourmanager-production-fbbd.up.railway.app';
+    */
   }
 
   SyncService(this.db, this.dio) {
@@ -48,200 +53,237 @@ class SyncService {
     try {
       print("Sync started for user: $userId");
       
-      // 1. Gather Unsynced Data
-      final unsyncedUsers = await db.getUnsyncedUsers();
-      final unsyncedTours = await db.getUnsyncedTours();
-      final unsyncedExpenses = await db.getUnsyncedExpenses();
-      final unsyncedSplits = await db.getUnsyncedSplits();
-      final unsyncedPayers = await db.getUnsyncedExpensePayers();
-      final unsyncedMembers = await db.getUnsyncedTourMembers();
-      final unsyncedSettlements = await db.getUnsyncedSettlements();
+      final lastSync = await db.getSyncMetadata('last_sync_$userId');
+      
+      // 1. Gather Unsynced Data in Parallel
+      final results = await Future.wait([
+        db.getUnsyncedUsers(),
+        db.getUnsyncedTours(),
+        db.getUnsyncedExpenses(),
+        db.getUnsyncedSplits(),
+        db.getUnsyncedExpensePayers(),
+        db.getUnsyncedTourMembers(),
+        db.getUnsyncedSettlements(),
+        db.getUnsyncedProgramIncomes(),
+      ]);
 
-      if (unsyncedUsers.isEmpty && unsyncedTours.isEmpty && unsyncedExpenses.isEmpty && 
-          unsyncedSplits.isEmpty && unsyncedPayers.isEmpty && unsyncedMembers.isEmpty && unsyncedSettlements.isEmpty) {
-        // Still pull
-      }
+      final unsyncedUsers = results[0] as List<User>;
+      final unsyncedTours = results[1] as List<Tour>;
+      final unsyncedExpenses = results[2] as List<Expense>;
+      final unsyncedSplits = results[3] as List<ExpenseSplit>;
+      final unsyncedPayers = results[4] as List<ExpensePayer>;
+      final unsyncedMembers = results[5] as List<TourMember>;
+      final unsyncedSettlements = results[6] as List<Settlement>;
+      final unsyncedIncomes = results[7] as List<ProgramIncome>;
 
       final response = await dio.post('$baseUrl/sync', data: {
         'userId': userId,
+        'lastSync': lastSync,
         'unsyncedData': {
           'users': unsyncedUsers.map((u) => {
-            'id': u.id, 
-            'name': u.name, 
-            'phone': u.phone,
-            'email': u.email,
-            'avatarUrl': u.avatarUrl,
-            'purpose': u.purpose
+            'id': u.id, 'name': u.name, 'phone': u.phone, 'email': u.email,
+            'avatarUrl': u.avatarUrl, 'purpose': u.purpose
           }).toList(),
           'tours': unsyncedTours.map((t) => {
-            'id': t.id, 
-            'name': t.name, 
-            'createdBy': t.createdBy,
-            'inviteCode': t.inviteCode,
-            'startDate': t.startDate?.toIso8601String(),
+            'id': t.id, 'name': t.name, 'createdBy': t.createdBy,
+            'inviteCode': t.inviteCode, 'startDate': t.startDate?.toIso8601String(),
             'endDate': t.endDate?.toIso8601String(),
           }).toList(),
           'expenses': unsyncedExpenses.map((e) => {
-            'id': e.id,
-            'tourId': e.tourId,
-            'payerId': e.payerId,
-            'amount': e.amount,
-            'title': e.title,
-            'category': e.category,
+            'id': e.id, 'tourId': e.tourId, 'payerId': e.payerId, 'amount': e.amount,
+            'title': e.title, 'category': e.category, 'messCostType': e.messCostType,
             'createdAt': e.createdAt.toIso8601String(),
           }).toList(),
           'splits': unsyncedSplits.map((s) => {
-            'id': s.id,
-            'userId': s.userId,
-            'amount': s.amount,
+            'id': s.id, 'expenseId': s.expenseId, 'userId': s.userId, 'amount': s.amount,
           }).toList(),
           'payers': unsyncedPayers.map((p) => {
-            'id': p.id,
-            'expenseId': p.expenseId,
-            'userId': p.userId,
-            'amount': p.amount,
+            'id': p.id, 'expenseId': p.expenseId, 'userId': p.userId, 'amount': p.amount,
           }).toList(),
           'members': unsyncedMembers.map((m) => {
-            'tourId': m.tourId,
-            'userId': m.userId,
-            'leftAt': m.leftAt?.toIso8601String(),
+            'tourId': m.tourId, 'userId': m.userId, 'leftAt': m.leftAt?.toIso8601String(), 'mealCount': m.mealCount,
           }).toList(),
           'settlements': unsyncedSettlements.map((s) => {
-            'id': s.id,
-            'tourId': s.tourId,
-            'fromId': s.fromId,
-            'toId': s.toId,
-            'amount': s.amount,
-            'date': s.date.toIso8601String(),
+            'id': s.id, 'tourId': s.tourId, 'fromId': s.fromId, 'toId': s.toId, 'amount': s.amount, 'date': s.date.toIso8601String(),
+          }).toList(),
+          'incomes': unsyncedIncomes.map((i) => {
+            'id': i.id, 'tourId': i.tourId, 'amount': i.amount, 'source': i.source,
+            'description': i.description, 'collectedBy': i.collectedBy, 'date': i.date.toIso8601String(),
           }).toList(),
         }
       });
 
       if (response.statusCode == 200) {
-        // Mark as synced locally
-        for (final u in unsyncedUsers) await db.markUserSynced(u.id);
-        for (final t in unsyncedTours) await db.markTourSynced(t.id);
-        for (final m in unsyncedMembers) await db.markTourMemberSynced(m.tourId, m.userId);
-        for (final e in unsyncedExpenses) await db.markExpenseSynced(e.id);
-        for (final s in unsyncedSplits) await db.markSplitSynced(s.id);
-        for (final p in unsyncedPayers) await db.markExpensePayerSynced(p.id);
-        for (final s in unsyncedSettlements) await db.markSettlementSynced(s.id);
+        // Mark as synced locally & Pulled data within a batch for efficiency
+        await db.batch((batch) {
+          // 2. Mark Pushed data as synced
+          for (final u in unsyncedUsers) db.markUserSynced(u.id);
+          for (final t in unsyncedTours) db.markTourSynced(t.id);
+          for (final m in unsyncedMembers) db.markTourMemberSynced(m.tourId, m.userId);
+          for (final e in unsyncedExpenses) db.markExpenseSynced(e.id);
+          for (final s in unsyncedSplits) db.markSplitSynced(s.id);
+          for (final p in unsyncedPayers) db.markExpensePayerSynced(p.id);
+          for (final s in unsyncedSettlements) db.markSettlementSynced(s.id);
+          for (final i in unsyncedIncomes) db.markProgramIncomeSynced(i.id);
 
-        // 2. Process Pulled Data (Tours, Members, Expenses)
-        final serverTours = response.data['tours'] as List;
-        final serverTourIds = serverTours.map((t) => t['id'].toString()).toSet();
-        
-        // Get all currently local tours to check for deletions
-        final localTours = await db.select(db.tours).get();
-        for (final lt in localTours) {
-          // If a tour is local but NOT on server, it means it's been deleted or access revoked
-          // IMPORTANT: Only delete if it was previously synced. Unsynced tours are new local creations.
-          if (lt.isSynced && !serverTourIds.contains(lt.id)) {
-             print("🗑️ Tour ${lt.name} (${lt.id}) not on server, deleting locally...");
-             await db.deleteTourWithDetails(lt.id); 
-          }
-        }
-        
-        for (final st in serverTours) {
-          // Sync Tour
-          await db.createTour(Tour(
-            id: st['id'],
-            name: st['name'],
-            startDate: st['start_date'] != null ? DateTime.parse(st['start_date']) : null,
-            endDate: st['end_date'] != null ? DateTime.parse(st['end_date']) : null,
-            inviteCode: st['invite_code'],
-            createdBy: st['created_by'],
-            isSynced: true,
-            updatedAt: DateTime.now(),
-          ));
+          // 3. Process Pulled Data
+          final serverTours = response.data['tours'] as List;
+          for (final st in serverTours) {
+            // Sync Tour
+            batch.insert(db.tours, ToursCompanion.insert(
+              id: st['id'],
+              name: st['name'],
+              startDate: Value(st['start_date'] != null ? DateTime.parse(st['start_date']) : null),
+              endDate: Value(st['end_date'] != null ? DateTime.parse(st['end_date']) : null),
+              inviteCode: Value(st['invite_code']),
+              createdBy: st['created_by'],
+              purpose: Value(st['purpose'] ?? 'tour'),
+              isSynced: const Value(true),
+              updatedAt: Value(DateTime.now()),
+            ), mode: InsertMode.insertOrReplace);
 
-          // Sync Members
-          if (st['Users'] != null) {
-             for (final su in st['Users']) {
-               await db.createUser(User(
-                 id: su['id'],
-                 name: su['name'],
-                 phone: su['phone'],
-                 email: su['email'],
-                 avatarUrl: su['avatar_url'],
-                 purpose: su['purpose'],
-                 isMe: su['id'] == userId,
-                 isSynced: true,
-                 updatedAt: DateTime.now(),
-               ));
-               // Add connection
-               await db.into(db.tourMembers).insert(TourMember(
-                 tourId: st['id'],
-                 userId: su['id'],
-                 isSynced: true,
-               ), mode: InsertMode.insertOrIgnore);
-             }
-          }
-
-          // Sync Expenses
-          if (st['Expenses'] != null) {
-            for (final se in st['Expenses']) {
-              await db.into(db.expenses).insert(Expense(
-                id: se['id'],
-                tourId: st['id'],
-                payerId: se['payer_id'],
-                amount: (se['amount'] as num).toDouble(),
-                title: se['title'],
-                category: se['category'],
-                isSynced: true,
-                createdAt: DateTime.parse(se['date']),
-              ), mode: InsertMode.insertOrReplace);
-
-              // Sync Splits
-              if (se['ExpenseSplits'] != null) {
-                for (final ss in se['ExpenseSplits']) {
-                  await db.into(db.expenseSplits).insert(ExpenseSplit(
-                    id: ss['id'] ?? const Uuid().v4(),
-                    expenseId: se['id'],
-                    userId: ss['user_id'],
-                    amount: (ss['amount'] as num).toDouble(),
-                    isSynced: true,
-                  ), mode: InsertMode.insertOrReplace);
+            // Sync Members
+            if (st['Users'] != null) {
+              for (final su in st['Users']) {
+                String userName = (su['name'] ?? 'Unknown').toString();
+                final userEmail = su['email']?.toString();
+                
+                if ((userName.toLowerCase() == 'unknown' || userName.isEmpty) && 
+                    userEmail != null && userEmail.contains('@')) {
+                  final parts = userEmail.split('@');
+                  if (parts.isNotEmpty && parts[0].isNotEmpty) {
+                    userName = parts[0][0].toUpperCase() + parts[0].substring(1);
+                  }
                 }
-              }
 
-              // Sync Payers
-              if (se['ExpensePayers'] != null) {
-                for (final sp in se['ExpensePayers']) {
-                  await db.into(db.expensePayers).insert(ExpensePayer(
-                    id: sp['id'] ?? const Uuid().v4(),
-                    expenseId: se['id'],
-                    userId: sp['user_id'],
-                    amount: (sp['amount'] as num).toDouble(),
-                    isSynced: true,
-                  ), mode: InsertMode.insertOrReplace);
+                batch.insert(db.users, UsersCompanion.insert(
+                  id: su['id'],
+                  name: userName,
+                  phone: Value(su['phone']),
+                  email: Value(userEmail),
+                  avatarUrl: Value(su['avatar_url']),
+                  purpose: Value(su['purpose']),
+                  isMe: Value(su['id'] == userId),
+                  isSynced: const Value(true),
+                  updatedAt: Value(DateTime.now()),
+                ), mode: InsertMode.insertOrReplace);
+
+                // Add member connection
+                String suStatus = 'active';
+                if (su['TourMember'] != null && su['TourMember']['status'] != null) {
+                  suStatus = su['TourMember']['status'].toString().toLowerCase().trim();
+                } else if (su['TourMember'] != null && su['TourMember']['removed_at'] != null) {
+                  suStatus = 'removed';
+                }
+                final suLeftAt = (su['TourMember'] != null && su['TourMember']['removed_at'] != null) 
+                    ? DateTime.parse(su['TourMember']['removed_at'].toString()) 
+                    : null;
+                
+                batch.insert(db.tourMembers, TourMembersCompanion.insert(
+                  tourId: st['id'],
+                  userId: su['id'],
+                  status: Value(suStatus),
+                  leftAt: Value(suLeftAt),
+                  mealCount: Value((su['meal_count'] as num?)?.toDouble() ?? 0.0),
+                  isSynced: const Value(true),
+                ), mode: InsertMode.insertOrReplace);
+              }
+            }
+
+            // Sync Expenses
+            if (st['Expenses'] != null) {
+              for (final se in st['Expenses']) {
+                batch.insert(db.expenses, ExpensesCompanion.insert(
+                  id: se['id'],
+                  tourId: st['id'],
+                  payerId: Value(se['payer_id']),
+                  amount: (se['amount'] as num).toDouble(),
+                  title: se['title'],
+                  category: (se['category'] ?? 'Others').toString(),
+                  messCostType: Value(se['mess_cost_type']),
+                  isSynced: const Value(true),
+                  createdAt: Value(DateTime.parse(se['date'])),
+                ), mode: InsertMode.insertOrReplace);
+
+                // Sync Splits
+                if (se['ExpenseSplits'] != null) {
+                  for (final ss in se['ExpenseSplits']) {
+                    batch.insert(db.expenseSplits, ExpenseSplitsCompanion.insert(
+                      id: ss['id'] ?? const Uuid().v4(),
+                      expenseId: se['id'],
+                      userId: ss['user_id'],
+                      amount: (ss['amount'] as num).toDouble(),
+                      isSynced: const Value(true),
+                    ), mode: InsertMode.insertOrReplace);
+                  }
+                }
+
+                // Sync Payers
+                if (se['ExpensePayers'] != null) {
+                  for (final sp in se['ExpensePayers']) {
+                    batch.insert(db.expensePayers, ExpensePayersCompanion.insert(
+                      id: sp['id'] ?? const Uuid().v4(),
+                      expenseId: se['id'],
+                      userId: sp['user_id'],
+                      amount: (sp['amount'] as num).toDouble(),
+                      isSynced: const Value(true),
+                    ), mode: InsertMode.insertOrReplace);
+                  }
                 }
               }
             }
+
+            final settlements = st['Settlements'] ?? st['settlements'];
+            if (settlements != null && settlements is List) {
+              for (final ss in settlements) {
+                final fromId = (ss['from_id'] ?? ss['fromId'] ?? '').toString();
+                final toId = (ss['to_id'] ?? ss['toId'] ?? '').toString();
+                if (fromId.isEmpty || toId.isEmpty) continue;
+
+                batch.insert(db.settlements, SettlementsCompanion.insert(
+                  id: (ss['id'] ?? '').toString(),
+                  tourId: (st['id'] ?? '').toString(),
+                  fromId: fromId,
+                  toId: toId,
+                  amount: double.tryParse(ss['amount']?.toString() ?? '0') ?? 0.0,
+                  date: Value(ss['date'] != null ? DateTime.parse(ss['date'].toString()) : DateTime.now()),
+                  isSynced: const Value(true),
+                ), mode: InsertMode.insertOrReplace);
+              }
+            }
+
+            // Sync Program Incomes
+            final incomes = st['ProgramIncomes'] ?? st['programIncomes'] ?? st['incomes'];
+            if (incomes != null && incomes is List) {
+              for (final inc in incomes) {
+                batch.insert(db.programIncomes, ProgramIncomesCompanion.insert(
+                  id: (inc['id'] ?? '').toString(),
+                  tourId: (st['id'] ?? '').toString(),
+                  amount: double.tryParse(inc['amount']?.toString() ?? '0') ?? 0.0,
+                  source: (inc['source'] ?? '').toString(),
+                  description: Value((inc['description'] ?? '').toString()),
+                  collectedBy: (inc['collected_by'] ?? inc['collectedBy'] ?? '').toString(),
+                  date: Value(inc['date'] != null ? DateTime.parse(inc['date'].toString()) : DateTime.now()),
+                  isSynced: const Value(true),
+                ), mode: InsertMode.insertOrReplace);
+              }
+            }
           }
+        });
 
-          // Sync Settlements
-          final settlements = st['Settlements'] ?? st['settlements'];
-          if (settlements != null && settlements is List) {
-             for (final ss in settlements) {
-               try {
-                 final fromId = (ss['from_id'] ?? ss['fromId'] ?? '').toString();
-                 final toId = (ss['to_id'] ?? ss['toId'] ?? '').toString();
-                 if (fromId.isEmpty || toId.isEmpty) continue;
-
-                 await db.into(db.settlements).insert(Settlement(
-                   id: (ss['id'] ?? '').toString(),
-                   tourId: (st['id'] ?? '').toString(),
-                   fromId: fromId,
-                   toId: toId,
-                   amount: double.tryParse(ss['amount']?.toString() ?? '0') ?? 0.0,
-                   date: ss['date'] != null ? DateTime.parse(ss['date'].toString()) : DateTime.now(),
-                   isSynced: true,
-                 ), mode: InsertMode.insertOrReplace);
-               } catch (e) { print("Error syncing settlement: $e"); }
-             }
+        // 4. Handle Deletions (Membership changes)
+        final allTourIds = (response.data['allTourIds'] as List?)?.map((id) => id.toString()).toSet();
+        if (allTourIds != null) {
+          final localTours = await db.select(db.tours).get();
+          for (final lt in localTours) {
+            if (lt.isSynced && !allTourIds.contains(lt.id)) {
+               print("🗑️ Removing tour ${lt.name} - no longer a member");
+               await db.deleteTourWithDetails(lt.id); 
+            }
           }
         }
+
+        await db.setSyncMetadata('last_sync_$userId', response.data['timestamp']);
       }
       print("Sync completed.");
     } catch (e) {
@@ -289,6 +331,7 @@ class SyncService {
                 : null,
               inviteCode: tourData['invite_code'] ?? inviteCode,
               createdBy: tourData['created_by'] ?? userId,
+              purpose: tourData['purpose'] ?? 'tour',
               isSynced: true,
               updatedAt: DateTime.now(),
             ));
@@ -302,11 +345,23 @@ class SyncService {
                   final mId = (member['id'] ?? '').toString();
                   if (mId.isEmpty) continue;
                   
+                  String memberName = (member['name'] ?? 'Unknown').toString();
+                  final memberEmail = member['email']?.toString();
+                  
+                  // Fallback to email username if name is unknown
+                  if ((memberName.toLowerCase() == 'unknown' || memberName.isEmpty) && 
+                      memberEmail != null && memberEmail.contains('@')) {
+                    final parts = memberEmail.split('@');
+                    if (parts.isNotEmpty && parts[0].isNotEmpty) {
+                      memberName = parts[0][0].toUpperCase() + parts[0].substring(1);
+                    }
+                  }
+
                   await db.createUser(User(
                     id: mId,
-                    name: (member['name'] ?? 'Unknown').toString(),
+                    name: memberName,
                     phone: member['phone']?.toString(),
-                    email: member['email']?.toString(),
+                    email: memberEmail,
                     avatarUrl: (member['avatar_url'] ?? member['avatarUrl'])?.toString(),
                     purpose: (member['purpose'] ?? 'tour').toString(),
                     isMe: mId == userId,
@@ -314,11 +369,19 @@ class SyncService {
                     updatedAt: DateTime.now(),
                   ));
                   
+                  final mStatus = (member['TourMember'] != null) ? member['TourMember']['status'] : 'active';
+                  final mLeftAt = (member['TourMember'] != null && member['TourMember']['removed_at'] != null)
+                      ? DateTime.parse(member['TourMember']['removed_at'].toString())
+                      : null;
+
                   await db.into(db.tourMembers).insert(TourMember(
                     tourId: tourData['id'].toString(),
                     userId: mId,
+                    status: mStatus,
+                    leftAt: mLeftAt,
+                    mealCount: (member['meal_count'] as num?)?.toDouble() ?? 0.0,
                     isSynced: true,
-                  ), mode: InsertMode.insertOrIgnore);
+                  ), mode: InsertMode.insertOrReplace);
                 } catch (e) { print("Error saving member: $e"); }
               }
             }
@@ -338,6 +401,7 @@ class SyncService {
                     amount: double.tryParse(ex['amount']?.toString() ?? '0') ?? 0.0,
                     title: (ex['title'] ?? 'Expense').toString(),
                     category: (ex['category'] ?? 'Others').toString(),
+                    messCostType: ex['mess_cost_type']?.toString(),
                     isSynced: true,
                     createdAt: ex['date'] != null ? DateTime.parse(ex['date'].toString()) : (ex['createdAt'] != null ? DateTime.parse(ex['createdAt'].toString()) : DateTime.now()),
                   ), mode: InsertMode.insertOrReplace);
@@ -398,6 +462,25 @@ class SyncService {
                 } catch (e) { print("Error saving settlement: $e"); }
               }
             }
+
+            // Save Program Incomes
+            final incomesList = tourData['ProgramIncomes'] ?? tourData['programIncomes'] ?? tourData['incomes'];
+            if (incomesList != null && incomesList is List) {
+              for (final inc in incomesList) {
+                try {
+                  await db.into(db.programIncomes).insert(ProgramIncome(
+                    id: (inc['id'] ?? '').toString(),
+                    tourId: tourData['id'].toString(),
+                    amount: double.tryParse(inc['amount']?.toString() ?? '0') ?? 0.0,
+                    source: (inc['source'] ?? '').toString(),
+                    description: (inc['description'] ?? '').toString(),
+                    collectedBy: (inc['collected_by'] ?? inc['collectedBy'] ?? '').toString(),
+                    date: inc['date'] != null ? DateTime.parse(inc['date'].toString()) : DateTime.now(),
+                    isSynced: true,
+                  ), mode: InsertMode.insertOrReplace);
+                } catch (e) { print("Error saving income: $e"); }
+              }
+            }
             
             print("✅ Tour, members, and expenses saved successfully to local DB");
           } catch (saveError) {
@@ -447,6 +530,31 @@ class SyncService {
       print("❌ Generic error during join: $e");
       print("Stack trace: $stackTrace");
       throw Exception("Unexpected error: $e");
+    }
+  }
+
+  Future<List<dynamic>> searchUsers(String query) async {
+    try {
+      final response = await dio.get('$baseUrl/users/search', queryParameters: {'query': query});
+      if (response.statusCode == 200) {
+        return List<dynamic>.from(response.data);
+      }
+      return [];
+    } catch (e) {
+      print("Search failed: $e");
+      return [];
+    }
+  }
+
+  Future<void> addMemberToTour(String tourId, String userId) async {
+    try {
+      final response = await dio.post('$baseUrl/tours/$tourId/add-member', data: {'userId': userId});
+      if (response.statusCode != 200) {
+        throw Exception(response.data['error'] ?? 'Failed to add member');
+      }
+    } catch (e) {
+      print("Add member failed: $e");
+      throw Exception(e.toString());
     }
   }
 }
