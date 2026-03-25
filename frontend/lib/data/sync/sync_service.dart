@@ -3,32 +3,14 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import '../local/app_database.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
-import 'dart:io' show Platform;
 import 'package:uuid/uuid.dart';
 
 class SyncService {
   final AppDatabase db;
   final Dio dio;
   
-  String get baseUrl {
-    // Check developer overrides or environment
-    if (kDebugMode) {
-      if (kIsWeb) return 'http://127.0.0.1:3000';
-      
-      // For Mobile (Android Emulator uses 10.0.2.2 to access host's localhost)
-      try {
-        if (Platform.isAndroid) return 'http://10.0.2.2:3000';
-        if (Platform.isIOS) return 'http://localhost:3000';
-      } catch (e) {
-        // Platform check might fail on web if not careful, but kIsWeb guards it
-      }
-      return 'http://localhost:3000';
-    }
-    
-    // PRODUCTION URL - https://tour-manager-navy.vercel.app
-    return 'https://tour-manager-navy.vercel.app'; 
-  }
+  String get baseUrl => 'https://tour-manager-navy.vercel.app';
+
 
   SyncService(this.db, this.dio) {
     dio.options.connectTimeout = const Duration(seconds: 30);
