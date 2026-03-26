@@ -37,7 +37,7 @@ exports.syncData = async (req, res) => {
         await User.bulkCreate(users.map(u => ({
           id: u.id, name: u.name, phone: u.phone, email: u.email,
           avatar_url: u.avatarUrl, purpose: u.purpose, updated_at: now
-        })), { transaction, updateOnDuplicate: ['name', 'phone', 'email', 'avatar_url', 'purpose', 'updated_at'] });
+        })), { transaction, updateOnDuplicate: ['name', 'phone', 'email', 'avatar_url', 'purpose', 'updated_at'], conflictAttributes: ['id'] });
       }
 
       if (tours?.length > 0) {
@@ -46,7 +46,7 @@ exports.syncData = async (req, res) => {
           id: t.id, name: t.name, created_by: t.createdBy, 
           invite_code: t.inviteCode, start_date: t.startDate, 
           end_date: t.endDate, updated_at: now 
-        })), { transaction, updateOnDuplicate: ['name', 'created_by', 'invite_code', 'start_date', 'end_date', 'updated_at'] });
+        })), { transaction, updateOnDuplicate: ['name', 'created_by', 'invite_code', 'start_date', 'end_date', 'updated_at'], conflictAttributes: ['id'] });
         
         // Ensure creators are members (for tours created offline)
         const creatorMemberships = tours
@@ -61,7 +61,7 @@ exports.syncData = async (req, res) => {
           }));
         
         if (creatorMemberships.length > 0) {
-           await TourMember.bulkCreate(creatorMemberships, { transaction, updateOnDuplicate: ['role', 'updated_at'] });
+           await TourMember.bulkCreate(creatorMemberships, { transaction, updateOnDuplicate: ['role', 'updated_at'], conflictAttributes: ['tour_id', 'user_id'] });
         }
       }
 
@@ -69,28 +69,28 @@ exports.syncData = async (req, res) => {
         await Expense.bulkCreate(expenses.map(e => ({
           id: e.id, tour_id: e.tourId, payer_id: e.payerId || null, amount: e.amount,
           title: e.title, category: e.category, mess_cost_type: e.messCostType, date: e.createdAt, updated_at: now
-        })), { transaction, updateOnDuplicate: ['amount', 'title', 'category', 'date', 'payer_id', 'mess_cost_type', 'updated_at'] });
+        })), { transaction, updateOnDuplicate: ['amount', 'title', 'category', 'date', 'payer_id', 'mess_cost_type', 'updated_at'], conflictAttributes: ['id'] });
       }
 
       if (splits?.length > 0) {
-        await ExpenseSplit.bulkCreate(splits.map(s => ({ id: s.id, expense_id: s.expenseId, user_id: s.userId, amount: s.amount })), { transaction, updateOnDuplicate: ['amount'] });
+        await ExpenseSplit.bulkCreate(splits.map(s => ({ id: s.id, expense_id: s.expenseId, user_id: s.userId, amount: s.amount })), { transaction, updateOnDuplicate: ['amount'], conflictAttributes: ['id'] });
       }
 
       if (payers?.length > 0) {
-        await ExpensePayer.bulkCreate(payers.map(p => ({ id: p.id, expense_id: p.expenseId, user_id: p.userId, amount: p.amount })), { transaction, updateOnDuplicate: ['amount'] });
+        await ExpensePayer.bulkCreate(payers.map(p => ({ id: p.id, expense_id: p.expenseId, user_id: p.userId, amount: p.amount })), { transaction, updateOnDuplicate: ['amount'], conflictAttributes: ['id'] });
       }
 
       if (settlements?.length > 0) {
         await Settlement.bulkCreate(settlements.map(s => ({
           id: s.id, tour_id: s.tourId, from_id: s.fromId, to_id: s.toId, amount: s.amount, date: s.date, updated_at: now
-        })), { transaction, updateOnDuplicate: ['amount', 'date', 'updated_at'] });
+        })), { transaction, updateOnDuplicate: ['amount', 'date', 'updated_at'], conflictAttributes: ['id'] });
       }
       
       if (incomes?.length > 0) {
         await ProgramIncome.bulkCreate(incomes.map(i => ({
           id: i.id, tour_id: i.tourId, amount: i.amount, source: i.source,
           description: i.description, collected_by: i.collectedBy, date: i.date, updated_at: now
-        })), { transaction, updateOnDuplicate: ['amount', 'source', 'description', 'collected_by', 'date', 'updated_at'] });
+        })), { transaction, updateOnDuplicate: ['amount', 'source', 'description', 'collected_by', 'date', 'updated_at'], conflictAttributes: ['id'] });
       }
 
       if (members?.length > 0) {
@@ -104,7 +104,8 @@ exports.syncData = async (req, res) => {
           updated_at: now
         })), { 
           transaction, 
-          updateOnDuplicate: ['status', 'removed_at', 'meal_count', 'role', 'updated_at'] 
+          updateOnDuplicate: ['status', 'removed_at', 'meal_count', 'role', 'updated_at'],
+          conflictAttributes: ['tour_id', 'user_id']
         });
       }
     }
