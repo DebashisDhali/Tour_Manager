@@ -22,9 +22,12 @@ exports.syncData = async (req, res) => {
     }
 
     transaction = await sequelize.transaction();
-
-    // Ensure user exists
-    await User.upsert({ id: userId, updated_at: now, is_registered: true }, { transaction });
+    
+    // Update user's last activity (since they passed auth, they must exist)
+    await User.update({ updated_at: now, is_registered: true }, { 
+      where: { id: userId },
+      transaction 
+    });
 
     // 1. Process Unsynced Data from Client (Push)
     if (unsyncedData) {
