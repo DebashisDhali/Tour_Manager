@@ -57,17 +57,16 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
             _passwordController.text.trim(),
           );
 
-      ref.invalidate(currentUserProvider);
-      final newUser = await ref.read(currentUserProvider.future);
-      if (newUser != null) {
-        await ref.read(syncServiceProvider).startSync(newUser.id).catchError((e) => debugPrint("Final Sync failed: $e"));
-      }
-      
       if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const TourListScreen()),
-          (route) => false,
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text("Registration Successful! Please login."), 
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
+        Navigator.pop(context); // Go back to Login Screen
       }
     } catch (e) {
       if (mounted) {

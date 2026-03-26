@@ -63,8 +63,9 @@ class AuthService {
       final data = response.data;
 
       // Accept both 200 and 201 success codes
-      if ((response.statusCode == 201 || response.statusCode == 200) && data['token'] != null) {
-        await _saveAuthData(data['token'] as String, data['user'] as Map<String, dynamic>);
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        // Registration successful. Do not auto-login to force user back to login screen.
+        return;
       } else {
         final errMsg = data['error'] ?? data['message'] ?? 'Registration failed. Please try again.';
         throw Exception(errMsg);

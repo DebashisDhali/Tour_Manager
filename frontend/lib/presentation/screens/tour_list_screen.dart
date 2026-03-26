@@ -649,7 +649,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                             final proceed = await showDialog<bool>(
                               context: context,
                               builder: (c) => AlertDialog(
-                                title: const Text("Tour Found!"),
+                                title: Text("${config.label} Found!"),
                                 content: Text("Do you want to join '${tour['name']}'?"),
                                 actions: [
                                   TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("Cancel")),
@@ -681,7 +681,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                                    final req = await showDialog<bool>(
                                      context: context,
                                      builder: (c) => AlertDialog(
-                                       title: const Text("Restricted Tour"),
+                                       title: Text("Restricted ${config.label}"),
                                        content: Text("'${tour['name']}' is private. Send a join request?"),
                                        actions: [
                                          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("No")),

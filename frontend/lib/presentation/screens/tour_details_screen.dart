@@ -118,9 +118,9 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                     }
                   },
                   itemBuilder: (context) => [
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'delete_tour',
-                      child: Row(children: [Icon(Icons.delete_forever_rounded, color: Colors.red, size: 20), SizedBox(width: 12), Text('Delete Tour', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))]),
+                      child: Row(children: [const Icon(Icons.delete_forever_rounded, color: Colors.red, size: 20), const SizedBox(width: 12), Text('Delete ${config.label}', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold))]),
                     ),
                   ],
                 ),

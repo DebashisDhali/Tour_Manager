@@ -103,18 +103,21 @@ class SyncService {
       });
 
       if (response.statusCode == 200) {
+        // 2. Mark Pushed data as synced
+        await Future.wait([
+          for (final u in unsyncedUsers) db.markUserSynced(u.id),
+          for (final t in unsyncedTours) db.markTourSynced(t.id),
+          for (final m in unsyncedMembers) db.markTourMemberSynced(m.tourId, m.userId),
+          for (final e in unsyncedExpenses) db.markExpenseSynced(e.id),
+          for (final s in unsyncedSplits) db.markSplitSynced(s.id),
+          for (final p in unsyncedPayers) db.markExpensePayerSynced(p.id),
+          for (final s in unsyncedSettlements) db.markSettlementSynced(s.id),
+          for (final i in unsyncedIncomes) db.markProgramIncomeSynced(i.id),
+          for (final jr in unsyncedJoinRequests) db.markJoinRequestSynced(jr.id),
+        ]);
+
         // Mark as synced locally & Pulled data within a batch for efficiency
         await db.batch((batch) {
-          // 2. Mark Pushed data as synced
-          for (final u in unsyncedUsers) db.markUserSynced(u.id);
-          for (final t in unsyncedTours) db.markTourSynced(t.id);
-          for (final m in unsyncedMembers) db.markTourMemberSynced(m.tourId, m.userId);
-          for (final e in unsyncedExpenses) db.markExpenseSynced(e.id);
-          for (final s in unsyncedSplits) db.markSplitSynced(s.id);
-          for (final p in unsyncedPayers) db.markExpensePayerSynced(p.id);
-          for (final s in unsyncedSettlements) db.markSettlementSynced(s.id);
-          for (final i in unsyncedIncomes) db.markProgramIncomeSynced(i.id);
-          for (final jr in unsyncedJoinRequests) db.markJoinRequestSynced(jr.id);
 
           final serverTours = response.data['tours'] as List;
           for (final st in serverTours) {
