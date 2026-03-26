@@ -21,8 +21,8 @@ const TourMember = require('./TourMember')(sequelize);
 const ProgramIncome = require('./ProgramIncome')(sequelize);
 
 // Relations
-User.belongsToMany(Tour, { through: TourMember, onDelete: 'CASCADE' });
-Tour.belongsToMany(User, { through: TourMember, onDelete: 'CASCADE' });
+User.belongsToMany(Tour, { through: TourMember, foreignKey: 'user_id', otherKey: 'tour_id', onDelete: 'CASCADE' });
+Tour.belongsToMany(User, { through: TourMember, foreignKey: 'tour_id', otherKey: 'user_id', onDelete: 'CASCADE' });
 
 Tour.hasMany(Expense, { foreignKey: 'tour_id', onDelete: 'CASCADE' });
 Expense.belongsTo(Tour, { foreignKey: 'tour_id' });

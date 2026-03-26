@@ -2,13 +2,23 @@ const { DataTypes } = require('sequelize');
 
 module.exports = (sequelize) => {
   return sequelize.define('TourMember', {
+    tour_id: {
+      type: DataTypes.UUID,
+      primaryKey: true,
+      allowNull: false
+    },
+    user_id: {
+      type: DataTypes.UUID,
+      primaryKey: true,
+      allowNull: false
+    },
     status: {
       type: DataTypes.STRING,
-      defaultValue: 'active' // 'active', 'removed'
+      defaultValue: 'active'
     },
     role: {
       type: DataTypes.STRING,
-      defaultValue: 'viewer' // 'admin', 'editor', 'viewer'
+      defaultValue: 'viewer'
     },
     joined_at: {
       type: DataTypes.DATE,
