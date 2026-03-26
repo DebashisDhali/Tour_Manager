@@ -977,7 +977,7 @@ class $TourMembersTable extends TourMembers
       'role', aliasedName, false,
       type: DriftSqlType.string,
       requiredDuringInsert: false,
-      defaultValue: const Constant('editor'));
+      defaultValue: const Constant('viewer'));
   static const VerificationMeta _isSyncedMeta =
       const VerificationMeta('isSynced');
   @override

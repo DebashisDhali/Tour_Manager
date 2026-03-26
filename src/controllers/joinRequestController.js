@@ -71,7 +71,7 @@ exports.handleJoinRequest = async (req, res) => {
       await TourMember.upsert({
         tour_id: request.tour_id,
         user_id: request.user_id,
-        role: role || 'editor',
+        role: role || 'viewer',
         status: 'active',
         joined_at: new Date()
       }, { transaction: t });

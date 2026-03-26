@@ -122,7 +122,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                tourId: tourId,
                userId: memberId,
                status: 'active',
-               role: 'editor',
+               role: 'viewer',
                mealCount: 0.0,
                isSynced: false,
              ));
@@ -151,7 +151,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                tourId: widget.initialTour!.id,
                userId: memberId,
                status: 'active',
-               role: 'editor',
+               role: 'viewer',
                mealCount: 0.0,
                isSynced: false,
              ));

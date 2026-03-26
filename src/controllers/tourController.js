@@ -249,10 +249,10 @@ exports.addMember = async (req, res) => {
         await t.rollback();
         return res.status(400).json({ error: 'Already a member' });
       } else {
-        await existingMember.update({ status: 'active', removed_at: null }, { transaction: t });
+        await existingMember.update({ status: 'active', removed_at: null, role: 'viewer' }, { transaction: t });
       }
     } else {
-      await tour.addUser(user, { transaction: t });
+      await tour.addUser(user, { through: { role: 'viewer' }, transaction: t });
     }
 
     await t.commit();

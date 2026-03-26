@@ -2,22 +2,14 @@
 
 ## ⚡ 5-Minute Setup
 
-### Step 1: Start Backend (Terminal 1)
-```bash
-cd backend
-npm install
-npm run dev
-```
-✅ **Success:** You should see "Server running on http://localhost:3000"
-
-### Step 2: Start Frontend (Terminal 2)
+### Step 1: Start Frontend
 ```bash
 cd frontend
 flutter pub get
 dart run build_runner build --delete-conflicting-outputs
 flutter run -d chrome
 ```
-✅ **Success:** Chrome opens with the app
+✅ **Success:** Chrome opens with the app, connected to the Cloud Backend.
 
 ### Step 3: Test the App
 1. Click "New Tour"
@@ -44,39 +36,36 @@ flutter run -d chrome
 
 ## 🏗 System Architecture (Simplified)
 
-```
-┌─────────────────────────────────────────┐
-│         FLUTTER APP (Chrome)            │
-│  ┌───────────────────────────────────┐  │
-│  │  UI Screens (5 screens)           │  │
-│  └───────────────┬───────────────────┘  │
-│                  │                       │
-│  ┌───────────────▼───────────────────┐  │
-│  │  Local Database (IndexedDB)       │  │
-│  │  - Tours, Expenses, Users         │  │
-│  │  - Works OFFLINE                  │  │
-│  └───────────────┬───────────────────┘  │
-│                  │                       │
-│  ┌───────────────▼───────────────────┐  │
-│  │  Sync Service (Auto)              │  │
-│  │  - Pushes changes when online     │  │
-│  └───────────────┬───────────────────┘  │
-└──────────────────┼───────────────────────┘
-                   │ HTTP (when online)
-                   ▼
-┌─────────────────────────────────────────┐
-│      NODE.JS BACKEND (localhost:3000)   │
-│  ┌───────────────────────────────────┐  │
-│  │  REST API (Express)               │  │
-│  │  - /users, /tours, /expenses      │  │
-│  └───────────────┬───────────────────┘  │
-│                  │                       │
-│  ┌───────────────▼───────────────────┐  │
-│  │  SQLite Database                  │  │
-│  │  - Cloud backup & sync            │  │
-│  └───────────────────────────────────┘  │
-└─────────────────────────────────────────┘
-```
+┌───────────────────────────────────────────────────┐
+│              FLUTTER APP (Cloud Mode)             │
+│  ┌──────────────────────────────────────────────┐  │
+│  │  UI Screens & Offline Logic                  │  │
+│  └───────────────────┬──────────────────────────┘  │
+│                      │                             │
+│  ┌───────────────────▼──────────────────────────┐  │
+│  │  Local DB (Drift/SQLite)                      │  │
+│  │  - Instant response even OFFLINE             │  │
+│  └───────────────────┬──────────────────────────┘  │
+│                      │                             │
+│  ┌───────────────────▼──────────────────────────┐  │
+│  │  Cloud Sync Service                          │  │
+│  │  - Automatic sync when connected             │  │
+│  └───────────────────┬──────────────────────────┘  │
+└──────────────────────┼─────────────────────────────┘
+                       │ HTTPS (Cloud API)
+                       ▼
+┌───────────────────────────────────────────────────┐
+│     CLOUD BACKEND (tour-manager-navy.vercel.app)  │
+│  ┌──────────────────────────────────────────────┐  │
+│  │  Vercel Serverless API                       │  │
+│  │  - Secure & Scalable                         │  │
+│  └───────────────────┬──────────────────────────┘  │
+│                      │                             │
+│  ┌───────────────────▼──────────────────────────┐  │
+│  │  Cloud PostgreSQL (Neon)                     │  │
+│  │  - Persistent Cloud Storage                  │  │
+│  └──────────────────────────────────────────────┘  │
+└───────────────────────────────────────────────────┘
 
 ---
 

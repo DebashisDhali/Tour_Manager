@@ -8,7 +8,7 @@ module.exports = (sequelize) => {
     },
     role: {
       type: DataTypes.STRING,
-      defaultValue: 'editor' // 'admin', 'editor', 'viewer'
+      defaultValue: 'viewer' // 'admin', 'editor', 'viewer'
     },
     joined_at: {
       type: DataTypes.DATE,

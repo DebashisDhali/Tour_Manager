@@ -27,24 +27,36 @@ Perfect for group tours where:
 
 ## 🏗 Architecture
 
-```
-┌─────────────────┐
-│  Flutter App    │  ← Offline-first (Drift/SQLite)
-│  (Mobile/Web)   │
-└────────┬────────┘
-         │ Sync when online
-         ↓
-┌─────────────────┐
-│  Node.js API    │  ← Cloud backup & sync
-│  (Express)      │
-└────────┬────────┘
-         │
-         ↓
-┌─────────────────┐
-│  SQLite/        │  ← Data persistence
-│  PostgreSQL     │
-└─────────────────┘
-```
+┌──────────────────────────────────────────────────┐
+│              FLUTTER APP (Cloud Mode)            │
+│  ┌──────────────────────────────────────────────┐ │
+│  │  UI Screens & Offline Logic                  │ │
+│  └───────────────────┬──────────────────────────┘ │
+│                      │                            │
+│  ┌───────────────────▼──────────────────────────┐ │
+│  │  Local DB (Drift/SQLite)                      │ │
+│  │  - Instant response even OFFLINE             │ │
+│  └───────────────────┬──────────────────────────┘ │
+│                      │                            │
+│  ┌───────────────────▼──────────────────────────┐ │
+│  │  Cloud Sync Service                          │ │
+│  │  - Automatic sync when connected             │ │
+│  └───────────────────┬──────────────────────────┘ │
+└──────────────────────┼────────────────────────────┘
+                       │ HTTPS (Cloud API)
+                       ▼
+┌──────────────────────────────────────────────────┐
+│     CLOUD BACKEND (tour-manager-navy.vercel.app) │
+│  ┌──────────────────────────────────────────────┐ │
+│  │  Vercel Serverless API                       │ │
+│  │  - Secure & Scalable                         │ │
+│  └───────────────────┬──────────────────────────┘ │
+│                      │                            │
+│  ┌───────────────────▼──────────────────────────┐ │
+│  │  Cloud PostgreSQL (Neon)                     │ │
+│  │  - Persistent Cloud Storage                  │ │
+│  └──────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────┐
 
 **Key Design Principles:**
 - **Local-First**: All operations work offline
@@ -59,23 +71,16 @@ Perfect for group tours where:
 - Flutter SDK 3.x
 - (Optional) Android Studio for mobile development
 
-### 1️⃣ Backend Setup
-```bash
-cd backend
-npm install
-npm run dev
-```
-Server runs on `http://localhost:3000`
-
-### 2️⃣ Frontend Setup
+### 1️⃣ Build/Run Frontend
 ```bash
 cd frontend
 flutter pub get
-dart run build_runner build
+dart run build_runner build --delete-conflicting-outputs
 flutter run -d chrome  # For web
 # OR
 flutter run            # For mobile (with device connected)
 ```
+✅ The app is pre-configured to connect to the **Cloud Backend** at `https://tour-manager-navy.vercel.app`.
 
 ### 3️⃣ Test the App
 1. Create a new tour

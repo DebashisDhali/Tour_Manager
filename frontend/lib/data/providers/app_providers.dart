@@ -31,17 +31,20 @@ final dioProvider = Provider<Dio>((ref) {
   return dio;
 });
 
+final baseUrlProvider = Provider<String>((ref) => 'https://tour-manager-navy.vercel.app');
+
 final authServiceProvider = Provider<AuthService>((ref) {
   final db = ref.watch(databaseProvider);
   final dio = Dio();
-  const baseUrl = 'https://tour-manager-navy.vercel.app';
+  final baseUrl = ref.watch(baseUrlProvider);
   return AuthService(dio, db, baseUrl);
 });
 
 final syncServiceProvider = Provider<SyncService>((ref) {
   final db = ref.watch(databaseProvider);
   final dio = ref.watch(dioProvider);
-  return SyncService(db, dio);
+  final baseUrl = ref.watch(baseUrlProvider);
+  return SyncService(db, dio, baseUrl);
 });
 
 final currentUserProvider = StreamProvider<User?>((ref) {

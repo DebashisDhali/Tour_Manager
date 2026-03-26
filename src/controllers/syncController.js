@@ -2,19 +2,29 @@ const { Tour, User, Expense, ExpenseSplit, ExpensePayer, Settlement, ProgramInco
 const { Op } = require('sequelize');
 
 exports.syncData = async (req, res) => {
-  const transaction = await sequelize.transaction();
+  let transaction;
   try {
     const { userId, unsyncedData, lastSync } = req.body;
-    const lastSyncDate = lastSync ? new Date(lastSync) : new Date(0);
+    
+    // Validate lastSync date
+    let lastSyncDate = new Date(0);
+    if (lastSync && lastSync !== 'null' && lastSync !== 'undefined') {
+      const d = new Date(lastSync);
+      if (!isNaN(d.getTime())) {
+        lastSyncDate = d;
+      }
+    }
+    
     const now = new Date();
 
     if (!userId) {
-      if (transaction) await transaction.rollback();
       return res.status(400).json({ error: "userId is required" });
     }
 
+    transaction = await sequelize.transaction();
+
     // Ensure user exists
-    await User.upsert({ id: userId, updated_at: now }, { transaction });
+    await User.upsert({ id: userId, updated_at: now, is_registered: true }, { transaction });
 
     // 1. Process Unsynced Data from Client (Push)
     if (unsyncedData) {
@@ -42,13 +52,13 @@ exports.syncData = async (req, res) => {
             tour_id: t.id, 
             user_id: t.createdBy, 
             status: 'active', 
-            role: 'admin', // Owner should be admin
+            role: 'admin', 
             joined_at: now, 
             updated_at: now 
           }));
         
         if (creatorMemberships.length > 0) {
-           await TourMember.bulkCreate(creatorMemberships, { transaction, ignoreDuplicates: true, updateOnDuplicate: ['role'] });
+           await TourMember.bulkCreate(creatorMemberships, { transaction, updateOnDuplicate: ['role', 'updated_at'] });
         }
       }
 
@@ -81,17 +91,17 @@ exports.syncData = async (req, res) => {
       }
 
       if (members?.length > 0) {
-        // Bulk Upsert Tour Memberships
         await TourMember.bulkCreate(members.map(m => ({
           tour_id: m.tourId,
           user_id: m.userId,
           status: m.leftAt ? 'removed' : 'active',
           removed_at: m.leftAt || null,
+          role: m.role || 'viewer',
           meal_count: m.mealCount || 0.0,
           updated_at: now
         })), { 
           transaction, 
-          updateOnDuplicate: ['status', 'removed_at', 'meal_count', 'updated_at'] 
+          updateOnDuplicate: ['status', 'removed_at', 'meal_count', 'role', 'updated_at'] 
         });
       }
     }
@@ -106,15 +116,11 @@ exports.syncData = async (req, res) => {
     });
     const tourIds = activeTourRecords.map(r => r.tour_id);
 
-    // Fetch only tours that have been updated since lastSync OR have updated children
+    // Fetch only tours and their updated children
     const pullCondition = { [Op.gt]: lastSyncDate };
 
     const tours = await Tour.findAll({
-      where: { 
-        id: tourIds,
-        // Optional optimization: Only pull tours that had ANY change? 
-        // But sub-resource children might have changed. 
-      },
+      where: { id: tourIds },
       include: [
         { 
           model: User,
@@ -150,7 +156,12 @@ exports.syncData = async (req, res) => {
     });
 
   } catch (err) {
-    if (transaction && !transaction.finished) await transaction.rollback();
-    res.status(500).json({ error: "Sync failed", details: err.message });
+    console.error('❌ Sync Error Details:', err);
+    if (transaction) await transaction.rollback();
+    res.status(500).json({ 
+      error: "Sync failed", 
+      message: err.message,
+      stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined
+    });
   }
 };

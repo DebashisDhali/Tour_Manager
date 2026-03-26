@@ -308,7 +308,7 @@ class SettlementScreen extends ConsumerWidget {
         isSynced: false,
         mealCount: 0.0,
         status: 'active',
-        role: 'editor',
+        role: 'viewer',
       ));
       
       final balance = balanceMap[u.id]?.net ?? 0.0;

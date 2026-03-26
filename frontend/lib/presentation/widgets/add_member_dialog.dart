@@ -92,7 +92,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
             tourId: widget.tourId,
             userId: user['id'],
             status: 'active',
-            role: 'editor',
+            role: 'viewer',
             mealCount: 0.0,
             isSynced: true,
           ), mode: InsertMode.insertOrReplace);
@@ -138,7 +138,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
           tourId: widget.tourId,
           userId: userId,
           status: 'active',
-          role: 'editor',
+          role: 'viewer',
           mealCount: 0.0,
           isSynced: false,
         ));

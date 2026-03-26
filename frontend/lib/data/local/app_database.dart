@@ -41,7 +41,7 @@ class TourMembers extends Table {
   RealColumn get mealCount => real().withDefault(const Constant(0.0))(); // For Mess sessions
   DateTimeColumn get leftAt => dateTime().nullable()();
   TextColumn get status => text().withDefault(const Constant('active'))();
-  TextColumn get role => text().withDefault(const Constant('editor'))(); // 'admin', 'editor', 'viewer'
+  TextColumn get role => text().withDefault(const Constant('viewer'))(); // 'admin', 'editor', 'viewer'
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
   
   @override

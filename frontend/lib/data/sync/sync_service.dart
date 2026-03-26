@@ -8,11 +8,9 @@ import 'package:uuid/uuid.dart';
 class SyncService {
   final AppDatabase db;
   final Dio dio;
-  
-  String get baseUrl => 'https://tour-manager-navy.vercel.app';
+  final String baseUrl;
 
-
-  SyncService(this.db, this.dio) {
+  SyncService(this.db, this.dio, this.baseUrl) {
     dio.options.connectTimeout = const Duration(seconds: 30);
     dio.options.receiveTimeout = const Duration(seconds: 30);
     
@@ -103,6 +101,7 @@ class SyncService {
       });
 
       if (response.statusCode == 200) {
+        print("✅ Server returned 200. Marking pushed items as synced.");
         // 2. Mark Pushed data as synced
         await Future.wait([
           for (final u in unsyncedUsers) db.markUserSynced(u.id),
@@ -116,6 +115,7 @@ class SyncService {
           for (final jr in unsyncedJoinRequests) db.markJoinRequestSynced(jr.id),
         ]);
 
+        print("🔄 Running batch update for server data...");
         // Mark as synced locally & Pulled data within a batch for efficiency
         await db.batch((batch) {
 
@@ -282,7 +282,7 @@ class SyncService {
           }
         });
 
-        // 4. Handle Deletions (Membership changes)
+        // Handle Deletions (Membership changes)
         final allTourIds = (response.data['allTourIds'] as List?)?.map((id) => id.toString()).toSet();
         if (allTourIds != null) {
           final localTours = await db.select(db.tours).get();
@@ -295,10 +295,24 @@ class SyncService {
         }
 
         await db.setSyncMetadata('last_sync_$userId', response.data['timestamp']);
+        print("✅ Sync completed successfully.");
+      } else {
+        throw Exception("Server Error: ${response.statusCode}");
       }
-      print("Sync completed.");
+    } on DioException catch (e) {
+      String errorMsg = "Sync failed. ";
+      if (e.response?.data != null && e.response?.data is Map) {
+         final data = e.response!.data as Map;
+         errorMsg = data['error'] ?? data['message'] ?? e.message ?? "Server Error";
+         if (data['details'] != null) errorMsg += ": ${data['details']}";
+      } else {
+         errorMsg += e.message ?? "Unknown network error";
+      }
+      print("❌ Sync Engine DioError: $errorMsg");
+      throw Exception(errorMsg);
     } catch (e) {
-      print("Sync failed: $e");
+      print("❌ Sync Engine Generic Error: $e");
+      rethrow;
     }
   }
 
@@ -381,7 +395,7 @@ class SyncService {
                   ));
                   
                   final mStatus = (member['TourMember'] != null) ? (member['TourMember']['status'] ?? 'active') : 'active';
-                  final mRole = (member['TourMember'] != null) ? (member['TourMember']['role'] ?? 'editor') : 'editor';
+                  final mRole = (member['TourMember'] != null) ? (member['TourMember']['role'] ?? 'viewer') : 'viewer';
                   final mLeftAt = (member['TourMember'] != null && member['TourMember']['removed_at'] != null)
                       ? DateTime.parse(member['TourMember']['removed_at'].toString())
                       : null;
@@ -644,7 +658,7 @@ class SyncService {
     try {
       final response = await dio.patch('$baseUrl/tours/requests/$requestId', data: {
         'status': status,
-        'role': role ?? 'editor'
+        'role': role ?? 'viewer'
       });
       if (response.statusCode != 200) {
         throw Exception(response.data['error'] ?? 'Failed to handle request');
