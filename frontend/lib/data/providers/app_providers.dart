@@ -13,8 +13,8 @@ final databaseProvider = Provider<AppDatabase>((ref) {
 
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(BaseOptions(
-    connectTimeout: const Duration(seconds: 60),
-    receiveTimeout: const Duration(seconds: 60),
+    connectTimeout: const Duration(seconds: 120),
+    receiveTimeout: const Duration(seconds: 120),
   ));
 
   dio.interceptors.add(InterceptorsWrapper(
@@ -35,7 +35,10 @@ final baseUrlProvider = Provider<String>((ref) => 'https://tour-manager-navy.ver
 
 final authServiceProvider = Provider<AuthService>((ref) {
   final db = ref.watch(databaseProvider);
-  final dio = Dio();
+  final dio = Dio(BaseOptions(
+    connectTimeout: const Duration(seconds: 120),
+    receiveTimeout: const Duration(seconds: 120),
+  ));
   final baseUrl = ref.watch(baseUrlProvider);
   return AuthService(dio, db, baseUrl);
 });

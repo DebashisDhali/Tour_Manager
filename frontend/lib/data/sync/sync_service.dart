@@ -11,9 +11,6 @@ class SyncService {
   final String baseUrl;
 
   SyncService(this.db, this.dio, this.baseUrl) {
-    dio.options.connectTimeout = const Duration(seconds: 30);
-    dio.options.receiveTimeout = const Duration(seconds: 30);
-    
     dio.interceptors.add(LogInterceptor(
       request: true,
       requestBody: true,
