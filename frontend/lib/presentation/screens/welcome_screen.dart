@@ -141,7 +141,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                           ),
                           const SizedBox(height: 16),
                           const Text(
-                            "Group Ledger",
+                            "Manager",
                             style: TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -1),
                           ),
                           Text(
@@ -169,7 +169,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                             const SizedBox(height: 6),
                             Text(
                               "All fields below are required",
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade500, fontWeight: FontWeight.w500),
+                              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5), fontWeight: FontWeight.w500),
                             ),
                             const SizedBox(height: 24),
                             
@@ -316,7 +316,7 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
         filled: filled,
         fillColor: fillColor,
         counterText: "",
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: Colors.black12)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).dividerColor)),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 2)),
         floatingLabelStyle: const TextStyle(fontWeight: FontWeight.bold),

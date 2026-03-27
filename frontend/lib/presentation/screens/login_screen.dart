@@ -141,7 +141,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        "Sign in to manage your group ledger",
+                        "Sign in to manage your costs",
                         style: TextStyle(
                           fontSize: 16, 
                           color: Colors.white.withOpacity(0.8),

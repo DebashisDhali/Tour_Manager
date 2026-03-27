@@ -135,7 +135,7 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        "Join the community of group ledger",
+                        "Join the Manager community",
                         style: TextStyle(
                           fontSize: 15, 
                           color: Colors.white.withOpacity(0.8),

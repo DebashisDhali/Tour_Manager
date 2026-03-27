@@ -189,10 +189,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 flex: 4,
                 child: Container(
                   margin: const EdgeInsets.only(top: 16),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(40)),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(40)),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(32, 36, 32, 24),
@@ -234,11 +233,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                     position: _slideAnim,
                                     child: Text(
                                       page.title,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 30,
                                         fontWeight: FontWeight.w900,
                                         letterSpacing: -1,
-                                        color: Color(0xFF0F172A),
+                                        color: Theme.of(context).colorScheme.onSurface,
                                         height: 1.15,
                                       ),
                                     ),
@@ -253,7 +252,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                     page.subtitle,
                                     style: TextStyle(
                                       fontSize: 15,
-                                      color: Colors.black.withOpacity(0.55),
+                                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.55),
                                       height: 1.6,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -379,7 +378,7 @@ class _IllustrationCard extends StatelessWidget {
           border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.12),
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.12),
               blurRadius: 32,
               offset: const Offset(0, 16),
             ),

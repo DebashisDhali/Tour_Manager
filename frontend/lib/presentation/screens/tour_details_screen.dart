@@ -128,7 +128,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(48),
               child: Container(
-                decoration: BoxDecoration(color: Colors.black.withOpacity(0.1)),
+                decoration: BoxDecoration(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1)),
                 child: TabBar(
                   controller: _tabController,
                   isScrollable: _isProgram || (tour.purpose.toLowerCase() == 'mess'),
@@ -1028,7 +1028,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
               child: Icon(icon, color: color, size: 20),
             ),
             const SizedBox(height: 8),
-            Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.black87)),
+            Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurface)),
           ],
         ),
       ),
@@ -1129,9 +1129,9 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
       builder: (context) {
         return Container(
           constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
           padding: const EdgeInsets.all(24),
           child: SingleChildScrollView(
@@ -1139,7 +1139,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)))),
+                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Theme.of(context).dividerColor, borderRadius: BorderRadius.circular(2)))),
                 const SizedBox(height: 20),
                 Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
@@ -1147,7 +1147,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                 const SizedBox(height: 12),
                 
                 if (isIncome) ...[
-                  const Text("Collected by Member", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+                  Text("Collected by Member", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5))),
                   const SizedBox(height: 8),
                   ...users.map((u) {
                     final amount = incomes.where((i) => i.collectedBy == u.id).fold(0.0, (s, i) => s + i.amount);
@@ -1160,7 +1160,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                     );
                   }).toList(),
                   const SizedBox(height: 20),
-                  const Text("Transaction History", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+                  Text("Transaction History", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5))),
                   const SizedBox(height: 8),
                   if (incomes.isEmpty) const Text("No income recorded yet.")
                   else ...incomes.map((i) => ListTile(
@@ -1173,7 +1173,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                 ],
   
                 if (isExpense) ...[
-                  const Text("Spent by Member", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+                  Text("Spent by Member", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5))),
                   const SizedBox(height: 8),
                   ...users.map((u) {
                     final amount = expenses.where((e) => e.payerId == u.id).fold(0.0, (s, e) => s + e.amount);
@@ -1186,7 +1186,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                     );
                   }).toList(),
                   const SizedBox(height: 20),
-                  const Text("Category Breakdown", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+                  Text("Category Breakdown", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5))),
                   const SizedBox(height: 8),
                   if (expenses.isEmpty) const Text("No expenses recorded yet.")
                   else ...(() {
@@ -1208,7 +1208,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                 ],
   
                 if (isBalance) ...[
-                  const Text("Cash in Hand (Personal)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+                  Text("Cash in Hand (Personal)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5))),
                   const SizedBox(height: 8),
                   ...users.map((u) {
                     final col = incomes.where((i) => i.collectedBy == u.id).fold(0.0, (sum, i) => sum + i.amount);
@@ -1226,7 +1226,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                     );
                   }).toList(),
                   const Divider(height: 32),
-                  const Text("Overall Summary", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+                  Text("Overall Summary", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5))),
                   const SizedBox(height: 8),
                   _buildDetailRow("Total Funds Collected", incomes.fold(0.0, (s, i) => s + i.amount), Colors.green),
                   _buildDetailRow("Total Group Expenses", expenses.fold(0.0, (s, e) => s + e.amount), Colors.red),
@@ -1412,7 +1412,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
       return Container(
         padding: const EdgeInsets.all(24),
         alignment: Alignment.center,
-        child: Text(myId != null ? "No personal transactions yet." : "No transactions yet.", style: TextStyle(color: Colors.grey.shade400)),
+        child: Text(myId != null ? "No personal transactions yet." : "No transactions yet.", style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3))),
       );
     }
 
@@ -1433,7 +1433,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
             "${isIncome ? '+' : (isExpense ? '-' : '')}৳${tx['amount'].toStringAsFixed(0)}",
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: isIncome ? Colors.green : (isExpense ? Colors.red : Colors.black),
+              color: isIncome ? Colors.green : (isExpense ? Colors.red : Theme.of(context).colorScheme.onSurface),
             ),
           ),
         );

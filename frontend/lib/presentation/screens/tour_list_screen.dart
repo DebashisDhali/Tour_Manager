@@ -218,7 +218,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
               children: [
                 Icon(Icons.history_toggle_off_rounded, size: 80, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1)),
                 const SizedBox(height: 16),
-                const Text("No Recent Activity", style: TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.bold)),
+                Text("No Recent Activity", style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3), fontWeight: FontWeight.bold)),
                 if (items.isEmpty) ...[
                 const SizedBox(height: 24),
                 OutlinedButton.icon(
@@ -317,7 +317,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                     const SizedBox(height: 12),
                     Text("Create a new ${config.label.toLowerCase()} or join an existing one with a code to start tracking expenses.", 
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.black.withOpacity(0.7), fontSize: 15, height: 1.5)),
+                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7), fontSize: 15, height: 1.5)),
                     const SizedBox(height: 40),
                     SizedBox(
                       width: double.infinity,

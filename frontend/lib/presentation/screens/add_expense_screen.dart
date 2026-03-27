@@ -280,7 +280,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                   },
                                   selectedColor: config.color,
                                   checkmarkColor: Colors.white,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: isSelected ? config.color : Colors.black12)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: isSelected ? config.color : Theme.of(context).dividerColor)),
                                 );
                               }).toList(),
                             ),

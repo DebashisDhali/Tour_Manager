@@ -107,12 +107,12 @@ class SettlementScreen extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildStatItem("Total Cost", "৳${totalCost.toStringAsFixed(0)}", Icons.account_balance_wallet_rounded, config.color),
-                  Container(width: 1, height: 40, color: Colors.black12),
+                  _buildStatItem(context, "Total Cost", "৳${totalCost.toStringAsFixed(0)}", Icons.account_balance_wallet_rounded, config.color),
+                  Container(width: 1, height: 40, color: Theme.of(context).dividerColor.withOpacity(0.1)),
                   if (tour.purpose.toLowerCase() == 'mess')
-                    _buildStatItem("Meal Rate", "৳${mealRate.toStringAsFixed(2)}", Icons.restaurant_menu_rounded, config.color)
+                    _buildStatItem(context, "Meal Rate", "৳${mealRate.toStringAsFixed(2)}", Icons.restaurant_menu_rounded, config.color)
                   else
-                    _buildStatItem("Avg. Share", "৳${averageCost.toStringAsFixed(0)}", Icons.person_rounded, config.color),
+                    _buildStatItem(context, "Avg. Share", "৳${averageCost.toStringAsFixed(0)}", Icons.person_rounded, config.color),
                 ],
               ),
             ],
@@ -147,7 +147,7 @@ class SettlementScreen extends ConsumerWidget {
                       const SizedBox(height: 2),
                       Text(
                         "Paid: ৳${details.paid.toStringAsFixed(0)} | Share: ৳${details.share.toStringAsFixed(0)}", 
-                        style: TextStyle(fontSize: 11, color: Colors.black.withOpacity(0.7), fontWeight: FontWeight.w600)
+                        style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), fontWeight: FontWeight.w600)
                       ),
                     ],
                   ),
@@ -160,7 +160,7 @@ class SettlementScreen extends ConsumerWidget {
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 18,
-                        color: isSettled ? Colors.black26 : (balance > 0 ? Colors.green : Colors.redAccent),
+                        color: isSettled ? Theme.of(context).disabledColor : (balance > 0 ? Colors.green : Colors.redAccent),
                       ),
                     ),
                     Text(
@@ -168,7 +168,7 @@ class SettlementScreen extends ConsumerWidget {
                       style: TextStyle(
                         fontSize: 10, 
                         fontWeight: FontWeight.bold,
-                        color: isSettled ? Colors.black26 : (balance > 0 ? Colors.green : Colors.redAccent)
+                        color: isSettled ? Theme.of(context).disabledColor : (balance > 0 ? Colors.green : Colors.redAccent)
                       ),
                     ),
                   ],
@@ -188,7 +188,7 @@ class SettlementScreen extends ConsumerWidget {
                 const Icon(Icons.verified_rounded, size: 64, color: Colors.green),
                 const SizedBox(height: 16),
                 const Text("Perfectly Settled!", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, letterSpacing: -0.5)),
-                const Text("All accounts are balanced.", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w600)),
+                Text("All accounts are balanced.", style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5), fontWeight: FontWeight.w600)),
               ],
             ),
           )
@@ -211,7 +211,7 @@ class SettlementScreen extends ConsumerWidget {
                 dense: true,
                 leading: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 24),
                 title: Text("${fromUser.name} ➔ ${toUser.name}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                subtitle: Text(DateFormat('MMM dd, hh:mm a').format(s.date), style: const TextStyle(fontSize: 11, color: Colors.black54, fontWeight: FontWeight.w500)),
+                subtitle: Text(DateFormat('MMM dd, hh:mm a').format(s.date), style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5), fontWeight: FontWeight.w500)),
                 trailing: Text("৳${s.amount.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
                 onLongPress: () => _confirmDeleteSettlement(context, ref, s),
               ),
@@ -249,7 +249,7 @@ class SettlementScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+  Widget _buildStatItem(BuildContext context, String label, String value, IconData icon, Color color) {
     return Column(
       children: [
         Container(
@@ -259,7 +259,7 @@ class SettlementScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
         Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: color, letterSpacing: -0.5)),
-        Text(label, style: const TextStyle(fontSize: 11, color: Colors.black54, fontWeight: FontWeight.bold)),
+        Text(label, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5), fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -354,7 +354,7 @@ class SettlementScreen extends ConsumerWidget {
                   CircleAvatar(radius: 12, backgroundColor: Colors.redAccent.withOpacity(0.1), child: Icon(Icons.arrow_upward_rounded, size: 14, color: Colors.redAccent)),
                   const SizedBox(width: 8),
                   Text(payer, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-                  const Text(" should pay:", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w600)),
+                  Text(" should pay:", style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), fontWeight: FontWeight.w600)),
                 ],
               ),
               const Padding(
@@ -377,7 +377,7 @@ class SettlementScreen extends ConsumerWidget {
                       children: [
                         Text("৳${r.amount.toStringAsFixed(0)}", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: config.color)),
                         const SizedBox(width: 8),
-                        const Icon(Icons.arrow_forward_rounded, size: 16, color: Colors.black26),
+                        Icon(Icons.arrow_forward_rounded, size: 16, color: Theme.of(context).disabledColor),
                         const SizedBox(width: 8),
                         CircleAvatar(radius: 10, backgroundColor: config.color.withOpacity(0.2), child: Text(r.receiverName[0], style: TextStyle(fontSize: 8, color: config.color, fontWeight: FontWeight.bold))),
                         const SizedBox(width: 8),
@@ -460,7 +460,7 @@ class DottedLine extends StatelessWidget {
       width: 2,
       height: height,
       decoration: BoxDecoration(
-        color: Colors.black12,
+        color: Theme.of(context).dividerColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(1),
       ),
     );

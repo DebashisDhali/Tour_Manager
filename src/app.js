@@ -70,9 +70,9 @@ async function initDb() {
     console.log('🔄 Initializing Database Connection...');
     await sequelize.authenticate();
     console.log('✅ Database connected.');
-    // Enable alter: true to ensure schema matches models exactly
-    await sequelize.sync({ alter: true });
-    console.log('✅ Database schema synced (alter: true).');
+    // Only sync schema in dev or if explicitly needed. alter: true is expensive.
+    await sequelize.sync({ alter: false });
+    console.log('✅ Database schema verified.');
     isDbInitialized = true;
   } catch (dbErr) {
     console.error('❌ Database Initialization Failed:', dbErr);
