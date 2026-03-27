@@ -38,6 +38,7 @@ module.exports = (sequelize) => {
     createdAt: 'created_at',
     updatedAt: 'updated_at',
     indexes: [
+      { unique: true, fields: ['tour_id', 'user_id'] },
       { fields: ['tour_id'] },
       { fields: ['user_id'] },
       { fields: ['updated_at'] }

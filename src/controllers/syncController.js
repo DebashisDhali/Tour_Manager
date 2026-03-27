@@ -29,113 +29,104 @@ exports.syncData = async (req, res) => {
       transaction 
     });
 
-      // 1. Process Unsynced Data from Client (Push)
+    // 1. Process Unsynced Data from Client (Push)
     if (unsyncedData) {
       const { tours, users, expenses, splits, payers, settlements, incomes, members, joinRequests } = unsyncedData;
 
+      // 1.1 Process Users individualy (Safe from global transaction ripple)
       if (users?.length > 0) {
-        // Individual upserts handle unique constraints (phone/email) without crashing the whole sync
         for (const u of users) {
           try {
             await User.upsert({
               id: u.id, name: u.name, phone: u.phone, email: u.email,
               avatar_url: u.avatarUrl, purpose: u.purpose, updated_at: now
-            }, { transaction });
-          } catch (e) {
-            console.error(`⚠️ Sync User Skip [${u.id}]: ${e.message}`);
-          }
+            });
+          } catch (e) { console.error(`⚠️ Sync User Skip [${u.id}]: ${e.message}`); }
         }
       }
 
+      // 1.2 Process Tours individualy
       if (tours?.length > 0) {
         for (const t of tours) {
           try {
-            // Bulk Upsert Tours
             await Tour.upsert({
               id: t.id, name: t.name, created_by: t.createdBy, 
               invite_code: t.inviteCode, start_date: t.startDate, 
               end_date: t.endDate, updated_at: now 
-            }, { transaction });
+            });
             
-            // Ensure creators are members (for tours created offline)
+            // Back-fill membership for creator
             if (t.createdBy) {
               await TourMember.upsert({ 
-                tour_id: t.id, 
-                user_id: t.createdBy, 
-                status: 'active', 
-                role: 'admin', 
-                joined_at: now, 
-                updated_at: now 
-              }, { transaction });
+                tour_id: t.id, user_id: t.createdBy, 
+                status: 'active', role: 'admin', 
+                joined_at: now, updated_at: now 
+              });
             }
-          } catch (e) {
-            console.error(`⚠️ Sync Tour Skip [${t.id}]: ${e.message}`);
-          }
+          } catch (e) { console.error(`⚠️ Sync Tour Skip [${t.id}]: ${e.message}`); }
         }
       }
 
-      if (expenses?.length > 0) {
-        await Expense.bulkCreate(expenses.map(e => ({
-          id: e.id, tour_id: e.tourId, payer_id: e.payerId || null, amount: e.amount,
-          title: e.title, category: e.category, mess_cost_type: e.messCostType, date: e.createdAt, updated_at: now
-        })), { transaction, updateOnDuplicate: ['amount', 'title', 'category', 'date', 'payer_id', 'mess_cost_type', 'updated_at'], conflictAttributes: ['id'] });
-      }
-
-      if (splits?.length > 0) {
-        await ExpenseSplit.bulkCreate(splits.map(s => ({ id: s.id, expense_id: s.expenseId, user_id: s.userId, amount: s.amount })), { transaction, updateOnDuplicate: ['amount'], conflictAttributes: ['id'] });
-      }
-
-      if (payers?.length > 0) {
-        await ExpensePayer.bulkCreate(payers.map(p => ({ id: p.id, expense_id: p.expenseId, user_id: p.userId, amount: p.amount })), { transaction, updateOnDuplicate: ['amount'], conflictAttributes: ['id'] });
-      }
-
-      if (settlements?.length > 0) {
-        await Settlement.bulkCreate(settlements.map(s => ({
-          id: s.id, tour_id: s.tourId, from_id: s.fromId, to_id: s.toId, amount: s.amount, date: s.date, updated_at: now
-        })), { transaction, updateOnDuplicate: ['amount', 'date', 'updated_at'], conflictAttributes: ['id'] });
-      }
-      
-      if (incomes?.length > 0) {
-        await ProgramIncome.bulkCreate(incomes.map(i => ({
-          id: i.id, tour_id: i.tourId, amount: i.amount, source: i.source,
-          description: i.description, collected_by: i.collectedBy, date: i.date, updated_at: now
-        })), { transaction, updateOnDuplicate: ['amount', 'source', 'description', 'collected_by', 'date', 'updated_at'], conflictAttributes: ['id'] });
-      }
-
+      // 1.3 Process Tour Members individualy
       if (members?.length > 0) {
-        // Members are few, using upsert is safer for composite keys
         for (const m of members) {
           try {
             await TourMember.upsert({
-              tour_id: m.tourId,
-              user_id: m.userId,
+              tour_id: m.tourId, user_id: m.userId,
               status: m.leftAt ? 'removed' : 'active',
               removed_at: m.leftAt || null,
               role: m.role || 'viewer',
               meal_count: m.mealCount || 0.0,
               updated_at: now
-            }, { transaction });
+            });
           } catch (err) { console.error(`⚠️ Sync Member Skip [${m.tourId}-${m.userId}]: ${err.message}`); }
         }
       }
 
-      if (joinRequests?.length > 0) {
-        await JoinRequest.bulkCreate(joinRequests.map(jr => ({
-          id: jr.id,
-          tour_id: jr.tourId,
-          user_id: jr.userId,
-          user_name: jr.userName || 'Unknown',
-          status: jr.status || 'pending',
-          updated_at: now
-        })), { 
-          transaction, 
-          updateOnDuplicate: ['status', 'updated_at'],
-          conflictAttributes: ['id']
-        });
+      // 1.4 Process Bulk Transactions (Expenses, Splits, etc. in one transaction for speed)
+      transaction = await sequelize.transaction();
+      try {
+        if (expenses?.length > 0) {
+          await Expense.bulkCreate(expenses.map(e => ({
+            id: e.id, tour_id: e.tourId, payer_id: e.payerId || null, amount: e.amount,
+            title: e.title, category: e.category, mess_cost_type: e.messCostType, date: e.createdAt, updated_at: now
+          })), { transaction, updateOnDuplicate: ['amount', 'title', 'category', 'date', 'payer_id', 'mess_cost_type', 'updated_at'], conflictAttributes: ['id'] });
+        }
+
+        if (splits?.length > 0) {
+          await ExpenseSplit.bulkCreate(splits.map(s => ({ id: s.id, expense_id: s.expenseId, user_id: s.userId, amount: s.amount })), { transaction, updateOnDuplicate: ['amount'], conflictAttributes: ['id'] });
+        }
+
+        if (payers?.length > 0) {
+          await ExpensePayer.bulkCreate(payers.map(p => ({ id: p.id, expense_id: p.expenseId, user_id: p.userId, amount: p.amount })), { transaction, updateOnDuplicate: ['amount'], conflictAttributes: ['id'] });
+        }
+
+        if (settlements?.length > 0) {
+          await Settlement.bulkCreate(settlements.map(s => ({
+            id: s.id, tour_id: s.tourId, from_id: s.fromId, to_id: s.toId, amount: s.amount, date: s.date, updated_at: now
+          })), { transaction, updateOnDuplicate: ['amount', 'date', 'updated_at'], conflictAttributes: ['id'] });
+        }
+        
+        if (incomes?.length > 0) {
+          await ProgramIncome.bulkCreate(incomes.map(i => ({
+            id: i.id, tour_id: i.tourId, amount: i.amount, source: i.source,
+            description: i.description, collected_by: i.collectedBy, date: i.date, updated_at: now
+          })), { transaction, updateOnDuplicate: ['amount', 'source', 'description', 'collected_by', 'date', 'updated_at'], conflictAttributes: ['id'] });
+        }
+
+        if (joinRequests?.length > 0) {
+          await JoinRequest.bulkCreate(joinRequests.map(jr => ({
+            id: jr.id, tour_id: jr.tourId, user_id: jr.userId, user_name: jr.userName || 'Unknown', status: jr.status || 'pending', updated_at: now
+          })), { transaction, updateOnDuplicate: ['status', 'updated_at'], conflictAttributes: ['id'] });
+        }
+
+        await transaction.commit();
+      } catch (bulkErr) {
+        console.error('❌ Bulk Sync Transaction Failed:', bulkErr.message);
+        await transaction.rollback();
+        // We continue anyway so the user gets whatever was synced previously (Users/Tours)
       }
     }
-
-    await transaction.commit();
 
     // 2. Optimized Incremental Pull
     const activeTourRecords = await TourMember.findAll({
