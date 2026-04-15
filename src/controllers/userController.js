@@ -29,30 +29,35 @@ exports.searchUsers = async (req, res) => {
     if (!query || query.trim().length === 0) return res.json([]);
     
     const searchTerm = query.trim();
+    // Normalize phone search: remove all non-digits for a deep search
+    const digitsOnly = searchTerm.replace(/\D/g, '');
+
     const searchConditions = [
       { name: { [Op.iLike]: `%${searchTerm}%` } },
-      { email: { [Op.iLike]: `%${searchTerm}%` } }
+      { email: { [Op.iLike]: `%${searchTerm}%` } },
+      { phone: { [Op.iLike]: `%${searchTerm}%` } }
     ];
 
-    // Standard phone match
-    searchConditions.push({ phone: { [Op.iLike]: `%${searchTerm}%` } });
-
-    // Intelligent Phone Matching: 
-    // If it looks like a BD mobile number (starts with 01)
-    if (/^01[3-9]\d{8}$/.test(searchTerm)) {
-      const withoutZero = searchTerm.substring(1); // e.g. 1757445693
-      searchConditions.push({ phone: { [Op.iLike]: `%${withoutZero}%` } });
-    } else if (/^[3-9]\d{8}$/.test(searchTerm)) {
-      // If user forgot leading 0
-      searchConditions.push({ phone: { [Op.iLike]: `%0${searchTerm}%` } });
+    // If query contains digits, search for variations
+    if (digitsOnly.length >= 6) {
+        // Match last digits (to handle country code issues)
+        searchConditions.push({ phone: { [Op.iLike]: `%${digitsOnly}%` } });
+        
+        // Handle leading zero variations for BD numbers
+        if (digitsOnly.startsWith('0')) {
+            searchConditions.push({ phone: { [Op.iLike]: `%${digitsOnly.substring(1)}%` } });
+        } else {
+            searchConditions.push({ phone: { [Op.iLike]: `%0${digitsOnly}%` } });
+        }
     }
 
     const users = await User.findAll({
       where: {
         [Op.or]: searchConditions
       },
-      attributes: ['id', 'name', 'phone', 'email', 'avatar_url'],
-      limit: 15
+      attributes: ['id', 'name', 'phone', 'email', 'avatar_url', 'is_registered'],
+      order: [['is_registered', 'DESC'], ['name', 'ASC']],
+      limit: 20
     });
 
     const sanitizedUsers = users.map(u => {
@@ -65,7 +70,7 @@ exports.searchUsers = async (req, res) => {
 
     res.json(sanitizedUsers);
   } catch (err) {
-    console.error("Search API Error:", err);
-    res.status(500).json({ error: "Search failed. Please try again." });
+    console.error("Critical Search API Error:", err);
+    res.status(500).json({ error: "Search system experience an issue. We are investigating." });
   }
 };
