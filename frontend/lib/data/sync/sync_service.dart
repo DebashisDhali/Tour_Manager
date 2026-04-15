@@ -591,6 +591,73 @@ class SyncService {
     }
   }
 
+  /// Retroactively includes a member in ALL existing expenses of a tour.
+  /// The server redistributes existing splits equally, then we pull the
+  /// updated splits back into the local DB.
+  Future<void> retroactiveSplit(String tourId, String userId, String currentUserId) async {
+    try {
+      // 1. Tell the server to redistribute
+      final response = await dio.post(
+        '$baseUrl/tours/$tourId/members/$userId/retroactive-split',
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception(response.data['error'] ?? 'Retroactive split failed');
+      }
+
+      print("✅ Server retroactive split succeeded. Pulling fresh data...");
+
+      // 2. Full sync so the local DB gets the server's redistributed splits
+      await startSync(currentUserId);
+    } catch (e) {
+      print("Retroactive split failed: $e");
+      throw Exception(e.toString());
+    }
+  }
+
+  /// Applies retroactive split LOCALLY (offline-first) without server call.
+  /// Call this before or after retroactiveSplit() depending on connectivity.
+  Future<void> applyRetroactiveSplitLocally(String tourId, String newUserId) async {
+    // Get all expenses for this tour
+    final expenses = await (db.select(db.expenses)
+      ..where((e) => e.tourId.equals(tourId))).get();
+
+    for (final expense in expenses) {
+      // Get existing splits
+      final existingSplits = await (db.select(db.expenseSplits)
+        ..where((s) => s.expenseId.equals(expense.id))).get();
+
+      final alreadyIncluded = existingSplits.any((s) => s.userId == newUserId);
+      if (alreadyIncluded) continue;
+
+      final newCount = existingSplits.length + 1;
+      final newAmount = expense.amount / newCount;
+
+      // Update existing splits
+      for (final split in existingSplits) {
+        await (db.update(db.expenseSplits)
+          ..where((s) => s.id.equals(split.id)))
+          .write(ExpenseSplitsCompanion(
+            amount: Value(newAmount),
+            isSynced: const Value(false),
+          ));
+      }
+
+      // Insert new split for the new member
+      await db.into(db.expenseSplits).insert(
+        ExpenseSplitsCompanion.insert(
+          id: const Uuid().v4(),
+          expenseId: expense.id,
+          userId: newUserId,
+          amount: newAmount,
+          isSynced: const Value(false),
+        ),
+        mode: InsertMode.insertOrReplace,
+      );
+    }
+    print("✅ Local retroactive split applied for user $newUserId in tour $tourId");
+  }
+
   // Join Requests
   Future<Map<String, dynamic>?> findTourByCode(String code) async {
     try {

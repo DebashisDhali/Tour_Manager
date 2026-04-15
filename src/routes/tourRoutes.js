@@ -20,5 +20,6 @@ router.post('/:tourId/add-member', auth, rbac.checkTourAccess(['admin']), tourCo
 router.post('/delete', auth, rbac.checkTourAccess(['admin']), tourController.deleteTour);
 router.post('/remove-member', auth, rbac.checkTourAccess(['admin']), tourController.removeMember);
 router.patch('/:tourId/members/:userId/role', auth, rbac.checkTourAccess(['admin']), tourController.updateMemberRole);
+router.post('/:tourId/members/:userId/retroactive-split', auth, rbac.checkTourAccess(['admin']), tourController.retroactiveSplit);
 
 module.exports = router;

@@ -5,6 +5,7 @@ import '../../data/local/app_database.dart' as models;
 import '../../domain/logic/settlement_calculator.dart';
 import 'package:frontend/data/providers/app_providers.dart';
 import 'final_receipt_screen.dart';
+import 'tour_details_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../domain/logic/purpose_config.dart';
@@ -51,7 +52,7 @@ class SettlementScreen extends ConsumerWidget {
     if (tour == null) return const Center(child: Text("Data not found"));
 
     final totalCost = expenses.fold(0.0, (sum, e) => sum + e.amount);
-    final averageCost = users.isEmpty ? 0.0 : totalCost / users.length;
+    final equalShare = users.isEmpty ? 0.0 : totalCost / users.length;
 
     final mealCounts = { for (var m in tourMembers) m.user.id : m.mealCount };
     final calculator = SettlementCalculator();
@@ -112,9 +113,31 @@ class SettlementScreen extends ConsumerWidget {
                   if (tour.purpose.toLowerCase() == 'mess')
                     _buildStatItem(context, "Meal Rate", "৳${mealRate.toStringAsFixed(2)}", Icons.restaurant_menu_rounded, config.color)
                   else
-                    _buildStatItem(context, "Avg. Share", "৳${averageCost.toStringAsFixed(0)}", Icons.person_rounded, config.color),
+                    _buildStatItem(context, "Members", "${users.length} people", Icons.group_rounded, config.color),
                 ],
               ),
+              // Show equal-split hint only when all shares are equal
+              if (tour.purpose.toLowerCase() != 'mess') ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: config.color.withOpacity(0.06),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.info_outline_rounded, size: 13, color: config.color.withOpacity(0.7)),
+                      const SizedBox(width: 6),
+                      Text(
+                        "Equal split = ৳${equalShare.toStringAsFixed(0)} per person",
+                        style: TextStyle(fontSize: 11, color: config.color.withOpacity(0.8), fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -127,55 +150,220 @@ class SettlementScreen extends ConsumerWidget {
 
           final balance = details.net;
           final isSettled = balance.abs() < 0.1;
+          final isCreditor = balance > 0.1;
+          final isDebtor = balance < -0.1;
 
-          return PremiumCard(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: config.color.withOpacity(0.1),
-                  child: Text(u.name[0].toUpperCase(), style: TextStyle(color: config.color, fontWeight: FontWeight.bold)),
+          // Detect if this member has a custom (non-equal) share
+          final hasCustomShare = tour.purpose.toLowerCase() != 'mess' &&
+              users.length > 1 &&
+              (details.share - equalShare).abs() > 1.0;
+
+          // Visual bar: proportion of paid vs share
+          final maxVal = [details.paid, details.share, 1.0].reduce(
+              (a, b) => a > b ? a : b);
+          final paidRatio = details.paid / maxVal;
+          final shareRatio = details.share / maxVal;
+
+          final netColor = isSettled
+              ? Theme.of(context).disabledColor
+              : (isCreditor ? Colors.green.shade600 : Colors.redAccent);
+
+          return InkWell(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TourDetailsScreen(
+                  tourId: tourId,
+                  tourName: tour.name,
+                  initialFilterMemberId: u.id,
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(u.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      const SizedBox(height: 2),
-                      Text(
-                        "Paid: ৳${details.paid.toStringAsFixed(0)} | Share: ৳${details.share.toStringAsFixed(0)}", 
-                        style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), fontWeight: FontWeight.w600)
-                      ),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+              ),
+            ),
+            borderRadius: BorderRadius.circular(20),
+            child: PremiumCard(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                // — Header row —
+                Row(
                   children: [
-                    Text(
-                      "${balance >= 0 ? '+' : ''}${balance.toStringAsFixed(0)} ৳",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 18,
-                        color: isSettled ? Theme.of(context).disabledColor : (balance > 0 ? Colors.green : Colors.redAccent),
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: config.color.withOpacity(0.12),
+                      child: Text(u.name[0].toUpperCase(),
+                          style: TextStyle(
+                              color: config.color,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Text(u.name,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 15)),
+                          if (hasCustomShare) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text('custom',
+                                  style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.orange)),
+                            ),
+                          ],
+                          const Spacer(),
+                          Icon(Icons.receipt_long_rounded,
+                              size: 13, color: config.color.withOpacity(0.4)),
+                          const SizedBox(width: 3),
+                          Icon(Icons.chevron_right_rounded,
+                              size: 16,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.25)),
+                        ],
                       ),
                     ),
-                    Text(
-                      isSettled ? "Settled" : (balance > 0 ? "Receivable" : "Payable"),
-                      style: TextStyle(
-                        fontSize: 10, 
-                        fontWeight: FontWeight.bold,
-                        color: isSettled ? Theme.of(context).disabledColor : (balance > 0 ? Colors.green : Colors.redAccent)
+                    // Net balance badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: netColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            "${isCreditor ? '+' : ''}${balance.toStringAsFixed(0)} ৳",
+                            style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 16,
+                                color: netColor),
+                          ),
+                          Text(
+                            isSettled
+                                ? "Settled ✓"
+                                : (isCreditor ? "Will receive" : "Will pay"),
+                            style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: netColor),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ],
+
+                const SizedBox(height: 12),
+
+                // — Paid row —
+                Row(
+                  children: [
+                    Icon(Icons.arrow_upward_rounded,
+                        size: 13, color: Colors.green.shade600),
+                    const SizedBox(width: 6),
+                    Text('Paid',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.green.shade700)),
+                    const Spacer(),
+                    Text(
+                      '৳${details.paid.toStringAsFixed(0)}',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.green.shade700),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+
+                // Paid progress bar
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: paidRatio.clamp(0.0, 1.0),
+                    minHeight: 5,
+                    backgroundColor:
+                        Theme.of(context).dividerColor.withOpacity(0.1),
+                    valueColor: AlwaysStoppedAnimation(
+                        Colors.green.shade400),
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                // — Share row —
+                Row(
+                  children: [
+                    Icon(Icons.arrow_downward_rounded,
+                        size: 13, color: Colors.redAccent),
+                    const SizedBox(width: 6),
+                    Text(
+                      hasCustomShare ? 'Share  (≠ equal)' : 'Share',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.6)),
+                    ),
+                    if (hasCustomShare) ...[
+                      const SizedBox(width: 4),
+                      Tooltip(
+                        message:
+                            'Equal share = ৳${equalShare.toStringAsFixed(0)}\nActual share = ৳${details.share.toStringAsFixed(0)}',
+                        child: Icon(Icons.help_outline_rounded,
+                            size: 12,
+                            color: Colors.orange.withOpacity(0.7)),
+                      ),
+                    ],
+                    const Spacer(),
+                    Text(
+                      '৳${details.share.toStringAsFixed(0)}',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.8)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+
+                // Share progress bar
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: shareRatio.clamp(0.0, 1.0),
+                    minHeight: 5,
+                    backgroundColor:
+                        Theme.of(context).dividerColor.withOpacity(0.1),
+                    valueColor: AlwaysStoppedAnimation(
+                        Colors.redAccent.withOpacity(0.6)),
+                  ),
+                ),
+                ],
+              ),
             ),
-          );
+          ); // closes InkWell
         }).toList(),
 
         const SizedBox(height: 32),

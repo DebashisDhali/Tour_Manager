@@ -138,45 +138,48 @@ exports.syncData = async (req, res) => {
 
     // Fetch only tours and their updated children
     const pullCondition = { [Op.gt]: lastSyncDate };
+    const dateCondition = lastSync ? { updated_at: pullCondition } : {};
 
-    const tours = await Tour.findAll({
-      where: { id: tourIds },
-      include: [
-        { 
-          model: User,
-          through: { 
-            attributes: ['status', 'joined_at', 'removed_at', 'meal_count'],
-            where: lastSync ? { updated_at: pullCondition } : {} 
-          },
-          required: false 
-        }, 
-        { 
-          model: Expense,
-          where: lastSync ? { updated_at: pullCondition } : {},
-          required: false,
-          include: [ExpenseSplit, ExpensePayer]
-        },
-        { 
-          model: Settlement, 
-          where: lastSync ? { updated_at: pullCondition } : {}, 
-          required: false 
-        },
-        { 
-          model: ProgramIncome, 
-          where: lastSync ? { updated_at: pullCondition } : {}, 
-          required: false 
-        },
-        {
-          model: JoinRequest,
-          where: lastSync ? { updated_at: pullCondition } : {},
-          required: false
-        }
-      ]
+    // Parallel fetch for speed (Vercel has a 10s limit)
+    const [
+      updatedExpenses,
+      updatedSettlements,
+      updatedIncomes,
+      updatedJoinRequests,
+      updatedMembers,
+      allTours
+    ] = await Promise.all([
+      Expense.findAll({ where: { tour_id: tourIds, ...dateCondition }, include: [ExpenseSplit, ExpensePayer] }),
+      Settlement.findAll({ where: { tour_id: tourIds, ...dateCondition } }),
+      ProgramIncome.findAll({ where: { tour_id: tourIds, ...dateCondition } }),
+      JoinRequest.findAll({ where: { tour_id: tourIds, ...dateCondition } }),
+      TourMember.findAll({ where: { tour_id: tourIds, ...dateCondition }, include: [User] }),
+      Tour.findAll({ where: { id: tourIds }, raw: true })
+    ]);
+
+    // Reconstruct nested structure
+    const toursData = allTours.map(tour => {
+      return {
+        ...tour,
+        Expenses: updatedExpenses.filter(e => e.tour_id === tour.id),
+        Settlements: updatedSettlements.filter(s => s.tour_id === tour.id),
+        ProgramIncomes: updatedIncomes.filter(i => i.tour_id === tour.id),
+        JoinRequests: updatedJoinRequests.filter(jr => jr.tour_id === tour.id),
+        Users: updatedMembers.filter(m => m.tour_id === tour.id).map(m => {
+           const member = m.get({ plain: true });
+           if (member.User) {
+             const user = member.User;
+             delete member.User;
+             return { ...user, TourMember: member };
+           }
+           return member;
+        })
+      };
     });
 
     res.json({
       timestamp: now.toISOString(),
-      tours: tours,
+      tours: toursData,
       allTourIds: tourIds 
     });
 

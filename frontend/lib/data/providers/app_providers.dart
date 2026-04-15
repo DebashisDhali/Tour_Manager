@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import '../local/app_database.dart';
 import '../sync/sync_service.dart';
 import '../services/auth_service.dart';
+import '../services/ai_service.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) {
   final db = AppDatabase();
@@ -48,6 +49,12 @@ final syncServiceProvider = Provider<SyncService>((ref) {
   final dio = ref.watch(dioProvider);
   final baseUrl = ref.watch(baseUrlProvider);
   return SyncService(db, dio, baseUrl);
+});
+
+final aiServiceProvider = Provider<AiService>((ref) {
+  final dio = ref.watch(dioProvider);
+  final baseUrl = ref.watch(baseUrlProvider);
+  return AiService(dio, baseUrl);
 });
 
 final currentUserProvider = StreamProvider<User?>((ref) {

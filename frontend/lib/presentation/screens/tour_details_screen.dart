@@ -17,13 +17,21 @@ import 'package:share_plus/share_plus.dart';
 import '../../data/local/app_database.dart';
 import '../../domain/logic/purpose_config.dart';
 import 'program_dashboard_screen.dart';
+import 'ai_coach_screen.dart';
 import '../widgets/premium_card.dart';
 
 class TourDetailsScreen extends ConsumerStatefulWidget {
   final String tourId;
   final String tourName;
+  /// When set, opens directly to the Expenses tab with this member pre-filtered.
+  final String? initialFilterMemberId;
 
-  const TourDetailsScreen({super.key, required this.tourId, required this.tourName});
+  const TourDetailsScreen({
+    super.key,
+    required this.tourId,
+    required this.tourName,
+    this.initialFilterMemberId,
+  });
 
   @override
   ConsumerState<TourDetailsScreen> createState() => _TourDetailsScreenState();
@@ -36,6 +44,13 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
   bool _isProgram = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Pre-select a member filter if provided (navigated from summary screen)
+    _selectedFilterMemberId = widget.initialFilterMemberId;
+  }
+
+  @override
   void dispose() {
     _tabController?.dispose();
     super.dispose();
@@ -45,14 +60,17 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
     final String p = tour.purpose.toLowerCase();
     final bool isProg = p == 'event' || p == 'business' || p == 'project';
     final bool isMess = p == 'mess';
-    // Only 'mess' gets the 4th tab (Meals). Others use 3 (standard) or 5 (program).
     final int newLength = isProg ? 5 : (isMess ? 4 : 3);
     
     if (_tabController == null || _tabLength != newLength) {
       _tabController?.dispose();
       _tabLength = newLength;
       _isProgram = isProg;
-      _tabController = TabController(length: _tabLength, vsync: this, initialIndex: 0);
+      // If opened from member summary, jump to expenses tab directly
+      final int startIndex = widget.initialFilterMemberId != null
+          ? (isProg ? 2 : 0) // expenses tab index
+          : 0;
+      _tabController = TabController(length: _tabLength, vsync: this, initialIndex: startIndex);
       _tabController!.addListener(() {
         if (mounted) setState(() {}); // Rebuild for FAB updates
       });
@@ -96,6 +114,15 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
               ],
             ),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.auto_awesome, size: 22, color: Colors.amberAccent),
+                tooltip: 'AI Insights',
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => AiCoachScreen(tourId: tour.id, tourName: tour.name),
+                  ));
+                },
+              ),
               if (tour.inviteCode != null)
                 IconButton(
                   icon: const Icon(Icons.share_rounded, size: 22),
@@ -652,7 +679,13 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                trailingWidget = Row(
                  mainAxisSize: MainAxisSize.min,
                  children: [
-                   if (!isRemoved) DropdownButton<String>(
+                   if (!isRemoved) ...[
+                     IconButton(
+                       icon: Icon(Icons.history_rounded, color: config.color, size: 18),
+                       tooltip: "Include in Past Expenses",
+                       onPressed: () => _confirmRetroactiveSplit(m.user),
+                     ),
+                     DropdownButton<String>(
                      value: m.role,
                      icon: const Icon(Icons.arrow_drop_down, size: 16),
                      style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold),
@@ -669,6 +702,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                      },
                      underline: const SizedBox(),
                    ),
+                   ],
                    isRemoved 
                      ? IconButton(
                          onPressed: () => _showRestoreConfirmation(m.user), 
@@ -1710,6 +1744,38 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Got it")),
+        ],
+      ),
+    );
+  }
+
+  void _confirmRetroactiveSplit(User user) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Include in Past Expenses"),
+        content: Text("Do you want to redistribute all existing expenses equally to include ${user.name}? This will change everyone's balances."),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.primary),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                final currentUserId = ref.read(currentUserProvider).value?.id;
+                final syncService = ref.read(syncServiceProvider);
+                await syncService.applyRetroactiveSplitLocally(widget.tourId, user.id);
+                if (currentUserId != null) {
+                  syncService.retroactiveSplit(widget.tourId, user.id, currentUserId)
+                    .catchError((e) => debugPrint('Server sync failed: $e'));
+                }
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Member included in past expenses successfully!')));
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+              }
+            },
+            child: const Text("Yes"),
+          ),
         ],
       ),
     );

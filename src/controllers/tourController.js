@@ -1,5 +1,6 @@
 const { Tour, User, JoinRequest, Expense, ExpenseSplit, ExpensePayer, Settlement, TourMember, sequelize } = require('../models');
 const { v4: uuidv4 } = require('uuid');
+const { Op } = require('sequelize');
 
 exports.createTour = async (req, res) => {
   try {
@@ -285,6 +286,63 @@ exports.updateMemberRole = async (req, res) => {
     await member.update({ role }, { transaction: t });
     await t.commit();
     res.json({ message: 'Role updated successfully', role });
+  } catch (err) {
+    if (t) await t.rollback();
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.retroactiveSplit = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { tourId, userId } = req.params;
+
+    // Check if member is active
+    const member = await TourMember.findOne({
+      where: { tour_id: tourId, user_id: userId, status: 'active' },
+      transaction: t
+    });
+
+    if (!member) {
+      await t.rollback();
+      return res.status(404).json({ error: 'Active member not found in this tour' });
+    }
+
+    // Get all expenses for this tour
+    const expenses = await Expense.findAll({
+      where: { tour_id: tourId },
+      include: [ExpenseSplit],
+      transaction: t
+    });
+
+    for (const expense of expenses) {
+      const existingSplits = expense.ExpenseSplits || [];
+      const userAlreadyIncluded = existingSplits.find(s => s.user_id === userId);
+
+      if (!userAlreadyIncluded) {
+        const newMemberCount = existingSplits.length + 1;
+        const newAmount = parseFloat(expense.amount) / newMemberCount;
+
+        // Update existing splits to the new equal amount
+        for (const split of existingSplits) {
+          await split.update({ amount: newAmount }, { transaction: t });
+        }
+
+        // Create new split for the member
+        await ExpenseSplit.create({
+          id: uuidv4(),
+          expense_id: expense.id,
+          user_id: userId,
+          amount: newAmount
+        }, { transaction: t });
+        
+        // Update expense synced_at to trigger re-sync for everyone
+        await expense.update({ synced_at: new Date() }, { transaction: t });
+      }
+    }
+
+    await t.commit();
+    res.json({ message: 'Member included in all past expenses successfully' });
   } catch (err) {
     if (t) await t.rollback();
     res.status(500).json({ error: err.message });

@@ -42,6 +42,7 @@ const syncRoutes = require('./routes/syncRoutes');
 const settlementRoutes = require('./routes/settlementRoutes');
 const programIncomeRoutes = require('./routes/programIncomeRoutes');
 const authRoutes = require('./routes/authRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 const auth = require('./middleware/auth');
 
 app.use('/auth', authRoutes);
@@ -51,6 +52,7 @@ app.use('/expenses', auth, expenseRoutes);
 app.use('/sync', auth, syncRoutes);
 app.use('/settlements', auth, settlementRoutes);
 app.use('/incomes', auth, programIncomeRoutes);
+app.use('/ai', auth, aiRoutes);
 
 
 // Global error handlers to prevent silent crashes

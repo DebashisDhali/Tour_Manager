@@ -26,6 +26,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
   final Set<Map<String, dynamic>> _selectedUsers = {};
   bool _isLoading = false;
   bool _isSearching = false;
+  bool _retroactiveSplit = false; // Whether to include new member in past expenses
 
   @override
   void dispose() {
@@ -99,6 +100,15 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
 
           // 2. Add to server
           await syncService.addMemberToTour(widget.tourId, user['id']);
+
+          // 3. Retroactive split if requested
+          if (_retroactiveSplit) {
+            final currentUserId = ref.read(currentUserProvider).value?.id;
+            await syncService.applyRetroactiveSplitLocally(widget.tourId, user['id']);
+            if (currentUserId != null) {
+              await syncService.retroactiveSplit(widget.tourId, user['id'], currentUserId);
+            }
+          }
           count++;
         } catch (e) {
           debugPrint("Failed to add user ${user['name']}: $e");
@@ -108,7 +118,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
       if (mounted) {
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Added $count ${count == 1 ? 'member' : 'members'} successfully!')),
+          SnackBar(content: Text('Added $count ${count == 1 ? 'member' : 'members'} successfully!${_retroactiveSplit ? ' Past expenses redistributed.' : ''}')),
         );
       }
     } finally {
@@ -123,6 +133,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
         final tour = ref.read(singleTourProvider(widget.tourId)).value;
         final config = PurposeConfig.getConfig(tour?.purpose);
         final db = ref.read(databaseProvider);
+        final syncService = ref.read(syncServiceProvider);
         final userId = const Uuid().v4();
 
         await db.createUser(User(
@@ -143,10 +154,23 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
           isSynced: false,
         ));
 
+        // Apply retroactive split locally before navigating away
+        if (_retroactiveSplit) {
+          await syncService.applyRetroactiveSplitLocally(widget.tourId, userId);
+          // Server sync will push redistributed splits on next connectivity
+          final currentUserId = ref.read(currentUserProvider).value?.id;
+          if (currentUserId != null) {
+            syncService.retroactiveSplit(widget.tourId, userId, currentUserId)
+              .catchError((e) => debugPrint('Retroactive server sync failed: $e'));
+          }
+        }
+
         if (mounted) {
           Navigator.pop(context, true);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${config.memberLabel} added manually!')),
+            SnackBar(content: Text(
+              '${config.memberLabel} added!${_retroactiveSplit ? ' Included in all past expenses.' : ''}'
+            )),
           );
         }
       } catch (e) {
@@ -167,15 +191,18 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
     final config = PurposeConfig.getConfig(tourAsync.value?.purpose);
 
     return AlertDialog(
+      titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       title: Row(
         children: [
           Icon(Icons.person_add_rounded, color: config.color),
           const SizedBox(width: 12),
-          Text('Add ${config.memberLabel}'),
+          Text('Add ${config.memberLabel}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         ],
       ),
-      content: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.9,
+      content: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -317,6 +344,55 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                   ],
                 ) : const SizedBox.shrink(),
                 orElse: () => const SizedBox.shrink(),
+              ),
+
+              // Retroactive Split Toggle
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: _retroactiveSplit ? config.color.withOpacity(0.08) : Colors.grey.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _retroactiveSplit ? config.color.withOpacity(0.3) : Colors.grey.withOpacity(0.1),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.history_rounded,
+                      size: 18,
+                      color: _retroactiveSplit ? config.color : Colors.grey,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Include in past expenses',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: _retroactiveSplit ? config.color : Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Split all existing expenses equally with this member',
+                            style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: _retroactiveSplit,
+                      onChanged: (v) => setState(() => _retroactiveSplit = v),
+                      activeColor: config.color,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ],
+                ),
               ),
 
               // Manual Section
