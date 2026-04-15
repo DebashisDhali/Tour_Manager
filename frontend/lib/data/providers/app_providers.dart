@@ -76,7 +76,7 @@ final tourListProvider = StreamProvider.autoDispose<List<Tour>>((ref) {
 
   final query = db.select(db.tours).join([
     innerJoin(db.tourMembers, db.tourMembers.tourId.equalsExp(db.tours.id)),
-  ])..where(db.tourMembers.userId.equals(currentUser.id) & db.tours.isDeleted.equals(false))
+  ])..where(db.tourMembers.userId.lower().equals(currentUser.id.toLowerCase()) & db.tours.isDeleted.equals(false))
     ..orderBy([OrderingTerm.desc(db.tours.updatedAt)]);
 
   return query.watch().map((rows) => rows.map((row) => row.readTable(db.tours)).toList());

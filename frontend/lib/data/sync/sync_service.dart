@@ -178,7 +178,7 @@ class SyncService {
                   email: Value(userEmail),
                   avatarUrl: Value(su['avatar_url']),
                   purpose: Value(su['purpose']),
-                  isMe: Value(su['id'] == userId),
+                  isMe: Value(su['id'].toString().toLowerCase() == userId.toLowerCase()),
                   isSynced: const Value(true),
                   updatedAt: Value(DateTime.now()),
                 ), mode: InsertMode.insertOrReplace);
