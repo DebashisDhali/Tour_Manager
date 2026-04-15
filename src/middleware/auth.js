@@ -1,7 +1,14 @@
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-123';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
+  console.error('🔥 CRITICAL: JWT_SECRET not configured in production!');
+  process.exit(1);
+}
+
+const SECRET = JWT_SECRET || 'dev-only-fallback-secret';
 
 module.exports = async (req, res, next) => {
   try {
@@ -11,7 +18,7 @@ module.exports = async (req, res, next) => {
       return res.status(401).json({ error: 'Auth token missing' });
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, SECRET);
     const user = await User.findByPk(decoded.id);
 
     if (!user) {

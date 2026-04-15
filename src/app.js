@@ -2,6 +2,11 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const hpp = require('hpp');
+const xss = require('xss-clean');
+const compression = require('compression');
 const { sequelize } = require('./models');
 
 const app = express();
@@ -21,6 +26,28 @@ app.get('/', (req, res) => {
 });
 
 app.get('/health', (req, res) => res.sendStatus(200));
+
+// --- SECURITY MIDDLEWARE ---
+// 1. Helmet for Secure HTTP Headers
+app.use(helmet());
+
+// 2. Global Rate Limiting (Prevents Brute Force/DOS)
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, // Limit each IP to 200 requests per window
+  message: { error: 'Too many requests from this IP, please try again after 15 minutes' }
+});
+app.use('/auth', limiter); // Stricter on auth
+app.use('/ai', limiter);   // Protect AI billing
+
+// 3. Prevent HTTP Parameter Pollution
+app.use(hpp());
+
+// 4. Data Sanitization against XSS
+app.use(xss());
+
+// 5. Gzip Compression for Performance
+app.use(compression());
 
 // 1. CORS
 app.use(cors({
