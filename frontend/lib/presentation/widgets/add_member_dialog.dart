@@ -259,9 +259,14 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                           backgroundColor: isSelected ? config.color : config.color.withOpacity(0.1),
                           child: isSelected 
                             ? const Icon(Icons.check, color: Colors.white, size: 16)
-                            : Text(u['name'][0].toUpperCase(), style: TextStyle(color: config.color, fontSize: 12, fontWeight: FontWeight.bold)),
+                            : Text(
+                                (u['name'] != null && u['name'].toString().isNotEmpty) 
+                                  ? u['name'].toString()[0].toUpperCase() 
+                                  : "U", 
+                                style: TextStyle(color: config.color, fontSize: 12, fontWeight: FontWeight.bold)
+                              ),
                         ),
-                        title: Text(u['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                        title: Text(u['name'] ?? 'Unknown User', style: const TextStyle(fontWeight: FontWeight.bold)),
                         subtitle: Text(u['phone'] ?? u['email'] ?? 'No contact info', style: const TextStyle(fontSize: 10)),
                         trailing: Checkbox(
                           value: isSelected,
