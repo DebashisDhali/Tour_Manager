@@ -1,65 +1,80 @@
-const { Tour, User, Expense, ExpenseSplit, TourMember, Settlement } = require('../models');
+const { Tour, User, Expense, ExpenseSplit, TourMember, Settlement, ProgramIncome } = require('../models');
 
 exports.getTourInsights = async (req, res) => {
   try {
     const { tourId } = req.params;
-    const { message } = req.body;
 
     if (!process.env.OPENROUTER_API_KEY) {
       return res.status(500).json({ error: "OpenRouter API Key not configured." });
     }
 
-    // Fetch Tour Data
+    // Fetch Tour Data with Members
     const tour = await Tour.findByPk(tourId, {
-      include: [User]
+      include: [{ model: User, through: { attributes: [] } }]
     });
     if (!tour) {
-      return res.status(404).json({ error: "Tour not found" });
+      return res.status(404).json({ error: "Tour/Event not found" });
     }
 
     const members = tour.Users || [];
 
+    // Fetch Expenses with Payer details
     const expenses = await Expense.findAll({
       where: { tour_id: tourId },
-      include: [ExpenseSplit]
+      include: [
+        { model: User, as: 'payer', attributes: ['name'] },
+        ExpenseSplit
+      ]
     });
 
+    // Fetch Settlements
     const settlements = await Settlement.findAll({
-      where: { tour_id: tourId }
+      where: { tour_id: tourId },
+      include: [
+        { model: User, as: 'sender', attributes: ['name'] },
+        { model: User, as: 'receiver', attributes: ['name'] }
+      ]
+    });
+
+    // Fetch Program Income (Fund Collections)
+    const incomes = await ProgramIncome.findAll({
+      where: { tour_id: tourId },
+      include: [{ model: User, as: 'collector', attributes: ['name'] }]
     });
 
     // Compile Context
-    let contextStr = `Here is the data for the tour/event named "${tour.name}":\n`;
-    contextStr += `Total Members: ${members.length}\n`;
-    contextStr += `Total Expenses: ${expenses.length}\n\n`;
+    let contextStr = `Analyze the financial state of the event "${tour.name}".
+Purpose: ${tour.category || 'General'}
+Total Members: ${members.length}
+Members: ${members.map(m => m.name).join(', ')}
 
-    const memberNames = members.map(m => m.name || 'Unknown').join(', ');
-    contextStr += `Members involved: ${memberNames}\n\n`;
+--- FUND COLLECTIONS (INCOME) ---
+${incomes.length > 0 ? incomes.map(i => `- ${i.source}: ৳${i.amount} (Collected by: ${i.collector?.name || 'Admin'})`).join('\n') : "No funds collected yet."}
 
-    contextStr += `Expenses:\n`;
-    let totalCost = 0;
-    expenses.forEach(e => {
-        totalCost += e.amount;
-        contextStr += `- ${e.title}: ৳${e.amount} (Category: ${e.category || 'N/A'}, Paid By: ${e.payer_id || 'Unknown'})\n`;
-    });
-    contextStr += `\nTotal Cost so far: ৳${totalCost}\n\n`;
+--- EXPENSES ---
+${expenses.length > 0 ? expenses.map(e => `- ${e.title}: ৳${e.amount} [Category: ${e.category || 'Other'}] (Paid by: ${e.payer?.name || 'Unknown'})`).join('\n') : "No expenses recorded."}
 
-    contextStr += `Based on this data, please act as an Expert Financial Auditor and Optimizer. Analyze the expenses above and generate a structured optimization report. Follow this exact format:
-    
-# 📊 Financial Dashboard
-- **Total Spent:** ৳[totalCost]
-- **Members Involved:** [count]
+--- SETTLEMENTS (DEBT PAYMENTS) ---
+${settlements.length > 0 ? settlements.map(s => `- ${s.sender?.name} paid ৳${s.amount} to ${s.receiver?.name}`).join('\n') : "No settlements recorded."}
 
-# 🔍 Cost Breakdown & Anomalies
-[Analyze category-wise spending. Point out disproportionately high costs or wasteful spending (e.g., if snacks/transport is too high per head).]
+Calculate totals and provide an optimization report.`;
 
-# 💡 Optimization Opportunities
-[Give 2-4 actionable suggestions on how they could have organized this more efficiently or cheaper.]
+    const systemPrompt = `You are a Professional Financial Coach and Auditor.
+Your goal is to provide deep, actionable insights for travelers or event organizers.
+Analyze spending patterns, budget efficiency, and identify any financial leaks.
 
-# 🎯 Final Verdict
-[A brief, blunt 1-2 sentence conclusion on their financial management for this event.]
+RULES:
+1. Output in strictly formatted Markdown.
+2. Use a friendly yet professional tone.
+3. Be brutally honest about wasteful spending.
+4. Suggestions must be actionable.
+5. Highlight the "Total Budget utilized" vs "Total Funds collected".
 
-Make sure the output is pure Markdown and strictly follows the structure. Do not chat or add pleasantries.`;
+REPORT STRUCTURE:
+# 📊 Financial Overview
+# 🔍 Spending Analysis & Insights
+# 💡 How to Save More / Optimization
+# 🎯 Final Verdict`;
 
     // Call OpenRouter
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -69,12 +84,12 @@ Make sure the output is pure Markdown and strictly follows the structure. Do not
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-1.5-flash",
-        max_tokens: 1500,
+        model: "google/gemini-2.0-flash-001",
+        max_tokens: 2000,
         messages: [
           {
             role: "system",
-            content: "You are a strict financial auditor AI. Output only structured Markdown reports based on user data. No pleasantries. No conversational fluff."
+            content: systemPrompt
           },
           {
             role: "user",
@@ -89,12 +104,17 @@ Make sure the output is pure Markdown and strictly follows the structure. Do not
     if (data.choices && data.choices.length > 0) {
       return res.json({ reply: data.choices[0].message.content });
     } else {
-        console.error("OpenRouter Error:", data);
-        return res.status(500).json({ error: "Failed to generate AI response", details: data });
+        console.error("OpenRouter Error Details:", JSON.stringify(data, null, 2));
+        const errorMessage = data.error?.message || "Failed to generate AI response";
+        return res.status(500).json({ 
+            error: "AI Generation Error", 
+            details: errorMessage 
+        });
     }
 
   } catch (error) {
-    console.error("AI Insights Error:", error);
+    console.error("AI Insights Exception:", error);
     res.status(500).json({ error: "Internal server error during AI analysis." });
   }
 };
+
