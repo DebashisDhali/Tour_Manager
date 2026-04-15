@@ -192,7 +192,7 @@ class SyncService {
                   status: Value(suStatus),
                   leftAt: Value(suLeftAt),
                   role: Value(suRole),
-                  mealCount: Value((su['meal_count'] as num?)?.toDouble() ?? 0.0),
+                  mealCount: Value(double.tryParse(su['meal_count']?.toString() ?? '0') ?? 0.0),
                   isSynced: const Value(true),
                 ), mode: InsertMode.insertOrReplace);
               }
@@ -205,7 +205,7 @@ class SyncService {
                   id: se['id'],
                   tourId: st['id'],
                   payerId: Value(se['payer_id']),
-                  amount: (se['amount'] as num).toDouble(),
+                  amount: double.tryParse(se['amount']?.toString() ?? '0') ?? 0.0,
                   title: se['title'],
                   category: (se['category'] ?? 'Others').toString(),
                   messCostType: Value(se['mess_cost_type']),
@@ -220,7 +220,7 @@ class SyncService {
                       id: ss['id'] ?? const Uuid().v4(),
                       expenseId: se['id'],
                       userId: ss['user_id'],
-                      amount: (ss['amount'] as num).toDouble(),
+                      amount: double.tryParse(ss['amount']?.toString() ?? '0') ?? 0.0,
                       isSynced: const Value(true),
                     ), mode: InsertMode.insertOrReplace);
                   }
@@ -233,7 +233,7 @@ class SyncService {
                       id: sp['id'] ?? const Uuid().v4(),
                       expenseId: se['id'],
                       userId: sp['user_id'],
-                      amount: (sp['amount'] as num).toDouble(),
+                      amount: double.tryParse(sp['amount']?.toString() ?? '0') ?? 0.0,
                       isSynced: const Value(true),
                     ), mode: InsertMode.insertOrReplace);
                   }
