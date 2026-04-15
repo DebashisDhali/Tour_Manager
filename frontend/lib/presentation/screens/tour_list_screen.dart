@@ -11,6 +11,7 @@ import '../../domain/logic/purpose_config.dart';
 import '../../data/local/app_database.dart' as models;
 import '../widgets/premium_card.dart';
 import '../widgets/app_tour_overlay.dart';
+import '../widgets/sync_handler.dart';
 
 class TourListScreen extends ConsumerStatefulWidget {
   const TourListScreen({super.key});
@@ -534,66 +535,98 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
   }
 
   Future<void> _syncData(BuildContext context) async {
+    // Capture messenger BEFORE any async gaps to avoid context-across-gap warnings
+    final messenger = ScaffoldMessenger.of(context);
+
     final user = await ref.read(currentUserProvider.future);
-    if (user != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
-              SizedBox(width: 16),
-              Text('Syncing data with cloud...'),
-            ],
+    if (user == null) return;
+
+    // ── Connectivity check before sync ──────────────────────────────────────
+    final isOnline = await SyncHandler.isConnected();
+    if (!isOnline) {
+      if (mounted) _showNoInternetSheet(context); // ignore: use_build_context_synchronously
+      return;
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: const Row(
+          children: [
+            SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white)),
+            SizedBox(width: 16),
+            Text('ক্লাউডের সাথে সিঙ্ক হচ্ছে...'),
+          ],
+        ),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 15),
+      ),
+    );
+
+    try {
+      await ref.read(syncServiceProvider).startSync(user.id);
+
+      if (mounted) {
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                SizedBox(width: 12),
+                Text('সিঙ্ক সম্পন্ন হয়েছে! ✓'),
+              ],
+            ),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 2),
           ),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          duration: const Duration(seconds: 15), // Longer duration while syncing
-        )
-      );
-      
-      try {
-        await ref.read(syncServiceProvider).startSync(user.id);
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Row(
-                children: [
-                  Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
-                  SizedBox(width: 12),
-                  Text('Cloud Sync Successful!'),
-                ],
-              ),
-              backgroundColor: Colors.green.shade600,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              duration: const Duration(seconds: 2),
-            )
-          );
-          // Force a state refresh just in case
-          ref.invalidate(tourListProvider);
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Sync failed: ${e.toString().replaceAll('Exception: ', '')}'),
-              backgroundColor: Colors.red.shade600,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              duration: const Duration(seconds: 4),
-              action: SnackBarAction(
-                label: 'Retry',
-                textColor: Colors.white,
-                onPressed: () => _syncData(context),
-              ),
-            )
-          );
-        }
+        );
+        ref.invalidate(tourListProvider);
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.hideCurrentSnackBar();
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+                'সিঙ্ক ব্যর্থ: ${e.toString().replaceAll('Exception: ', '')}'),
+            backgroundColor: Colors.red.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'আবার চেষ্টা',
+              textColor: Colors.white,
+              onPressed: () => _syncData(context),
+            ),
+          ),
+        );
       }
     }
+  }
+
+  /// Beautiful "No Internet" bottom sheet shown when user taps Sync offline.
+  void _showNoInternetSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _NoInternetSheet(
+        onRetry: () {
+          Navigator.of(ctx).pop();
+          _syncData(context);
+        },
+      ),
+    );
   }
 
   void _showJoinDialog(BuildContext context, PurposeConfig config) {
@@ -794,6 +827,210 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// No Internet Bottom Sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _NoInternetSheet extends StatefulWidget {
+  final VoidCallback onRetry;
+  const _NoInternetSheet({required this.onRetry});
+
+  @override
+  State<_NoInternetSheet> createState() => _NoInternetSheetState();
+}
+
+class _NoInternetSheetState extends State<_NoInternetSheet>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnim;
+  late Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+
+    _scaleAnim = Tween<double>(begin: 0.92, end: 1.08).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+    _fadeAnim = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark
+            ? const Color(0xFF1C1C2E)
+            : theme.colorScheme.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 24,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(32, 16, 32, 40),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          Container(
+            width: 44,
+            height: 5,
+            margin: const EdgeInsets.only(bottom: 28),
+            decoration: BoxDecoration(
+              color: theme.dividerColor.withOpacity(0.4),
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+
+          // Animated WiFi icon
+          AnimatedBuilder(
+            animation: _controller,
+            builder: (_, __) => Transform.scale(
+              scale: _scaleAnim.value,
+              child: Opacity(
+                opacity: _fadeAnim.value,
+                child: Container(
+                  width: 96,
+                  height: 96,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.orange.withOpacity(0.12),
+                    border: Border.all(
+                      color: Colors.orange.withOpacity(0.3),
+                      width: 2,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.wifi_off_rounded,
+                    size: 48,
+                    color: Colors.orange,
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 28),
+
+          // Title
+          Text(
+            'ইন্টারনেট সংযোগ নেই',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
+              color: isDark ? Colors.white : const Color(0xFF1A1A2E),
+            ),
+            textAlign: TextAlign.center,
+          ),
+
+          const SizedBox(height: 12),
+
+          // Description
+          Text(
+            'সিঙ্ক করতে ইন্টারনেট সংযোগ প্রয়োজন।\nআপনার ডেটা অফলাইনে সুরক্ষিত আছে — নেটওয়ার্ক ফিরলেই সার্ভারে আপলোড হবে।',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
+              height: 1.6,
+            ),
+            textAlign: TextAlign.center,
+          ),
+
+          const SizedBox(height: 12),
+
+          // Offline badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.orange.withOpacity(0.25)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Colors.orange,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'অফলাইন মোড চলছে',
+                  style: TextStyle(
+                    color: Colors.orange.shade700,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 32),
+
+          // Retry button
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: FilledButton.icon(
+              onPressed: widget.onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text(
+                'আবার চেষ্টা করুন',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.orange.shade600,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // Dismiss
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                foregroundColor: theme.colorScheme.onSurface.withOpacity(0.5),
+              ),
+              child: const Text('পরে সিঙ্ক করব'),
+            ),
+          ),
+        ],
       ),
     );
   }

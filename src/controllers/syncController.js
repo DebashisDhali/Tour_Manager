@@ -114,8 +114,8 @@ exports.syncData = async (req, res) => {
 
         if (joinRequests?.length > 0) {
           await JoinRequest.bulkCreate(joinRequests.map(jr => ({
-            id: jr.id, tour_id: jr.tourId, user_id: jr.userId, user_name: jr.userName || 'Unknown', status: jr.status || 'pending', updated_at: now
-          })), { transaction, updateOnDuplicate: ['status', 'updated_at'], conflictAttributes: ['id'] });
+            id: jr.id, tour_id: jr.tourId, user_id: jr.userId, user_name: jr.userName || 'Unknown', status: jr.status || 'pending'
+          })), { transaction, updateOnDuplicate: ['status'], conflictAttributes: ['id'] });
         }
       }
 
@@ -154,7 +154,7 @@ exports.syncData = async (req, res) => {
       Expense.findAll({ where: { tour_id: tourIds, ...dateCondition }, include: [ExpenseSplit, ExpensePayer] }),
       Settlement.findAll({ where: { tour_id: tourIds, ...dateCondition } }),
       ProgramIncome.findAll({ where: { tour_id: tourIds, ...dateCondition } }),
-      JoinRequest.findAll({ where: { tour_id: tourIds, ...dateCondition } }),
+      JoinRequest.findAll({ where: { tour_id: tourIds } }),  // no updated_at column — always fetch all
       TourMember.findAll({ where: { tour_id: tourIds, ...dateCondition }, include: [User] }),
       Tour.findAll({ where: { id: tourIds }, raw: true })
     ]);

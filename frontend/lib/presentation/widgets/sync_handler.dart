@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/providers/app_providers.dart';
@@ -9,16 +10,33 @@ class SyncHandler extends ConsumerStatefulWidget {
 
   @override
   ConsumerState<SyncHandler> createState() => _SyncHandlerState();
+
+  /// Lightweight connectivity check — attempts a DNS lookup for google.com.
+  /// Returns true if the device is online, false otherwise.
+  static Future<bool> isConnected() async {
+    try {
+      final result = await InternetAddress.lookup('google.com')
+          .timeout(const Duration(seconds: 4));
+      return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+    } on SocketException catch (_) {
+      return false;
+    } on TimeoutException catch (_) {
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
 }
 
-class _SyncHandlerState extends ConsumerState<SyncHandler> with WidgetsBindingObserver {
+class _SyncHandlerState extends ConsumerState<SyncHandler>
+    with WidgetsBindingObserver {
   Timer? _syncTimer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    
+
     // Auto-sync whenever currentUser is loaded or changes
     ref.listenManual(currentUserProvider, (prev, next) {
       if (next.value != null && prev?.value == null) {
@@ -38,36 +56,40 @@ class _SyncHandlerState extends ConsumerState<SyncHandler> with WidgetsBindingOb
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Trigger sync when app returns to foreground
     if (state == AppLifecycleState.resumed) {
       _triggerSync('App Resumed');
     }
   }
 
   void _startPeriodicSync() {
-    // Sync every 5 minutes while active
     _syncTimer = Timer.periodic(const Duration(minutes: 5), (_) {
       _triggerSync('Periodic Sync');
     });
-    
-    // Initial sync after 3 seconds
-    Future.delayed(const Duration(seconds: 3), () => _triggerSync('Initial Sync'));
+    Future.delayed(
+        const Duration(seconds: 3), () => _triggerSync('Initial Sync'));
   }
 
   Future<void> _triggerSync(String reason) async {
     final user = ref.read(currentUserProvider).value;
     if (user == null) return;
 
-    debugPrint("[SyncHandler] Triggering $reason for user ${user.name}");
+    // ── Connectivity guard ──────────────────────────────────────────────────
+    final online = await SyncHandler.isConnected();
+    if (!online) {
+      debugPrint(
+          '[SyncHandler] Skipping "$reason" — device appears to be offline.');
+      return;
+    }
+    // ───────────────────────────────────────────────────────────────────────
+
+    debugPrint('[SyncHandler] Triggering "$reason" for user ${user.name}');
     try {
       await ref.read(syncServiceProvider).startSync(user.id);
     } catch (e) {
-      debugPrint("[SyncHandler] Sync failed: $e");
+      debugPrint('[SyncHandler] Sync failed: $e');
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return widget.child;
-  }
+  Widget build(BuildContext context) => widget.child;
 }
