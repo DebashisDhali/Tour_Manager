@@ -143,7 +143,7 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
                         style: TextStyle(
                           fontSize: 34, 
                           fontWeight: FontWeight.w800, 
-                          color: Colors.slate.shade900,
+                          color: Colors.blueGrey.shade900,
                           letterSpacing: -1.2,
                         ),
                       ),
@@ -153,7 +153,7 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 16, 
-                          color: Colors.slate.shade500,
+                          color: Colors.blueGrey.shade500,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -200,7 +200,7 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
                               suffixIcon: IconButton(
                                 icon: Icon(
                                   _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                                  color: Colors.slate.shade400,
+                                  color: Colors.blueGrey.shade400,
                                   size: 22,
                                 ),
                                 onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -255,7 +255,7 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
                         children: [
                           Text(
                             "Already have an account? ",
-                            style: TextStyle(color: Colors.slate.shade600, fontSize: 15),
+                            style: TextStyle(color: Colors.blueGrey.shade600, fontSize: 15),
                           ),
                           TextButton(
                             onPressed: () => Navigator.pop(context),
@@ -305,7 +305,7 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: Colors.slate.shade800,
+              color: Colors.blueGrey.shade800,
             ),
           ),
         ),
@@ -314,17 +314,17 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
           obscureText: obscureText,
           validator: validator,
           keyboardType: keyboardType,
-          style: TextStyle(color: Colors.slate.shade900, fontWeight: FontWeight.w500),
+          style: TextStyle(color: Colors.blueGrey.shade900, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: Colors.slate.shade400, fontSize: 14),
-            prefixIcon: Icon(icon, color: Colors.slate.shade400, size: 22),
+            hintStyle: TextStyle(color: Colors.blueGrey.shade400, fontSize: 14),
+            prefixIcon: Icon(icon, color: Colors.blueGrey.shade400, size: 22),
             suffixIcon: suffixIcon,
             filled: true,
             fillColor: Colors.white,
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: Colors.slate.shade200, width: 1.5),
+              borderSide: BorderSide(color: Colors.blueGrey.shade200, width: 1.5),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),

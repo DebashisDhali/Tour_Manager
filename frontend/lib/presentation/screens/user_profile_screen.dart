@@ -225,12 +225,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         if (!_isEditing) ...[
           Text(
             _nameController.text,
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.slate.shade900, letterSpacing: -0.5),
+            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.blueGrey.shade900, letterSpacing: -0.5),
           ),
           const SizedBox(height: 4),
           Text(
             _emailController.text.isNotEmpty ? _emailController.text : "@anonymous",
-            style: TextStyle(fontSize: 14, color: Colors.slate.shade500, fontWeight: FontWeight.w500),
+            style: TextStyle(fontSize: 14, color: Colors.blueGrey.shade500, fontWeight: FontWeight.w500),
           ),
         ] else
           Text("Personalize Profile", style: TextStyle(fontWeight: FontWeight.w800, color: Colors.blue.shade700, fontSize: 16)),
@@ -302,7 +302,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             icon: const Icon(Icons.arrow_back_rounded, size: 20),
             label: const Text("Return", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
             style: TextButton.styleFrom(
-              foregroundColor: Colors.slate.shade400,
+              foregroundColor: Colors.blueGrey.shade400,
             ),
           ),
         )
@@ -318,7 +318,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         title: const Text("Confirm Sign Out", style: TextStyle(fontWeight: FontWeight.w800)),
         content: const Text("Are you certain you want to end your current session?"),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text("Stay", style: TextStyle(color: Colors.slate.shade600, fontWeight: FontWeight.bold))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text("Stay", style: TextStyle(color: Colors.blueGrey.shade600, fontWeight: FontWeight.bold))),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true), 
             child: Text("Sign Out", style: TextStyle(color: Colors.red.shade600, fontWeight: FontWeight.w900))
@@ -357,7 +357,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.slate.shade400, letterSpacing: 0.5)),
+          Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.blueGrey.shade400, letterSpacing: 0.5)),
           const SizedBox(height: 12),
           ...items,
         ],
@@ -380,8 +380,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.slate.shade400)),
-                Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.slate.shade800)),
+                Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.blueGrey.shade400)),
+                Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.blueGrey.shade800)),
               ],
             ),
           )
@@ -419,7 +419,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         const SizedBox(height: 16),
         TextButton(
           onPressed: () => setState(() => _isEditing = false),
-          child: Text("Discard Changes", style: TextStyle(color: Colors.slate.shade400, fontWeight: FontWeight.bold)),
+          child: Text("Discard Changes", style: TextStyle(color: Colors.blueGrey.shade400, fontWeight: FontWeight.bold)),
         ),
       ],
     );
@@ -431,7 +431,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.slate.shade700)),
+          child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.blueGrey.shade700)),
         ),
         TextFormField(
           controller: controller,
@@ -441,7 +441,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             prefixIcon: Icon(icon, size: 20, color: Colors.blue.shade600),
             filled: true,
             fillColor: Colors.white,
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.slate.shade200, width: 1.5)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.blueGrey.shade200, width: 1.5)),
             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.blue.shade600, width: 2)),
             contentPadding: const EdgeInsets.all(18),
           ),
