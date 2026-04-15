@@ -59,9 +59,13 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
   void _toggleUserSelection(dynamic user) {
     setState(() {
       final userData = Map<String, dynamic>.from(user);
-      final exists = _selectedUsers.any((u) => u['id'] == userData['id']);
-      if (exists) {
-        _selectedUsers.removeWhere((u) => u['id'] == userData['id']);
+      final userId = userData['id']?.toString() ?? '';
+      if (userId.isEmpty) return;
+
+      final existsIndex = _selectedUsers.toList().indexWhere((u) => u['id']?.toString() == userId);
+      
+      if (existsIndex != -1) {
+        _selectedUsers.removeWhere((u) => u['id']?.toString() == userId);
       } else {
         _selectedUsers.add(userData);
       }
@@ -253,9 +257,12 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                       if (item == null || item is! Map) return const SizedBox.shrink();
                       
                       final u = Map<String, dynamic>.from(item);
-                      final isSelected = _selectedUsers.any((selected) => selected['id'] == u['id']);
-                      final name = u['name']?.toString() ?? 'Unknown User';
-                      final phone = u['phone']?.toString() ?? u['email']?.toString() ?? 'No contact info';
+                      final uId = u['id']?.toString() ?? '';
+                      if (uId.isEmpty) return const SizedBox.shrink();
+
+                      final isSelected = _selectedUsers.any((selected) => selected['id']?.toString() == uId);
+                      final name = u['name']?.toString() ?? 'Member';
+                      final phone = u['phone']?.toString() ?? u['email']?.toString() ?? 'No contact';
                       
                       return ListTile(
                         onTap: () => _toggleUserSelection(u),
@@ -265,12 +272,12 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                           child: isSelected 
                             ? const Icon(Icons.check, color: Colors.white, size: 16)
                             : Text(
-                                (name.isNotEmpty) ? name[0].toUpperCase() : "U", 
+                                (name.isNotEmpty) ? name[0].toUpperCase() : "M", 
                                 style: TextStyle(color: config.color, fontSize: 12, fontWeight: FontWeight.bold)
                               ),
                         ),
-                        title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(phone, style: const TextStyle(fontSize: 10)),
+                        title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        subtitle: Text(phone, style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
                         trailing: Checkbox(
                           value: isSelected,
                           activeColor: config.color,
