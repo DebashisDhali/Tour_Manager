@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import '../local/app_database.dart';
@@ -11,19 +10,6 @@ class SyncService {
   final String baseUrl;
 
   SyncService(this.db, this.dio, this.baseUrl) {
-    dio.interceptors.add(LogInterceptor(
-      request: true,
-      requestBody: true,
-      responseBody: true,
-      logPrint: (obj) => print("📡 API: $obj"),
-    ));
-
-    Connectivity().onConnectivityChanged.listen((result) {
-      if (result != ConnectivityResult.none) {
-        // startSync(userId); // Needs userId from context outside
-      }
-    });
-    
     print("📡 SyncService initialized with BaseURL: $baseUrl");
   }
 
@@ -295,10 +281,14 @@ class SyncService {
         // ONLY delete if we got a valid list of tours back from the server
         final allTourIds = (response.data['allTourIds'] as List?)?.map((id) => id.toString()).toSet();
         if (allTourIds != null && allTourIds.isNotEmpty) {
+          final serverIdsLower = allTourIds.map((id) => id.toLowerCase()).toSet();
           final localTours = await db.select(db.tours).get();
           for (final lt in localTours) {
-            // Only remove if it was already synced and is genuinely missing from server's active list
-            if (lt.isSynced && !allTourIds.contains(lt.id)) {
+            // CRITICAL: Only remove if:
+            // 1. Already synced with server (so server SHOULD know about it)
+            // 2. Server did NOT return it in the active tour list
+            // 3. Both IDs compared case-insensitively to avoid false deletions
+            if (lt.isSynced && !serverIdsLower.contains(lt.id.toLowerCase())) {
                print("🗑️ Removing tour ${lt.name} - no longer a member on server");
                await db.deleteTourWithDetails(lt.id); 
             }

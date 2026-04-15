@@ -56,7 +56,7 @@ final authServiceProvider = Provider<AuthService>((ref) {
 
 final syncServiceProvider = Provider<SyncService>((ref) {
   final db = ref.watch(databaseProvider);
-  final dio = ref.watch(dioProvider);
+  final dio = ref.watch(dioProvider); // ← uses the authenticated Dio instance
   final baseUrl = ref.watch(baseUrlProvider);
   return SyncService(db, dio, baseUrl);
 });
