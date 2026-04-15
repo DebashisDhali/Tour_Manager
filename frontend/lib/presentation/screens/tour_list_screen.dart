@@ -661,14 +661,17 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                 children: [
                   Center(
                     child: Container(
-                      width: 40, 
-                      height: 5, 
+                      width: 40,
+                      height: 5,
                       margin: const EdgeInsets.only(bottom: 24),
-                      decoration: BoxDecoration(color: Theme.of(context).dividerColor.withOpacity(0.1), borderRadius: BorderRadius.circular(10))
-                    )
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).dividerColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
                   ),
                   Text(
-                    'Join ${config.label}', 
+                    'Join ${config.label}',
                     style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -0.5),
                     textAlign: TextAlign.center,
                   ),
@@ -687,45 +690,45 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                     textCapitalization: TextCapitalization.characters,
                     maxLength: 6,
                     decoration: InputDecoration(
-                        hintText: 'CODE',
-                        hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1), letterSpacing: 4),
-                        fillColor: config.color.withOpacity(0.05),
-                        filled: true,
-                        counterText: "",
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(20),
-                          borderSide: BorderSide(color: config.color, width: 2),
-                        ),
-                        errorText: errorText,
-                        suffixIcon: Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: CircleAvatar(
-                            backgroundColor: Theme.of(context).colorScheme.surface,
-                            child: IconButton(
-                              icon: Icon(Icons.paste_rounded, color: config.color, size: 20),
-                              onPressed: isLoading ? null : () async {
-                                try {
-                                  final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
-                                  if (clipboardData != null && clipboardData.text != null) {
-                                    final pastedText = clipboardData.text!.trim().toUpperCase();
-                                    if (pastedText.length == 6 && RegExp(r'^[A-Z0-9]+$').hasMatch(pastedText)) {
-                                      controller.text = pastedText;
-                                      setState(() => errorText = null);
-                                    } else {
-                                      setState(() => errorText = "Invalid format");
-                                    }
+                      hintText: 'CODE',
+                      hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1), letterSpacing: 4),
+                      fillColor: config.color.withOpacity(0.05),
+                      filled: true,
+                      counterText: "",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide(color: config.color, width: 2),
+                      ),
+                      errorText: errorText,
+                      suffixIcon: Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: CircleAvatar(
+                          backgroundColor: Theme.of(context).colorScheme.surface,
+                          child: IconButton(
+                            icon: Icon(Icons.paste_rounded, color: config.color, size: 20),
+                            onPressed: isLoading ? null : () async {
+                              try {
+                                final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+                                if (clipboardData != null && clipboardData.text != null) {
+                                  final pastedText = clipboardData.text!.trim().toUpperCase();
+                                  if (pastedText.length == 6 && RegExp(r'^[A-Z0-9]+$').hasMatch(pastedText)) {
+                                    controller.text = pastedText;
+                                    setState(() => errorText = null);
+                                  } else {
+                                    setState(() => errorText = "Invalid format");
                                   }
-                                } catch (e) {
-                                  setState(() => errorText = "Failed to paste");
                                 }
-                              },
-                            ),
+                              } catch (e) {
+                                setState(() => errorText = "Failed to paste");
+                              }
+                            },
                           ),
-                        ) 
+                        ),
+                      ),
                     ),
                     onChanged: (val) {
                       if (errorText != null) setState(() => errorText = null);
@@ -742,115 +745,96 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                           return;
                         }
 
-                        setState(() { isLoading = true; errorText = null; });
-                        
+                        setState(() {
+                          isLoading = true;
+                          errorText = null;
+                        });
+
                         try {
                           final user = await ref.read(currentUserProvider.future);
                           if (user == null) return;
 
-                          // Try to Find first to see if it's restricted
-                          final tour = await ref.read(syncServiceProvider).findTourByCode(code);
-                          if (tour == null) {
+                          final tourRes = await ref.read(syncServiceProvider).findTourByCode(code);
+                          if (tourRes == null) {
                             setState(() => errorText = "Tour not found");
                             return;
                           }
 
-                          // Show Search Results
                           if (context.mounted) {
                             final proceed = await showDialog<bool>(
                               context: context,
                               builder: (c) => AlertDialog(
                                 title: Text("${config.label} Found!"),
-                                content: Text("Do you want to join '${tour['name']}'?"),
+                                content: Text("Do you want to join '${tourRes['name']}'?"),
                                 actions: [
                                   TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("Cancel")),
                                   FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text("Join Now")),
                                 ],
-                              )
+                              ),
                             );
 
                             if (proceed == true) {
-                               await ref.read(syncServiceProvider).joinByInvite(
-                                code,
-                                user.id,
-                                user.name,
-                                email: user.email,
-                                avatarUrl: user.avatarUrl,
-                                purpose: user.purpose,
-                              );
+                              await ref.read(syncServiceProvider).joinByInvite(
+                                    code,
+                                    user.id,
+                                    user.name,
+                                    email: user.email,
+                                    avatarUrl: user.avatarUrl,
+                                    purpose: user.purpose,
+                                  );
                               ref.invalidate(tourListProvider);
                               if (context.mounted) Navigator.pop(context);
                             }
                           }
                         } catch (e) {
-                           String msg = e.toString().contains("403") ? "Request Needed" : e.toString();
-                           if (msg.contains("Request Needed")) {
-                             // Offer Request flow
-                             if (context.mounted) {
-                                final tour = await ref.read(syncServiceProvider).findTourByCode(code);
-                                if (tour != null) {
-                                   final req = await showDialog<bool>(
-                                     context: context,
-                                     builder: (c) => AlertDialog(
-                                       title: Text("Restricted ${config.label}"),
-                                       content: Text("'${tour['name']}' is private. Send a join request?"),
-                                       actions: [
-                                         TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("No")),
-                                         FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text("Send Request")),
-                                       ],
-                                     )
-                                   );
-                                   if (req == true) {
-                                      await ref.read(syncServiceProvider).requestToJoin(tour['id']);
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Request sent to Admin")));
-                                        Navigator.pop(context);
-                            fontWeight: FontWeight.w700,
-                    fontSize: 13,
+                          String msg = e.toString().contains("403") ? "Request Needed" : e.toString();
+                          if (msg.contains("Request Needed")) {
+                            if (context.mounted) {
+                              final tourRes = await ref.read(syncServiceProvider).findTourByCode(code);
+                              if (tourRes != null) {
+                                final req = await showDialog<bool>(
+                                  context: context,
+                                  builder: (c) => AlertDialog(
+                                    title: Text("Restricted ${config.label}"),
+                                    content: Text("'${tourRes['name']}' is private. Send a join request?"),
+                                    actions: [
+                                      TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("No")),
+                                      FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text("Send Request")),
+                                    ],
+                                  ),
+                                );
+                                if (req == true) {
+                                  await ref.read(syncServiceProvider).requestToJoin(tourRes['id']);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Request sent to Admin")));
+                                    Navigator.pop(context);
+                                  }
+                                }
+                              }
+                            }
+                          } else {
+                            setState(() => errorText = msg.replaceAll("Exception:", "").trim());
+                          }
+                        } finally {
+                          if (mounted) setState(() => isLoading = false);
+                        }
+                      },
+                      style: FilledButton.styleFrom(
+                        backgroundColor: config.color,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                        elevation: 0,
+                      ),
+                      child: isLoading
+                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+                          : const Text('Join Team Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 32),
-
-          // Retry button
-          SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: FilledButton.icon(
-              onPressed: widget.onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text(
-                'আবার চেষ্টা করুন',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.orange.shade600,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                elevation: 0,
+                  const SizedBox(height: 16),
+                ],
               ),
             ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Dismiss
-          SizedBox(
-            width: double.infinity,
-            child: TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: TextButton.styleFrom(
-                foregroundColor: theme.colorScheme.onSurface.withOpacity(0.5),
-              ),
-              child: const Text('পরে সিঙ্ক করব'),
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
