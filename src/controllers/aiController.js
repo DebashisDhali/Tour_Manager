@@ -69,7 +69,8 @@ Make sure the output is pure Markdown and strictly follows the structure. Do not
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "google/gemini-1.5-flash",
+        max_tokens: 1500,
         messages: [
           {
             role: "system",
