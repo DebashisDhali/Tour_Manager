@@ -41,10 +41,10 @@ exports.syncData = async (req, res) => {
                if (u.isDeleted) {
                  await User.destroy({ where: { id: u.id }, transaction });
                } else {
-                 await User.upsert({
-                   id: u.id, name: u.name, phone: u.phone, email: u.email,
-                   avatar_url: u.avatarUrl, purpose: u.purpose, updated_at: now
-                 }, { transaction });
+                  await User.upsert({
+                    id: u.id.toLowerCase(), name: u.name, phone: u.phone, email: u.email,
+                    avatar_url: u.avatarUrl, purpose: u.purpose, updated_at: now
+                  }, { transaction });
                }
              } catch (e) { console.error(`⚠️ User Sync Fail [${u.id}]:`, e.message); }
           }
@@ -66,15 +66,15 @@ exports.syncData = async (req, res) => {
                  });
                }
 
-               await Tour.upsert({
-                 id: t.id, name: t.name, created_by: t.createdBy, 
-                 invite_code: t.inviteCode, start_date: t.startDate, 
-                 end_date: t.endDate, updated_at: now, purpose: t.purpose || 'tour'
-               }, { transaction });
+                await Tour.upsert({
+                  id: t.id.toLowerCase(), name: t.name, created_by: t.createdBy.toLowerCase(), 
+                  invite_code: t.inviteCode, start_date: t.startDate, 
+                  end_date: t.endDate, updated_at: now, purpose: t.purpose || 'tour'
+                }, { transaction });
                
                if (t.createdBy) {
                  await TourMember.upsert({ 
-                   tour_id: t.id, user_id: t.createdBy, 
+                   tour_id: t.id.toLowerCase(), user_id: t.createdBy.toLowerCase(), 
                    status: 'active', role: 'admin', 
                    joined_at: t.startDate || now, updated_at: now 
                  }, { transaction });
@@ -92,8 +92,10 @@ exports.syncData = async (req, res) => {
                if (m.isDeleted) {
                   await TourMember.destroy({ where: { tour_id: m.tourId, user_id: m.userId }, transaction });
                } else {
+                  const mTourId = m.tourId.toLowerCase();
+                  const mUserId = m.userId.toLowerCase();
                   await TourMember.upsert({
-                    tour_id: m.tourId, user_id: m.userId,
+                    tour_id: mTourId, user_id: mUserId,
                     status: m.leftAt ? 'removed' : 'active',
                     removed_at: m.leftAt || null,
                     role: m.role || 'viewer',

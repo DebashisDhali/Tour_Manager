@@ -344,13 +344,27 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     );
 
     if (confirm == true) {
-      await ref.read(authServiceProvider).logout();
-      ref.invalidate(currentUserProvider);
-      if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-          (route) => false,
-        );
+      debugPrint("🚀 Aggressive Logout sequence started...");
+      try {
+        await ref.read(authServiceProvider).logout();
+        debugPrint("🔑 Token removed. Refreshing providers...");
+        
+        ref.invalidate(currentUserProvider);
+        
+        if (mounted) {
+          debugPrint("📍 Navigating back to Login screen.");
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const LoginScreen()),
+            (route) => false,
+          );
+        }
+      } catch (e) {
+        debugPrint("❌ ERROR DURING LOGOUT FLOW: $e");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Logout failed: $e"), backgroundColor: Colors.red),
+          );
+        }
       }
     }
   }

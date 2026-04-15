@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/drift.dart';
@@ -141,10 +142,20 @@ class AuthService {
   }
 
   Future<void> logout() async {
-    _cachedToken = null;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
-    await db.clearAllData();
+    try {
+      _cachedToken = null;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('auth_token');
+      
+      // Wipe the database in the background without blocking the UI
+      unawaited(db.clearAllData().catchError((e) {
+        print("🚩 Background database wipe failed: $e");
+      }));
+    } catch (e) {
+       print("🚩 Error during logout process: $e");
+       // Re-throw to inform the UI if needed
+       rethrow;
+    }
   }
 
   Future<String?> getToken() async {
