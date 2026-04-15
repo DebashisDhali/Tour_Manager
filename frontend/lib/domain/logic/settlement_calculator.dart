@@ -86,8 +86,13 @@ class SettlementCalculator {
       double amount = min(debtor.amount.abs(), creditor.amount);
       amount = (amount * 100).round() / 100;
 
-      final debtorUser = userMap[debtor.userId]!;
-      final creditorUser = userMap[creditor.userId]!;
+      final debtorUser = userMap[debtor.userId];
+      final creditorUser = userMap[creditor.userId];
+
+      if (debtorUser == null || creditorUser == null) {
+        i++; j++; // Skip if user missing
+        continue;
+      }
 
       settlements.add(SettlementInstruction(
         payerId: debtorUser.id,

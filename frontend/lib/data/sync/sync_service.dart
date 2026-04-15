@@ -68,17 +68,21 @@ class SyncService {
             'id': t.id, 'name': t.name, 'createdBy': t.createdBy,
             'inviteCode': t.inviteCode, 'startDate': t.startDate?.toIso8601String(),
             'endDate': t.endDate?.toIso8601String(),
+            'isDeleted': t.isDeleted,
           }).toList(),
           'expenses': unsyncedExpenses.map((e) => {
             'id': e.id, 'tourId': e.tourId, 'payerId': e.payerId, 'amount': e.amount,
             'title': e.title, 'category': e.category, 'messCostType': e.messCostType,
             'createdAt': e.createdAt.toIso8601String(),
+            'isDeleted': e.isDeleted,
           }).toList(),
           'splits': unsyncedSplits.map((s) => {
             'id': s.id, 'expenseId': s.expenseId, 'userId': s.userId, 'amount': s.amount,
+            'isDeleted': s.isDeleted,
           }).toList(),
           'payers': unsyncedPayers.map((p) => {
             'id': p.id, 'expenseId': p.expenseId, 'userId': p.userId, 'amount': p.amount,
+            'isDeleted': p.isDeleted,
           }).toList(),
           'members': unsyncedMembers.map((m) => {
             'tourId': m.tourId, 'userId': m.userId, 'leftAt': m.leftAt?.toIso8601String(), 
@@ -86,10 +90,12 @@ class SyncService {
           }).toList(),
           'settlements': unsyncedSettlements.map((s) => {
             'id': s.id, 'tourId': s.tourId, 'fromId': s.fromId, 'toId': s.toId, 'amount': s.amount, 'date': s.date.toIso8601String(),
+            'isDeleted': s.isDeleted,
           }).toList(),
           'incomes': unsyncedIncomes.map((i) => {
             'id': i.id, 'tourId': i.tourId, 'amount': i.amount, 'source': i.source,
             'description': i.description, 'collectedBy': i.collectedBy, 'date': i.date.toIso8601String(),
+            'isDeleted': i.isDeleted,
           }).toList(),
           'joinRequests': unsyncedJoinRequests.map((jr) => {
             'id': jr.id, 'tourId': jr.tourId, 'userId': jr.userId, 'userName': jr.userName, 'status': jr.status,
@@ -101,14 +107,14 @@ class SyncService {
         print("✅ Server returned 200. Marking pushed items as synced.");
         // 2. Mark Pushed data as synced
         await Future.wait([
-          for (final u in unsyncedUsers) db.markUserSynced(u.id),
-          for (final t in unsyncedTours) db.markTourSynced(t.id),
+          for (final u in unsyncedUsers) u.isDeleted ? db.delete(db.users).delete(u) : db.markUserSynced(u.id),
+          for (final t in unsyncedTours) t.isDeleted ? db.hardDeleteTourWithDetails(t.id) : db.markTourSynced(t.id),
           for (final m in unsyncedMembers) db.markTourMemberSynced(m.tourId, m.userId),
-          for (final e in unsyncedExpenses) db.markExpenseSynced(e.id),
-          for (final s in unsyncedSplits) db.markSplitSynced(s.id),
-          for (final p in unsyncedPayers) db.markExpensePayerSynced(p.id),
-          for (final s in unsyncedSettlements) db.markSettlementSynced(s.id),
-          for (final i in unsyncedIncomes) db.markProgramIncomeSynced(i.id),
+          for (final e in unsyncedExpenses) e.isDeleted ? db.hardDeleteExpenseWithDetails(e.id) : db.markExpenseSynced(e.id),
+          for (final s in unsyncedSplits) s.isDeleted ? db.delete(db.expenseSplits).delete(s) : db.markSplitSynced(s.id),
+          for (final p in unsyncedPayers) p.isDeleted ? db.delete(db.expensePayers).delete(p) : db.markExpensePayerSynced(p.id),
+          for (final s in unsyncedSettlements) s.isDeleted ? db.hardDeleteSettlement(s.id) : db.markSettlementSynced(s.id),
+          for (final i in unsyncedIncomes) i.isDeleted ? db.hardDeleteProgramIncome(i.id) : db.markProgramIncomeSynced(i.id),
           for (final jr in unsyncedJoinRequests) db.markJoinRequestSynced(jr.id),
         ]);
 
@@ -116,17 +122,20 @@ class SyncService {
         // Mark as synced locally & Pulled data within a batch for efficiency
         await db.batch((batch) {
 
-          final serverTours = response.data['tours'] as List;
+          final serverTours = (response.data['tours'] as List?) ?? [];
           for (final st in serverTours) {
+            if (st == null) continue;
+            
             // Sync Join Requests (if returned in tour data or separately)
             final jrList = st['JoinRequests'] ?? st['joinRequests'];
             if (jrList != null && jrList is List) {
               for (final jr in jrList) {
+                if (jr == null) continue;
                 batch.insert(db.joinRequests, JoinRequestsCompanion.insert(
-                  id: jr['id'],
-                  tourId: st['id'],
-                  userId: jr['user_id'],
-                  userName: jr['user_name'],
+                  id: jr['id'] ?? '',
+                  tourId: st['id'] ?? '',
+                  userId: jr['user_id'] ?? '',
+                  userName: jr['user_name'] ?? 'User',
                   status: Value(jr['status']),
                   isSynced: const Value(true),
                 ), mode: InsertMode.insertOrReplace);
@@ -135,20 +144,22 @@ class SyncService {
 
             // Sync Tour
             batch.insert(db.tours, ToursCompanion.insert(
-              id: st['id'],
-              name: st['name'],
-              startDate: Value(st['start_date'] != null ? DateTime.parse(st['start_date']) : null),
-              endDate: Value(st['end_date'] != null ? DateTime.parse(st['end_date']) : null),
+              id: st['id'] ?? '',
+              name: st['name'] ?? 'Unknown Tour',
+              startDate: Value(st['start_date'] != null ? DateTime.tryParse(st['start_date'].toString()) : null),
+              endDate: Value(st['end_date'] != null ? DateTime.tryParse(st['end_date'].toString()) : null),
               inviteCode: Value(st['invite_code']),
-              createdBy: st['created_by'],
+              createdBy: st['created_by'] ?? '',
               purpose: Value(st['purpose'] ?? 'tour'),
               isSynced: const Value(true),
               updatedAt: Value(DateTime.now()),
             ), mode: InsertMode.insertOrReplace);
 
             // Sync Members
-            if (st['Users'] != null) {
-              for (final su in st['Users']) {
+            final membersList = st['Users'] ?? st['users'];
+            if (membersList != null && membersList is List) {
+              for (final su in membersList) {
+                if (su == null) continue;
                 String userName = (su['name'] ?? 'Unknown').toString();
                 final userEmail = su['email']?.toString();
                 
@@ -161,7 +172,7 @@ class SyncService {
                 }
 
                 batch.insert(db.users, UsersCompanion.insert(
-                  id: su['id'],
+                  id: su['id'] ?? '',
                   name: userName,
                   phone: Value(su['phone']),
                   email: Value(userEmail),
@@ -180,7 +191,7 @@ class SyncService {
                   suStatus = 'removed';
                 }
                 final suLeftAt = (su['TourMember'] != null && su['TourMember']['removed_at'] != null) 
-                    ? DateTime.parse(su['TourMember']['removed_at'].toString()) 
+                    ? DateTime.tryParse(su['TourMember']['removed_at'].toString()) 
                     : null;
                 final suRole = (su['TourMember'] != null && su['TourMember']['role'] != null)
                     ? su['TourMember']['role'].toString()
@@ -210,7 +221,7 @@ class SyncService {
                   category: (se['category'] ?? 'Others').toString(),
                   messCostType: Value(se['mess_cost_type']),
                   isSynced: const Value(true),
-                  createdAt: Value(DateTime.parse(se['date'])),
+                  createdAt: Value(DateTime.tryParse(se['date']?.toString() ?? '') ?? (se['created_at'] != null ? DateTime.tryParse(se['created_at'].toString()) ?? DateTime.now() : DateTime.now())),
                 ), mode: InsertMode.insertOrReplace);
 
                 // Sync Splits
@@ -291,7 +302,9 @@ class SyncService {
           }
         }
 
-        await db.setSyncMetadata('last_sync_$userId', response.data['timestamp']);
+        if (response.data['timestamp'] != null) {
+          await db.setSyncMetadata('last_sync_$userId', response.data['timestamp'].toString());
+        }
         print("✅ Sync completed successfully.");
       } else {
         throw Exception("Server Error: ${response.statusCode}");
@@ -355,6 +368,7 @@ class SyncService {
               createdBy: tourData['created_by'] ?? userId,
               purpose: tourData['purpose'] ?? 'tour',
               isSynced: true,
+              isDeleted: false,
               updatedAt: DateTime.now(),
             ));
             print("✅ Tour saved to local DB");
@@ -388,6 +402,8 @@ class SyncService {
                     purpose: (member['purpose'] ?? 'tour').toString(),
                     isMe: mId == userId,
                     isSynced: true,
+                    isDeleted: false,
+                    createdAt: DateTime.now(),
                     updatedAt: DateTime.now(),
                   ));
                   
@@ -405,6 +421,7 @@ class SyncService {
                     leftAt: mLeftAt,
                     mealCount: (member['meal_count'] as num?)?.toDouble() ?? 0.0,
                     isSynced: true,
+                    isDeleted: false,
                   ), mode: InsertMode.insertOrReplace);
                 } catch (e) { print("Error saving member: $e"); }
               }
@@ -427,6 +444,7 @@ class SyncService {
                     category: (ex['category'] ?? 'Others').toString(),
                     messCostType: ex['mess_cost_type']?.toString(),
                     isSynced: true,
+                    isDeleted: ex['isDeleted'] == true || ex['is_deleted'] == 1,
                     createdAt: ex['date'] != null ? DateTime.parse(ex['date'].toString()) : (ex['createdAt'] != null ? DateTime.parse(ex['createdAt'].toString()) : DateTime.now()),
                   ), mode: InsertMode.insertOrReplace);
 
@@ -442,6 +460,7 @@ class SyncService {
                         userId: sUserId,
                         amount: double.tryParse(sp['amount']?.toString() ?? '0') ?? 0.0,
                         isSynced: true,
+                        isDeleted: sp['isDeleted'] == true || sp['is_deleted'] == 1,
                       ), mode: InsertMode.insertOrReplace);
                     }
                   }
@@ -458,6 +477,7 @@ class SyncService {
                         userId: pUserId,
                         amount: double.tryParse(pay['amount']?.toString() ?? '0') ?? 0.0,
                         isSynced: true,
+                        isDeleted: pay['isDeleted'] == true || pay['is_deleted'] == 1,
                       ), mode: InsertMode.insertOrReplace);
                     }
                   }
@@ -482,6 +502,7 @@ class SyncService {
                     amount: double.tryParse(stItem['amount']?.toString() ?? '0') ?? 0.0,
                     date: stItem['date'] != null ? DateTime.parse(stItem['date'].toString()) : DateTime.now(),
                     isSynced: true,
+                    isDeleted: stItem['isDeleted'] == true || stItem['is_deleted'] == 1,
                   ), mode: InsertMode.insertOrReplace);
                 } catch (e) { print("Error saving settlement: $e"); }
               }
@@ -501,6 +522,7 @@ class SyncService {
                     collectedBy: (inc['collected_by'] ?? inc['collectedBy'] ?? '').toString(),
                     date: inc['date'] != null ? DateTime.parse(inc['date'].toString()) : DateTime.now(),
                     isSynced: true,
+                    isDeleted: inc['isDeleted'] == true || inc['is_deleted'] == 1,
                   ), mode: InsertMode.insertOrReplace);
                 } catch (e) { print("Error saving income: $e"); }
               }

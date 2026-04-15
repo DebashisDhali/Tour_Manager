@@ -388,8 +388,8 @@ class SettlementScreen extends ConsumerWidget {
           const SizedBox(height: 32),
           _buildSectionTitle("Recent Payments", config.color),
           ...previousSettlements.reversed.take(5).map((s) {
-            final fromUser = users.firstWhere((u) => u.id == s.fromId, orElse: () => models.User(id: '', name: 'Deleted User', phone: '', updatedAt: DateTime.now(), purpose: '', isSynced: false, isMe: false));
-            final toUser = users.firstWhere((u) => u.id == s.toId, orElse: () => models.User(id: '', name: 'Deleted User', phone: '', updatedAt: DateTime.now(), purpose: '', isSynced: false, isMe: false));
+            final fromUser = users.firstWhere((u) => u.id == s.fromId, orElse: () => models.User(id: '', name: 'Deleted User', phone: '', updatedAt: DateTime.now(), createdAt: DateTime.now(), purpose: '', isSynced: false, isMe: false, isDeleted: false));
+            final toUser = users.firstWhere((u) => u.id == s.toId, orElse: () => models.User(id: '', name: 'Deleted User', phone: '', updatedAt: DateTime.now(), createdAt: DateTime.now(), purpose: '', isSynced: false, isMe: false, isDeleted: false));
             
             return PremiumCard(
               margin: const EdgeInsets.only(bottom: 8),
@@ -485,6 +485,7 @@ class SettlementScreen extends ConsumerWidget {
       createdBy: tour.createdBy,
       startDate: tour.endDate?.add(const Duration(days: 1)) ?? DateTime.now(),
       isSynced: false,
+      isDeleted: false,
       updatedAt: DateTime.now(),
     ));
     
@@ -494,6 +495,7 @@ class SettlementScreen extends ConsumerWidget {
         tourId: nextMonthId, 
         userId: u.id, 
         isSynced: false,
+        isDeleted: false,
         mealCount: 0.0,
         status: 'active',
         role: 'viewer',
@@ -510,6 +512,7 @@ class SettlementScreen extends ConsumerWidget {
           collectedBy: u.id,
           date: DateTime.now(),
           isSynced: false,
+          isDeleted: false,
         ));
       }
     }
@@ -604,6 +607,7 @@ class SettlementScreen extends ConsumerWidget {
                 amount: r.amount,
                 date: DateTime.now(),
                 isSynced: false,
+                isDeleted: false,
               );
               await database.createSettlement(settlement);
               if (context.mounted) Navigator.pop(context);

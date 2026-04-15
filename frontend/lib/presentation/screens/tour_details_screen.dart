@@ -83,6 +83,27 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
 
     return tourAsync.when(
       data: (tour) {
+        if (tour == null) {
+          return Scaffold(
+            appBar: AppBar(title: const Text("Tour Deleted")),
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.delete_outline, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  const Text("This tour has been deleted."),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("Back to List"),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        
         _initTabController(tour);
         final config = PurposeConfig.getConfig(tour.purpose);
 
@@ -480,7 +501,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
 
                   // Calculate display payer name(s)
                   String payerText = item.payer?.name ?? 'Combined';
-                  if (allPayersAsync.hasValue && allUsersAsync.hasValue) {
+                  if (allPayersAsync.hasValue && allUsersAsync.hasValue && allPayersAsync.value != null && allUsersAsync.value != null) {
                     final expPayers = allPayersAsync.value!.where((p) => p.expenseId == exp.id).toList();
                     if (expPayers.length > 1) {
                       final names = expPayers.map((p) {
@@ -809,19 +830,19 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
     .watch();
 
     return StreamBuilder<List<ProgramIncome>>(
-      stream: db.select(db.programIncomes).watch(), 
+      stream: (db.select(db.programIncomes)..where((t) => t.isDeleted.equals(false))).watch(), 
       builder: (context, incomeSnap) {
         final incomes = (incomeSnap.data ?? []).where((i) => i.tourId == widget.tourId).toList();
         final totalCollected = incomes.fold(0.0, (sum, item) => sum + item.amount);
 
         return StreamBuilder<List<Expense>>(
-          stream: db.select(db.expenses).watch(),
+          stream: (db.select(db.expenses)..where((t) => t.isDeleted.equals(false))).watch(),
           builder: (context, expenseSnap) {
             final expenses = (expenseSnap.data ?? []).where((e) => e.tourId == widget.tourId).toList();
             final totalSpent = expenses.fold(0.0, (sum, item) => sum + item.amount);
 
             return StreamBuilder<List<Settlement>>(
-              stream: db.select(db.settlements).watch(),
+              stream: (db.select(db.settlements)..where((t) => t.isDeleted.equals(false))).watch(),
               builder: (context, settlementSnap) {
                 final settlements = (settlementSnap.data ?? []).where((s) => s.tourId == widget.tourId).toList();
                 final currentBalance = totalCollected - totalSpent; 
@@ -1301,8 +1322,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
   Widget _buildSettlementInstructions(Map<User, double> balances, List<User> creditors, List<User> debtors, PurposeConfig config) {
     // Greedy algorithm for settlement instructions
     final List<Widget> items = [];
-    final creditorsCopy = creditors.map((u) => {'user': u, 'bal': balances[u]!}).toList();
-    final debtorsCopy = debtors.map((u) => {'user': u, 'bal': -balances[u]!}).toList();
+    final creditorsCopy = creditors.map((u) => {'user': u, 'bal': balances[u] ?? 0.0}).toList();
+    final debtorsCopy = debtors.map((u) => {'user': u, 'bal': -(balances[u] ?? 0.0)}).toList();
 
     int cIdx = 0;
     int dIdx = 0;
@@ -1347,7 +1368,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
   Widget _buildIncomesTab(Tour tour) {
     final db = ref.watch(databaseProvider);
     return StreamBuilder<List<ProgramIncome>>(
-      stream: (db.select(db.programIncomes)..where((t) => t.tourId.equals(widget.tourId))).watch(),
+      stream: (db.select(db.programIncomes)..where((t) => t.tourId.equals(widget.tourId) & t.isDeleted.equals(false))).watch(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final incomes = snapshot.data!;
@@ -1373,7 +1394,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
   Widget _buildAllocationsTab(Tour tour) {
     final db = ref.watch(databaseProvider);
     return StreamBuilder<List<Settlement>>(
-      stream: (db.select(db.settlements)..where((t) => t.tourId.equals(widget.tourId))).watch(),
+      stream: (db.select(db.settlements)..where((t) => t.tourId.equals(widget.tourId) & t.isDeleted.equals(false))).watch(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final settlements = snapshot.data!;

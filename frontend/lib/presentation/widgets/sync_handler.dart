@@ -44,6 +44,14 @@ class _SyncHandlerState extends ConsumerState<SyncHandler>
       }
     });
 
+    // Auto-sync whenever unsynced changes are detected
+    ref.listenManual(hasUnsyncedChangesProvider, (prev, next) {
+      if (next.value == true) {
+        // Debounce slightly to avoid rapid syncs when adding multiple things
+        _debounceSync('Local Changes Detected');
+      }
+    });
+
     _startPeriodicSync();
   }
 
@@ -67,6 +75,14 @@ class _SyncHandlerState extends ConsumerState<SyncHandler>
     });
     Future.delayed(
         const Duration(seconds: 3), () => _triggerSync('Initial Sync'));
+  }
+
+  Timer? _debounceTimer;
+  void _debounceSync(String reason) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(seconds: 2), () {
+      _triggerSync(reason);
+    });
   }
 
   Future<void> _triggerSync(String reason) async {

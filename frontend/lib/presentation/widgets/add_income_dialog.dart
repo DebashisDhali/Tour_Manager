@@ -128,6 +128,7 @@ class _AddIncomeDialogState extends ConsumerState<AddIncomeDialog> {
         collectedBy: _selectedCollectorId!,
         date: _date,
         isSynced: false,
+        isDeleted: false,
       );
 
       final db = ref.read(databaseProvider);

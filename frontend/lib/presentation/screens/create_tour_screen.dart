@@ -96,6 +96,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                createdBy: currentUser.id,
                purpose: _selectedPurpose,
                isSynced: false,
+               isDeleted: false,
                updatedAt: DateTime.now()
            ));
 
@@ -105,7 +106,8 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                status: 'active',
                role: 'admin',
                mealCount: 0.0,
-               isSynced: false
+               isSynced: false,
+               isDeleted: false
            ));
 
            for (final memberName in _additionalMembers) {
@@ -116,6 +118,8 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                phone: null,
                isMe: false,
                isSynced: false,
+               isDeleted: false,
+               createdAt: DateTime.now(),
                updatedAt: DateTime.now(),
              ));
              await db.into(db.tourMembers).insert(TourMember(
@@ -125,6 +129,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                role: 'viewer',
                mealCount: 0.0,
                isSynced: false,
+               isDeleted: false,
              ));
            }
          } else {
@@ -134,6 +139,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                startDate: drift.Value(_selectedDateRange?.start),
                endDate: drift.Value(_selectedDateRange?.end),
                isSynced: false,
+               isDeleted: false,
                updatedAt: DateTime.now(),
            ));
 
@@ -145,6 +151,8 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                phone: null,
                isMe: false,
                isSynced: false,
+               isDeleted: false,
+               createdAt: DateTime.now(),
                updatedAt: DateTime.now(),
              ));
              await db.into(db.tourMembers).insert(TourMember(
@@ -154,6 +162,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                role: 'viewer',
                mealCount: 0.0,
                isSynced: false,
+               isDeleted: false,
              ));
            }
          }
@@ -174,7 +183,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.initialTour == null ? 'Create ${config.label}' : 'Edit ${config.label}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+        title: Text(widget.initialTour == null ? 'Create ' : 'Edit ', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
         backgroundColor: config.color,
         flexibleSpace: Container(decoration: BoxDecoration(gradient: config.gradient)),
         foregroundColor: Colors.white,
@@ -206,7 +215,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                     TextFormField(
                       controller: _nameController,
                       style: const TextStyle(fontWeight: FontWeight.bold),
-                      decoration: _getInputDecoration(hint: 'e.g. ${_getHintText(config.label)}', icon: Icons.edit_note_rounded, color: config.color),
+                      decoration: _getInputDecoration(hint: 'e.g. ', icon: Icons.edit_note_rounded, color: config.color),
                       validator: (v) => v == null || v.isEmpty ? 'Required' : null,
                     ),
                     const SizedBox(height: 24),
@@ -222,7 +231,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                             Icon(Icons.calendar_month_rounded, color: config.color, size: 20),
                             const SizedBox(width: 12),
                             Expanded(child: Text(
-                              _selectedDateRange == null ? 'Timeline (Optional)' : '${DateFormat('MMM dd').format(_selectedDateRange!.start)} - ${DateFormat('MMM dd, yyyy').format(_selectedDateRange!.end)}',
+                              _selectedDateRange == null ? 'Timeline (Optional)' : ' - ',
                               style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _selectedDateRange == null ? Colors.black38 : Colors.black87),
                             )),
                             if (_selectedDateRange != null) Icon(Icons.check_circle_rounded, color: config.color, size: 16),
@@ -235,7 +244,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
               ),
               
               const SizedBox(height: 24),
-              _buildInputLabel("Add ${config.memberLabel}s", config.color),
+              _buildInputLabel("Add s", config.color),
               PremiumCard(
                 padding: const EdgeInsets.all(20),
                 child: Column(
@@ -295,7 +304,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                     ),
                     child: _isLoading 
                       ? const CircularProgressIndicator(color: Colors.white) 
-                      : Text(widget.initialTour == null ? 'Launch ${config.label} 🚀' : 'Save Changes ✨', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))
+                      : Text(widget.initialTour == null ? 'Launch  ??' : 'Save Changes ?', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))
                 ),
               ),
               const SizedBox(height: 40),

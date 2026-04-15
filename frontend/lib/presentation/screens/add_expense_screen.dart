@@ -94,7 +94,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     return tourAsync.when(
       data: (tour) {
-        final config = PurposeConfig.getConfig(tour.purpose);
+        if (tour == null) return const Scaffold(body: Center(child: Text("Tour no longer exists")));
+        // Local variable to ensure promotion works across the whole block
+        final models.Tour activeTour = tour;
+        
+        final config = PurposeConfig.getConfig(activeTour.purpose);
         return membersAsync.when(
           data: (allMembers) {
             final members = allMembers.toList();
@@ -105,7 +109,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               );
             }
             
-            final categories = _getCategories(tour.purpose);
+            final categories = _getCategories(activeTour.purpose);
             if (!categories.contains(_category)) _category = categories.first;
 
             final activeMembers = members.where((m) => m.status.toLowerCase().trim() == 'active').toList();
@@ -147,7 +151,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             TextFormField(
                               controller: _titleController,
                               style: const TextStyle(fontWeight: FontWeight.bold),
-                              decoration: _getInputDecoration(hint: _getDescHint(tour.purpose), icon: Icons.title_rounded, color: config.color),
+                              decoration: _getInputDecoration(hint: _getDescHint(activeTour.purpose), icon: Icons.title_rounded, color: config.color),
                               validator: (v) => (v == null || v.isEmpty) ? "Required" : null,
                             ),
                             const SizedBox(height: 24),
@@ -166,7 +170,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                               },
                               validator: (v) => (double.tryParse(v ?? '') ?? 0) <= 0 ? "Invalid amount" : null,
                             ),
-                            if (tour.purpose.toLowerCase() == 'mess') ...[
+                            if (activeTour.purpose.toLowerCase() == 'mess') ...[
                               const SizedBox(height: 24),
                               _buildInputLabel("Type", config.color),
                               SegmentedButton<String?>(
@@ -425,16 +429,16 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           final splitAmount = totalAmount / (_involvedMemberIds.isEmpty ? 1 : _involvedMemberIds.length);
           splits = members
             .where((m) => _involvedMemberIds.contains(m.user.id))
-            .map((m) => models.ExpenseSplit(id: const Uuid().v4(), expenseId: expenseId, userId: m.user.id, amount: splitAmount, isSynced: false)).toList();
+            .map((m) => models.ExpenseSplit(id: const Uuid().v4(), expenseId: expenseId, userId: m.user.id, amount: splitAmount, isSynced: false, isDeleted: false)).toList();
         } else {
           splits = _splitAmounts.entries
             .where((e) => _involvedMemberIds.contains(e.key))
-            .map((e) => models.ExpenseSplit(id: const Uuid().v4(), expenseId: expenseId, userId: e.key, amount: e.value, isSynced: false)).toList();
+            .map((e) => models.ExpenseSplit(id: const Uuid().v4(), expenseId: expenseId, userId: e.key, amount: e.value, isSynced: false, isDeleted: false)).toList();
         }
 
         final payers = _payerAmounts.entries
           .where((e) => e.value > 0)
-          .map((e) => models.ExpensePayer(id: const Uuid().v4(), expenseId: expenseId, userId: e.key, amount: e.value, isSynced: false)).toList();
+          .map((e) => models.ExpensePayer(id: const Uuid().v4(), expenseId: expenseId, userId: e.key, amount: e.value, isSynced: false, isDeleted: false)).toList();
 
         final expense = models.Expense(
             id: expenseId,
@@ -445,6 +449,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             category: _category,
             messCostType: _messCostType,
             isSynced: false,
+            isDeleted: false,
             createdAt: widget.initialExpense?.createdAt ?? DateTime.now()
         );
 

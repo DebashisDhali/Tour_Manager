@@ -109,6 +109,8 @@ class AuthService {
       avatarUrl: avatarUrl,
       isMe: true,
       isSynced: true,
+      isDeleted: false,
+      createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     ));
 

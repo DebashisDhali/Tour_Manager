@@ -86,6 +86,8 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
             phone: user['phone'],
             isMe: false,
             isSynced: true,
+            isDeleted: false,
+            createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
           ));
           
@@ -96,6 +98,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
             role: 'viewer',
             mealCount: 0.0,
             isSynced: true,
+            isDeleted: false,
           ), mode: InsertMode.insertOrReplace);
 
           // 2. Add to server
@@ -142,6 +145,8 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
           phone: _phoneController.text.isEmpty ? null : _phoneController.text.trim(),
           isMe: false,
           isSynced: false,
+          isDeleted: false,
+          createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         ));
 
@@ -152,6 +157,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
           role: 'viewer',
           mealCount: 0.0,
           isSynced: false,
+          isDeleted: false,
         ));
 
         // Apply retroactive split locally before navigating away
@@ -188,7 +194,8 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
   @override
   Widget build(BuildContext context) {
     final tourAsync = ref.watch(singleTourProvider(widget.tourId));
-    final config = PurposeConfig.getConfig(tourAsync.value?.purpose);
+    final tour = tourAsync.value;
+    final config = PurposeConfig.getConfig(tour?.purpose);
 
     return AlertDialog(
       titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
@@ -313,36 +320,39 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
 
               // Invite Code Section
               tourAsync.maybeWhen(
-                data: (tour) => tour.inviteCode != null ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("SHARE INVITE CODE", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Colors.grey, letterSpacing: 1)),
-                    const SizedBox(height: 12),
-                    InkWell(
-                      onTap: () {
-                        Clipboard.setData(ClipboardData(text: tour.inviteCode!));
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code copied!')));
-                      },
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: config.color.withOpacity(0.05),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: config.color.withOpacity(0.1)),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(tour.inviteCode!, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 4)),
-                            Icon(Icons.copy_all_rounded, color: config.color, size: 20),
-                          ],
+                data: (tour) {
+                   if (tour == null || tour.inviteCode == null) return const SizedBox.shrink();
+                   return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("SHARE INVITE CODE", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Colors.grey, letterSpacing: 1)),
+                      const SizedBox(height: 12),
+                      InkWell(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: tour.inviteCode!));
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code copied!')));
+                        },
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: config.color.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: config.color.withOpacity(0.1)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(tour.inviteCode!, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 4)),
+                              Icon(Icons.copy_all_rounded, color: config.color, size: 20),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ) : const SizedBox.shrink(),
+                      const SizedBox(height: 24),
+                    ],
+                  );
+                },
                 orElse: () => const SizedBox.shrink(),
               ),
 

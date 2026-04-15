@@ -121,6 +121,7 @@ class _AllocateFundDialogState extends ConsumerState<AllocateFundDialog> {
         amount: amount,
         date: _date,
         isSynced: false,
+        isDeleted: false,
       );
 
       final db = ref.read(databaseProvider);

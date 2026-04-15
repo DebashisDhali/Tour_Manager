@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart';
 import 'package:dio/dio.dart';
@@ -69,7 +70,7 @@ final currentUserProvider = StreamProvider<User?>((ref) {
 
 final tourListProvider = StreamProvider.autoDispose<List<Tour>>((ref) {
   final db = ref.watch(databaseProvider);
-  return (db.select(db.tours)..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])).watch();
+  return (db.select(db.tours)..where((t) => t.isDeleted.equals(false))..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])).watch();
 });
 
 final userListProvider = StreamProvider.autoDispose<List<User>>((ref) {
@@ -131,14 +132,14 @@ final expensesProvider = StreamProvider.family.autoDispose<List<ExpenseWithPayer
   // 1. Watch expenses and primary payers
   final expenseQuery = db.select(db.expenses).join([
     leftOuterJoin(db.users, db.users.id.equalsExp(db.expenses.payerId)),
-  ])..where(db.expenses.tourId.equals(tourId))
+  ])..where(db.expenses.tourId.equals(tourId) & db.expenses.isDeleted.equals(false))
     ..orderBy([OrderingTerm.desc(db.expenses.createdAt)]);
 
   // 2. Watch all payers for this tour to match with expenses
   final payersQuery = db.select(db.expensePayers).join([
      innerJoin(db.expenses, db.expenses.id.equalsExp(db.expensePayers.expenseId)),
      innerJoin(db.users, db.users.id.equalsExp(db.expensePayers.userId)),
-  ])..where(db.expenses.tourId.equals(tourId));
+  ])..where(db.expenses.tourId.equals(tourId) & db.expenses.isDeleted.equals(false));
 
   // Combine them
   final expensesStream = expenseQuery.watch();
@@ -150,10 +151,15 @@ final expensesProvider = StreamProvider.family.autoDispose<List<ExpenseWithPayer
   
   return expensesStream.map((rows) {
      return rows.map((row) {
-        return ExpenseWithPayer(
-          row.readTable(db.expenses),
-          row.readTableOrNull(db.users),
-        );
+        try {
+          return ExpenseWithPayer(
+            row.readTable(db.expenses),
+            row.readTableOrNull(db.users),
+          );
+        } catch (e) {
+          print("\n\n🧨 FATAL ERROR MAPPING EXPENSES PROVIDER ROW: ${row.rawData.data}\n\n");
+          rethrow;
+        }
      }).toList();
   });
 });
@@ -197,54 +203,71 @@ final globalActivityProvider = StreamProvider.autoDispose<List<GlobalActivityIte
   final currentUser = ref.watch(currentUserProvider).value;
   if (currentUser == null) return Stream.value([]);
 
-  // Use a query that only returns expenses where the user is either the payer
-  // OR is one of the people the expense is split with.
   final expenseQuery = db.select(db.expenses).join([
     leftOuterJoin(db.users, db.users.id.equalsExp(db.expenses.payerId)),
     innerJoin(db.tours, db.tours.id.equalsExp(db.expenses.tourId)),
   ])..where(
-    db.expenses.payerId.equals(currentUser.id) |
-    db.expenses.id.isInQuery(db.selectOnly(db.expenseSplits)..addColumns([db.expenseSplits.expenseId])..where(db.expenseSplits.userId.equals(currentUser.id)))
+    db.expenses.isDeleted.equals(false) & (
+      db.expenses.payerId.equals(currentUser.id) |
+      db.expenses.id.isInQuery(db.selectOnly(db.expenseSplits)..addColumns([db.expenseSplits.expenseId])..where(db.expenseSplits.userId.equals(currentUser.id)))
+    )
   );
 
   return expenseQuery.watch().map((rows) {
-    final items = rows.map((row) {
-      final e = row.readTable(db.expenses);
-      return GlobalActivityItem(
-        type: 'expense',
-        item: e,
-        user: row.readTableOrNull(db.users),
-        tour: row.readTable(db.tours),
-        date: e.createdAt,
-        amount: e.amount,
-      );
-    }).toList();
-    
-    items.sort((a, b) => b.date.compareTo(a.date));
-    return items;
+    try {
+      final items = rows.map((row) {
+        try {
+          final e = row.readTable(db.expenses);
+          return GlobalActivityItem(
+            type: 'expense',
+            item: e,
+            user: row.readTableOrNull(db.users),
+            tour: row.readTable(db.tours),
+            date: e.createdAt,
+            amount: e.amount,
+          );
+        } catch(mapErr) {
+          print("\n\n🧨 FATAL ERROR MAPPING GLOBAL ACTIVITY ROW: ${row.rawData.data}\n\n");
+          rethrow;
+        }
+      }).toList();
+      items.sort((a, b) => b.date.compareTo(a.date));
+      return items;
+    } catch(e) {
+      print("\n\n🧨 FATAL ERROR IN GLOBAL ACTIVITY PROVIDER LISTENER: $e\n\n");
+      rethrow;
+    }
   });
 });
 
-final singleTourProvider = StreamProvider.family.autoDispose<Tour, String>((ref, tourId) {
+final singleTourProvider = StreamProvider.family.autoDispose<Tour?, String>((ref, tourId) {
   final db = ref.watch(databaseProvider);
-  return (db.select(db.tours)..where((t) => t.id.equals(tourId))).watchSingle();
+  return (db.select(db.tours)..where((t) => t.id.equals(tourId))).watchSingleOrNull().handleError((e) {
+    print("\n\n🧨 FATAL ERROR MAPPING SINGLE TOUR [$tourId]: $e\n\n");
+  });
 });
 
 final singleUserProvider = StreamProvider.family.autoDispose<User?, String>((ref, userId) {
   final db = ref.watch(databaseProvider);
   return (db.select(db.users)..where((u) => u.id.equals(userId))).watchSingleOrNull();
 });
+
 final tourUsersProvider = StreamProvider.family.autoDispose<List<User>, String>((ref, tourId) {
   final db = ref.watch(databaseProvider);
   final query = db.select(db.users).join([
     innerJoin(db.tourMembers, db.tourMembers.userId.equalsExp(db.users.id)),
   ])..where(db.tourMembers.tourId.equals(tourId));
-  return query.watch().map((rows) => rows.map((row) => row.readTable(db.users)).toList());
+  return query.watch().map((rows) => rows.map((row) {
+    try { return row.readTable(db.users); }
+    catch(e) { print("\n\n🧨 FATAL ERROR MAPPING TOUR USER: ${row.rawData.data}\n\n"); rethrow; }
+  }).toList());
 });
 
 final tourExpensesProvider = StreamProvider.family.autoDispose<List<Expense>, String>((ref, tourId) {
   final db = ref.watch(databaseProvider);
-  return (db.select(db.expenses)..where((t) => t.tourId.equals(tourId))).watch();
+  return (db.select(db.expenses)..where((t) => t.tourId.equals(tourId) & t.isDeleted.equals(false))).watch().handleError((e) {
+    print("\n\n🧨 FATAL ERROR MAPPING TOUR EXPENSES: $e\n\n");
+  });
 });
 
 final tourSplitsProvider = StreamProvider.family.autoDispose<List<ExpenseSplit>, String>((ref, tourId) {
@@ -265,12 +288,12 @@ final tourPayersProvider = StreamProvider.family.autoDispose<List<ExpensePayer>,
 
 final tourSettlementsProvider = StreamProvider.family.autoDispose<List<Settlement>, String>((ref, tourId) {
   final db = ref.watch(databaseProvider);
-  return (db.select(db.settlements)..where((t) => t.tourId.equals(tourId))).watch();
+  return (db.select(db.settlements)..where((t) => t.tourId.equals(tourId) & t.isDeleted.equals(false))).watch();
 });
 
 final tourIncomesProvider = StreamProvider.family.autoDispose<List<ProgramIncome>, String>((ref, tourId) {
   final db = ref.watch(databaseProvider);
-  return (db.select(db.programIncomes)..where((t) => t.tourId.equals(tourId))).watch();
+  return (db.select(db.programIncomes)..where((t) => t.tourId.equals(tourId) & t.isDeleted.equals(false))).watch();
 });
 
 final tourMealRecordsProvider = StreamProvider.family.autoDispose<List<MealRecord>, String>((ref, tourId) {
@@ -283,4 +306,42 @@ final lastSyncProvider = StreamProvider.family.autoDispose<String?, String>((ref
   return (db.select(db.syncMetadata)..where((t) => t.key.equals('last_sync_$userId')))
       .watchSingleOrNull()
       .map((row) => row?.value);
+});
+
+final hasUnsyncedChangesProvider = StreamProvider.autoDispose<bool>((ref) {
+  final db = ref.watch(databaseProvider);
+  
+  // Create a stream that emits whenever ANY of the tables changes
+  // We can merge them or just watch a few primary ones.
+  // In our case, syncing is cheap enough that we can just watch the counts.
+  
+  final toursStream = (db.select(db.tours)..where((x) => x.isSynced.equals(false))).watch();
+  final expensesStream = (db.select(db.expenses)..where((x) => x.isSynced.equals(false))).watch();
+  final settlementsStream = (db.select(db.settlements)..where((x) => x.isSynced.equals(false))).watch();
+
+  // Combine multiple streams manually for auto-sync trigger
+  final controller = StreamController<bool>();
+  
+  bool hasTours = false;
+  bool hasExpenses = false;
+  bool hasSettlements = false;
+
+  void emit() {
+    if (!controller.isClosed) {
+      controller.add(hasTours || hasExpenses || hasSettlements);
+    }
+  }
+
+  final sub1 = toursStream.listen((l) { hasTours = l.isNotEmpty; emit(); });
+  final sub2 = expensesStream.listen((l) { hasExpenses = l.isNotEmpty; emit(); });
+  final sub3 = settlementsStream.listen((l) { hasSettlements = l.isNotEmpty; emit(); });
+
+  ref.onDispose(() {
+    sub1.cancel();
+    sub2.cancel();
+    sub3.cancel();
+    controller.close();
+  });
+
+  return controller.stream;
 });

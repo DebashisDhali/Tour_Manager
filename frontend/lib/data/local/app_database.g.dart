@@ -59,6 +59,24 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _isDeletedMeta =
+      const VerificationMeta('isDeleted');
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+      'is_deleted', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_deleted" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime,
+      requiredDuringInsert: false,
+      defaultValue: currentDateAndTime);
   static const VerificationMeta _updatedAtMeta =
       const VerificationMeta('updatedAt');
   @override
@@ -68,8 +86,19 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
       requiredDuringInsert: false,
       defaultValue: currentDateAndTime);
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, name, email, phone, avatarUrl, purpose, isMe, isSynced, updatedAt];
+  List<GeneratedColumn> get $columns => [
+        id,
+        name,
+        email,
+        phone,
+        avatarUrl,
+        purpose,
+        isMe,
+        isSynced,
+        isDeleted,
+        createdAt,
+        updatedAt
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -115,6 +144,14 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
     }
+    if (data.containsKey('is_deleted')) {
+      context.handle(_isDeletedMeta,
+          isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta));
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    }
     if (data.containsKey('updated_at')) {
       context.handle(_updatedAtMeta,
           updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
@@ -144,6 +181,10 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
           .read(DriftSqlType.bool, data['${effectivePrefix}is_me'])!,
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+      isDeleted: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_deleted'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
     );
@@ -164,6 +205,8 @@ class User extends DataClass implements Insertable<User> {
   final String? purpose;
   final bool isMe;
   final bool isSynced;
+  final bool isDeleted;
+  final DateTime createdAt;
   final DateTime updatedAt;
   const User(
       {required this.id,
@@ -174,6 +217,8 @@ class User extends DataClass implements Insertable<User> {
       this.purpose,
       required this.isMe,
       required this.isSynced,
+      required this.isDeleted,
+      required this.createdAt,
       required this.updatedAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -194,6 +239,8 @@ class User extends DataClass implements Insertable<User> {
     }
     map['is_me'] = Variable<bool>(isMe);
     map['is_synced'] = Variable<bool>(isSynced);
+    map['is_deleted'] = Variable<bool>(isDeleted);
+    map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
   }
@@ -214,6 +261,8 @@ class User extends DataClass implements Insertable<User> {
           : Value(purpose),
       isMe: Value(isMe),
       isSynced: Value(isSynced),
+      isDeleted: Value(isDeleted),
+      createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
   }
@@ -230,6 +279,8 @@ class User extends DataClass implements Insertable<User> {
       purpose: serializer.fromJson<String?>(json['purpose']),
       isMe: serializer.fromJson<bool>(json['isMe']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
   }
@@ -245,6 +296,8 @@ class User extends DataClass implements Insertable<User> {
       'purpose': serializer.toJson<String?>(purpose),
       'isMe': serializer.toJson<bool>(isMe),
       'isSynced': serializer.toJson<bool>(isSynced),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
   }
@@ -258,6 +311,8 @@ class User extends DataClass implements Insertable<User> {
           Value<String?> purpose = const Value.absent(),
           bool? isMe,
           bool? isSynced,
+          bool? isDeleted,
+          DateTime? createdAt,
           DateTime? updatedAt}) =>
       User(
         id: id ?? this.id,
@@ -268,6 +323,8 @@ class User extends DataClass implements Insertable<User> {
         purpose: purpose.present ? purpose.value : this.purpose,
         isMe: isMe ?? this.isMe,
         isSynced: isSynced ?? this.isSynced,
+        isDeleted: isDeleted ?? this.isDeleted,
+        createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
   User copyWithCompanion(UsersCompanion data) {
@@ -280,6 +337,8 @@ class User extends DataClass implements Insertable<User> {
       purpose: data.purpose.present ? data.purpose.value : this.purpose,
       isMe: data.isMe.present ? data.isMe.value : this.isMe,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
   }
@@ -295,14 +354,16 @@ class User extends DataClass implements Insertable<User> {
           ..write('purpose: $purpose, ')
           ..write('isMe: $isMe, ')
           ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-      id, name, email, phone, avatarUrl, purpose, isMe, isSynced, updatedAt);
+  int get hashCode => Object.hash(id, name, email, phone, avatarUrl, purpose,
+      isMe, isSynced, isDeleted, createdAt, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -315,6 +376,8 @@ class User extends DataClass implements Insertable<User> {
           other.purpose == this.purpose &&
           other.isMe == this.isMe &&
           other.isSynced == this.isSynced &&
+          other.isDeleted == this.isDeleted &&
+          other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
 
@@ -327,6 +390,8 @@ class UsersCompanion extends UpdateCompanion<User> {
   final Value<String?> purpose;
   final Value<bool> isMe;
   final Value<bool> isSynced;
+  final Value<bool> isDeleted;
+  final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
   const UsersCompanion({
@@ -338,6 +403,8 @@ class UsersCompanion extends UpdateCompanion<User> {
     this.purpose = const Value.absent(),
     this.isMe = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -350,6 +417,8 @@ class UsersCompanion extends UpdateCompanion<User> {
     this.purpose = const Value.absent(),
     this.isMe = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
@@ -363,6 +432,8 @@ class UsersCompanion extends UpdateCompanion<User> {
     Expression<String>? purpose,
     Expression<bool>? isMe,
     Expression<bool>? isSynced,
+    Expression<bool>? isDeleted,
+    Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
   }) {
@@ -375,6 +446,8 @@ class UsersCompanion extends UpdateCompanion<User> {
       if (purpose != null) 'purpose': purpose,
       if (isMe != null) 'is_me': isMe,
       if (isSynced != null) 'is_synced': isSynced,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -389,6 +462,8 @@ class UsersCompanion extends UpdateCompanion<User> {
       Value<String?>? purpose,
       Value<bool>? isMe,
       Value<bool>? isSynced,
+      Value<bool>? isDeleted,
+      Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
       Value<int>? rowid}) {
     return UsersCompanion(
@@ -400,6 +475,8 @@ class UsersCompanion extends UpdateCompanion<User> {
       purpose: purpose ?? this.purpose,
       isMe: isMe ?? this.isMe,
       isSynced: isSynced ?? this.isSynced,
+      isDeleted: isDeleted ?? this.isDeleted,
+      createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -432,6 +509,12 @@ class UsersCompanion extends UpdateCompanion<User> {
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
@@ -452,6 +535,8 @@ class UsersCompanion extends UpdateCompanion<User> {
           ..write('purpose: $purpose, ')
           ..write('isMe: $isMe, ')
           ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -516,6 +601,16 @@ class $ToursTable extends Tours with TableInfo<$ToursTable, Tour> {
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _isDeletedMeta =
+      const VerificationMeta('isDeleted');
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+      'is_deleted', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_deleted" IN (0, 1))'),
+      defaultValue: const Constant(false));
   static const VerificationMeta _updatedAtMeta =
       const VerificationMeta('updatedAt');
   @override
@@ -534,6 +629,7 @@ class $ToursTable extends Tours with TableInfo<$ToursTable, Tour> {
         createdBy,
         purpose,
         isSynced,
+        isDeleted,
         updatedAt
       ];
   @override
@@ -585,6 +681,10 @@ class $ToursTable extends Tours with TableInfo<$ToursTable, Tour> {
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
     }
+    if (data.containsKey('is_deleted')) {
+      context.handle(_isDeletedMeta,
+          isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta));
+    }
     if (data.containsKey('updated_at')) {
       context.handle(_updatedAtMeta,
           updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
@@ -614,6 +714,8 @@ class $ToursTable extends Tours with TableInfo<$ToursTable, Tour> {
           .read(DriftSqlType.string, data['${effectivePrefix}purpose'])!,
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+      isDeleted: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_deleted'])!,
       updatedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
     );
@@ -634,6 +736,7 @@ class Tour extends DataClass implements Insertable<Tour> {
   final String createdBy;
   final String purpose;
   final bool isSynced;
+  final bool isDeleted;
   final DateTime updatedAt;
   const Tour(
       {required this.id,
@@ -644,6 +747,7 @@ class Tour extends DataClass implements Insertable<Tour> {
       required this.createdBy,
       required this.purpose,
       required this.isSynced,
+      required this.isDeleted,
       required this.updatedAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -662,6 +766,7 @@ class Tour extends DataClass implements Insertable<Tour> {
     map['created_by'] = Variable<String>(createdBy);
     map['purpose'] = Variable<String>(purpose);
     map['is_synced'] = Variable<bool>(isSynced);
+    map['is_deleted'] = Variable<bool>(isDeleted);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
   }
@@ -682,6 +787,7 @@ class Tour extends DataClass implements Insertable<Tour> {
       createdBy: Value(createdBy),
       purpose: Value(purpose),
       isSynced: Value(isSynced),
+      isDeleted: Value(isDeleted),
       updatedAt: Value(updatedAt),
     );
   }
@@ -698,6 +804,7 @@ class Tour extends DataClass implements Insertable<Tour> {
       createdBy: serializer.fromJson<String>(json['createdBy']),
       purpose: serializer.fromJson<String>(json['purpose']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
   }
@@ -713,6 +820,7 @@ class Tour extends DataClass implements Insertable<Tour> {
       'createdBy': serializer.toJson<String>(createdBy),
       'purpose': serializer.toJson<String>(purpose),
       'isSynced': serializer.toJson<bool>(isSynced),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
   }
@@ -726,6 +834,7 @@ class Tour extends DataClass implements Insertable<Tour> {
           String? createdBy,
           String? purpose,
           bool? isSynced,
+          bool? isDeleted,
           DateTime? updatedAt}) =>
       Tour(
         id: id ?? this.id,
@@ -736,6 +845,7 @@ class Tour extends DataClass implements Insertable<Tour> {
         createdBy: createdBy ?? this.createdBy,
         purpose: purpose ?? this.purpose,
         isSynced: isSynced ?? this.isSynced,
+        isDeleted: isDeleted ?? this.isDeleted,
         updatedAt: updatedAt ?? this.updatedAt,
       );
   Tour copyWithCompanion(ToursCompanion data) {
@@ -749,6 +859,7 @@ class Tour extends DataClass implements Insertable<Tour> {
       createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
       purpose: data.purpose.present ? data.purpose.value : this.purpose,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
   }
@@ -764,6 +875,7 @@ class Tour extends DataClass implements Insertable<Tour> {
           ..write('createdBy: $createdBy, ')
           ..write('purpose: $purpose, ')
           ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
@@ -771,7 +883,7 @@ class Tour extends DataClass implements Insertable<Tour> {
 
   @override
   int get hashCode => Object.hash(id, name, startDate, endDate, inviteCode,
-      createdBy, purpose, isSynced, updatedAt);
+      createdBy, purpose, isSynced, isDeleted, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -784,6 +896,7 @@ class Tour extends DataClass implements Insertable<Tour> {
           other.createdBy == this.createdBy &&
           other.purpose == this.purpose &&
           other.isSynced == this.isSynced &&
+          other.isDeleted == this.isDeleted &&
           other.updatedAt == this.updatedAt);
 }
 
@@ -796,6 +909,7 @@ class ToursCompanion extends UpdateCompanion<Tour> {
   final Value<String> createdBy;
   final Value<String> purpose;
   final Value<bool> isSynced;
+  final Value<bool> isDeleted;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
   const ToursCompanion({
@@ -807,6 +921,7 @@ class ToursCompanion extends UpdateCompanion<Tour> {
     this.createdBy = const Value.absent(),
     this.purpose = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -819,6 +934,7 @@ class ToursCompanion extends UpdateCompanion<Tour> {
     required String createdBy,
     this.purpose = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
@@ -833,6 +949,7 @@ class ToursCompanion extends UpdateCompanion<Tour> {
     Expression<String>? createdBy,
     Expression<String>? purpose,
     Expression<bool>? isSynced,
+    Expression<bool>? isDeleted,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
   }) {
@@ -845,6 +962,7 @@ class ToursCompanion extends UpdateCompanion<Tour> {
       if (createdBy != null) 'created_by': createdBy,
       if (purpose != null) 'purpose': purpose,
       if (isSynced != null) 'is_synced': isSynced,
+      if (isDeleted != null) 'is_deleted': isDeleted,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -859,6 +977,7 @@ class ToursCompanion extends UpdateCompanion<Tour> {
       Value<String>? createdBy,
       Value<String>? purpose,
       Value<bool>? isSynced,
+      Value<bool>? isDeleted,
       Value<DateTime>? updatedAt,
       Value<int>? rowid}) {
     return ToursCompanion(
@@ -870,6 +989,7 @@ class ToursCompanion extends UpdateCompanion<Tour> {
       createdBy: createdBy ?? this.createdBy,
       purpose: purpose ?? this.purpose,
       isSynced: isSynced ?? this.isSynced,
+      isDeleted: isDeleted ?? this.isDeleted,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -902,6 +1022,9 @@ class ToursCompanion extends UpdateCompanion<Tour> {
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
@@ -922,6 +1045,7 @@ class ToursCompanion extends UpdateCompanion<Tour> {
           ..write('createdBy: $createdBy, ')
           ..write('purpose: $purpose, ')
           ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -988,9 +1112,19 @@ class $TourMembersTable extends TourMembers
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _isDeletedMeta =
+      const VerificationMeta('isDeleted');
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+      'is_deleted', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_deleted" IN (0, 1))'),
+      defaultValue: const Constant(false));
   @override
   List<GeneratedColumn> get $columns =>
-      [tourId, userId, mealCount, leftAt, status, role, isSynced];
+      [tourId, userId, mealCount, leftAt, status, role, isSynced, isDeleted];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1033,6 +1167,10 @@ class $TourMembersTable extends TourMembers
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
     }
+    if (data.containsKey('is_deleted')) {
+      context.handle(_isDeletedMeta,
+          isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta));
+    }
     return context;
   }
 
@@ -1056,6 +1194,8 @@ class $TourMembersTable extends TourMembers
           .read(DriftSqlType.string, data['${effectivePrefix}role'])!,
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+      isDeleted: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_deleted'])!,
     );
   }
 
@@ -1073,6 +1213,7 @@ class TourMember extends DataClass implements Insertable<TourMember> {
   final String status;
   final String role;
   final bool isSynced;
+  final bool isDeleted;
   const TourMember(
       {required this.tourId,
       required this.userId,
@@ -1080,7 +1221,8 @@ class TourMember extends DataClass implements Insertable<TourMember> {
       this.leftAt,
       required this.status,
       required this.role,
-      required this.isSynced});
+      required this.isSynced,
+      required this.isDeleted});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1093,6 +1235,7 @@ class TourMember extends DataClass implements Insertable<TourMember> {
     map['status'] = Variable<String>(status);
     map['role'] = Variable<String>(role);
     map['is_synced'] = Variable<bool>(isSynced);
+    map['is_deleted'] = Variable<bool>(isDeleted);
     return map;
   }
 
@@ -1106,6 +1249,7 @@ class TourMember extends DataClass implements Insertable<TourMember> {
       status: Value(status),
       role: Value(role),
       isSynced: Value(isSynced),
+      isDeleted: Value(isDeleted),
     );
   }
 
@@ -1120,6 +1264,7 @@ class TourMember extends DataClass implements Insertable<TourMember> {
       status: serializer.fromJson<String>(json['status']),
       role: serializer.fromJson<String>(json['role']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
     );
   }
   @override
@@ -1133,6 +1278,7 @@ class TourMember extends DataClass implements Insertable<TourMember> {
       'status': serializer.toJson<String>(status),
       'role': serializer.toJson<String>(role),
       'isSynced': serializer.toJson<bool>(isSynced),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
     };
   }
 
@@ -1143,7 +1289,8 @@ class TourMember extends DataClass implements Insertable<TourMember> {
           Value<DateTime?> leftAt = const Value.absent(),
           String? status,
           String? role,
-          bool? isSynced}) =>
+          bool? isSynced,
+          bool? isDeleted}) =>
       TourMember(
         tourId: tourId ?? this.tourId,
         userId: userId ?? this.userId,
@@ -1152,6 +1299,7 @@ class TourMember extends DataClass implements Insertable<TourMember> {
         status: status ?? this.status,
         role: role ?? this.role,
         isSynced: isSynced ?? this.isSynced,
+        isDeleted: isDeleted ?? this.isDeleted,
       );
   TourMember copyWithCompanion(TourMembersCompanion data) {
     return TourMember(
@@ -1162,6 +1310,7 @@ class TourMember extends DataClass implements Insertable<TourMember> {
       status: data.status.present ? data.status.value : this.status,
       role: data.role.present ? data.role.value : this.role,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
     );
   }
 
@@ -1174,14 +1323,15 @@ class TourMember extends DataClass implements Insertable<TourMember> {
           ..write('leftAt: $leftAt, ')
           ..write('status: $status, ')
           ..write('role: $role, ')
-          ..write('isSynced: $isSynced')
+          ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(tourId, userId, mealCount, leftAt, status, role, isSynced);
+  int get hashCode => Object.hash(
+      tourId, userId, mealCount, leftAt, status, role, isSynced, isDeleted);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1192,7 +1342,8 @@ class TourMember extends DataClass implements Insertable<TourMember> {
           other.leftAt == this.leftAt &&
           other.status == this.status &&
           other.role == this.role &&
-          other.isSynced == this.isSynced);
+          other.isSynced == this.isSynced &&
+          other.isDeleted == this.isDeleted);
 }
 
 class TourMembersCompanion extends UpdateCompanion<TourMember> {
@@ -1203,6 +1354,7 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
   final Value<String> status;
   final Value<String> role;
   final Value<bool> isSynced;
+  final Value<bool> isDeleted;
   final Value<int> rowid;
   const TourMembersCompanion({
     this.tourId = const Value.absent(),
@@ -1212,6 +1364,7 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
     this.status = const Value.absent(),
     this.role = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TourMembersCompanion.insert({
@@ -1222,6 +1375,7 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
     this.status = const Value.absent(),
     this.role = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : tourId = Value(tourId),
         userId = Value(userId);
@@ -1233,6 +1387,7 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
     Expression<String>? status,
     Expression<String>? role,
     Expression<bool>? isSynced,
+    Expression<bool>? isDeleted,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1243,6 +1398,7 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
       if (status != null) 'status': status,
       if (role != null) 'role': role,
       if (isSynced != null) 'is_synced': isSynced,
+      if (isDeleted != null) 'is_deleted': isDeleted,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1255,6 +1411,7 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
       Value<String>? status,
       Value<String>? role,
       Value<bool>? isSynced,
+      Value<bool>? isDeleted,
       Value<int>? rowid}) {
     return TourMembersCompanion(
       tourId: tourId ?? this.tourId,
@@ -1264,6 +1421,7 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
       status: status ?? this.status,
       role: role ?? this.role,
       isSynced: isSynced ?? this.isSynced,
+      isDeleted: isDeleted ?? this.isDeleted,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1292,6 +1450,9 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1308,6 +1469,7 @@ class TourMembersCompanion extends UpdateCompanion<TourMember> {
           ..write('status: $status, ')
           ..write('role: $role, ')
           ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1373,6 +1535,16 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _isDeletedMeta =
+      const VerificationMeta('isDeleted');
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+      'is_deleted', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_deleted" IN (0, 1))'),
+      defaultValue: const Constant(false));
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -1391,6 +1563,7 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
         category,
         messCostType,
         isSynced,
+        isDeleted,
         createdAt
       ];
   @override
@@ -1446,6 +1619,10 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
     }
+    if (data.containsKey('is_deleted')) {
+      context.handle(_isDeletedMeta,
+          isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -1475,6 +1652,8 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
           .read(DriftSqlType.string, data['${effectivePrefix}mess_cost_type']),
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+      isDeleted: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_deleted'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
     );
@@ -1495,6 +1674,7 @@ class Expense extends DataClass implements Insertable<Expense> {
   final String category;
   final String? messCostType;
   final bool isSynced;
+  final bool isDeleted;
   final DateTime createdAt;
   const Expense(
       {required this.id,
@@ -1505,6 +1685,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       required this.category,
       this.messCostType,
       required this.isSynced,
+      required this.isDeleted,
       required this.createdAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1521,6 +1702,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       map['mess_cost_type'] = Variable<String>(messCostType);
     }
     map['is_synced'] = Variable<bool>(isSynced);
+    map['is_deleted'] = Variable<bool>(isDeleted);
     map['created_at'] = Variable<DateTime>(createdAt);
     return map;
   }
@@ -1539,6 +1721,7 @@ class Expense extends DataClass implements Insertable<Expense> {
           ? const Value.absent()
           : Value(messCostType),
       isSynced: Value(isSynced),
+      isDeleted: Value(isDeleted),
       createdAt: Value(createdAt),
     );
   }
@@ -1555,6 +1738,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       category: serializer.fromJson<String>(json['category']),
       messCostType: serializer.fromJson<String?>(json['messCostType']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
     );
   }
@@ -1570,6 +1754,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       'category': serializer.toJson<String>(category),
       'messCostType': serializer.toJson<String?>(messCostType),
       'isSynced': serializer.toJson<bool>(isSynced),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
       'createdAt': serializer.toJson<DateTime>(createdAt),
     };
   }
@@ -1583,6 +1768,7 @@ class Expense extends DataClass implements Insertable<Expense> {
           String? category,
           Value<String?> messCostType = const Value.absent(),
           bool? isSynced,
+          bool? isDeleted,
           DateTime? createdAt}) =>
       Expense(
         id: id ?? this.id,
@@ -1594,6 +1780,7 @@ class Expense extends DataClass implements Insertable<Expense> {
         messCostType:
             messCostType.present ? messCostType.value : this.messCostType,
         isSynced: isSynced ?? this.isSynced,
+        isDeleted: isDeleted ?? this.isDeleted,
         createdAt: createdAt ?? this.createdAt,
       );
   Expense copyWithCompanion(ExpensesCompanion data) {
@@ -1608,6 +1795,7 @@ class Expense extends DataClass implements Insertable<Expense> {
           ? data.messCostType.value
           : this.messCostType,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
     );
   }
@@ -1623,6 +1811,7 @@ class Expense extends DataClass implements Insertable<Expense> {
           ..write('category: $category, ')
           ..write('messCostType: $messCostType, ')
           ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted, ')
           ..write('createdAt: $createdAt')
           ..write(')'))
         .toString();
@@ -1630,7 +1819,7 @@ class Expense extends DataClass implements Insertable<Expense> {
 
   @override
   int get hashCode => Object.hash(id, tourId, payerId, amount, title, category,
-      messCostType, isSynced, createdAt);
+      messCostType, isSynced, isDeleted, createdAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1643,6 +1832,7 @@ class Expense extends DataClass implements Insertable<Expense> {
           other.category == this.category &&
           other.messCostType == this.messCostType &&
           other.isSynced == this.isSynced &&
+          other.isDeleted == this.isDeleted &&
           other.createdAt == this.createdAt);
 }
 
@@ -1655,6 +1845,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
   final Value<String> category;
   final Value<String?> messCostType;
   final Value<bool> isSynced;
+  final Value<bool> isDeleted;
   final Value<DateTime> createdAt;
   final Value<int> rowid;
   const ExpensesCompanion({
@@ -1666,6 +1857,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     this.category = const Value.absent(),
     this.messCostType = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -1678,6 +1870,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     required String category,
     this.messCostType = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
@@ -1694,6 +1887,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Expression<String>? category,
     Expression<String>? messCostType,
     Expression<bool>? isSynced,
+    Expression<bool>? isDeleted,
     Expression<DateTime>? createdAt,
     Expression<int>? rowid,
   }) {
@@ -1706,6 +1900,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       if (category != null) 'category': category,
       if (messCostType != null) 'mess_cost_type': messCostType,
       if (isSynced != null) 'is_synced': isSynced,
+      if (isDeleted != null) 'is_deleted': isDeleted,
       if (createdAt != null) 'created_at': createdAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -1720,6 +1915,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       Value<String>? category,
       Value<String?>? messCostType,
       Value<bool>? isSynced,
+      Value<bool>? isDeleted,
       Value<DateTime>? createdAt,
       Value<int>? rowid}) {
     return ExpensesCompanion(
@@ -1731,6 +1927,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       category: category ?? this.category,
       messCostType: messCostType ?? this.messCostType,
       isSynced: isSynced ?? this.isSynced,
+      isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt ?? this.createdAt,
       rowid: rowid ?? this.rowid,
     );
@@ -1763,6 +1960,9 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -1783,6 +1983,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
           ..write('category: $category, ')
           ..write('messCostType: $messCostType, ')
           ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted, ')
           ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -1833,9 +2034,19 @@ class $ExpenseSplitsTable extends ExpenseSplits
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _isDeletedMeta =
+      const VerificationMeta('isDeleted');
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+      'is_deleted', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_deleted" IN (0, 1))'),
+      defaultValue: const Constant(false));
   @override
   List<GeneratedColumn> get $columns =>
-      [id, expenseId, userId, amount, isSynced];
+      [id, expenseId, userId, amount, isSynced, isDeleted];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1873,6 +2084,10 @@ class $ExpenseSplitsTable extends ExpenseSplits
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
     }
+    if (data.containsKey('is_deleted')) {
+      context.handle(_isDeletedMeta,
+          isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta));
+    }
     return context;
   }
 
@@ -1892,6 +2107,8 @@ class $ExpenseSplitsTable extends ExpenseSplits
           .read(DriftSqlType.double, data['${effectivePrefix}amount'])!,
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+      isDeleted: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_deleted'])!,
     );
   }
 
@@ -1907,12 +2124,14 @@ class ExpenseSplit extends DataClass implements Insertable<ExpenseSplit> {
   final String userId;
   final double amount;
   final bool isSynced;
+  final bool isDeleted;
   const ExpenseSplit(
       {required this.id,
       required this.expenseId,
       required this.userId,
       required this.amount,
-      required this.isSynced});
+      required this.isSynced,
+      required this.isDeleted});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1921,6 +2140,7 @@ class ExpenseSplit extends DataClass implements Insertable<ExpenseSplit> {
     map['user_id'] = Variable<String>(userId);
     map['amount'] = Variable<double>(amount);
     map['is_synced'] = Variable<bool>(isSynced);
+    map['is_deleted'] = Variable<bool>(isDeleted);
     return map;
   }
 
@@ -1931,6 +2151,7 @@ class ExpenseSplit extends DataClass implements Insertable<ExpenseSplit> {
       userId: Value(userId),
       amount: Value(amount),
       isSynced: Value(isSynced),
+      isDeleted: Value(isDeleted),
     );
   }
 
@@ -1943,6 +2164,7 @@ class ExpenseSplit extends DataClass implements Insertable<ExpenseSplit> {
       userId: serializer.fromJson<String>(json['userId']),
       amount: serializer.fromJson<double>(json['amount']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
     );
   }
   @override
@@ -1954,6 +2176,7 @@ class ExpenseSplit extends DataClass implements Insertable<ExpenseSplit> {
       'userId': serializer.toJson<String>(userId),
       'amount': serializer.toJson<double>(amount),
       'isSynced': serializer.toJson<bool>(isSynced),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
     };
   }
 
@@ -1962,13 +2185,15 @@ class ExpenseSplit extends DataClass implements Insertable<ExpenseSplit> {
           String? expenseId,
           String? userId,
           double? amount,
-          bool? isSynced}) =>
+          bool? isSynced,
+          bool? isDeleted}) =>
       ExpenseSplit(
         id: id ?? this.id,
         expenseId: expenseId ?? this.expenseId,
         userId: userId ?? this.userId,
         amount: amount ?? this.amount,
         isSynced: isSynced ?? this.isSynced,
+        isDeleted: isDeleted ?? this.isDeleted,
       );
   ExpenseSplit copyWithCompanion(ExpenseSplitsCompanion data) {
     return ExpenseSplit(
@@ -1977,6 +2202,7 @@ class ExpenseSplit extends DataClass implements Insertable<ExpenseSplit> {
       userId: data.userId.present ? data.userId.value : this.userId,
       amount: data.amount.present ? data.amount.value : this.amount,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
     );
   }
 
@@ -1987,13 +2213,15 @@ class ExpenseSplit extends DataClass implements Insertable<ExpenseSplit> {
           ..write('expenseId: $expenseId, ')
           ..write('userId: $userId, ')
           ..write('amount: $amount, ')
-          ..write('isSynced: $isSynced')
+          ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, expenseId, userId, amount, isSynced);
+  int get hashCode =>
+      Object.hash(id, expenseId, userId, amount, isSynced, isDeleted);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2002,7 +2230,8 @@ class ExpenseSplit extends DataClass implements Insertable<ExpenseSplit> {
           other.expenseId == this.expenseId &&
           other.userId == this.userId &&
           other.amount == this.amount &&
-          other.isSynced == this.isSynced);
+          other.isSynced == this.isSynced &&
+          other.isDeleted == this.isDeleted);
 }
 
 class ExpenseSplitsCompanion extends UpdateCompanion<ExpenseSplit> {
@@ -2011,6 +2240,7 @@ class ExpenseSplitsCompanion extends UpdateCompanion<ExpenseSplit> {
   final Value<String> userId;
   final Value<double> amount;
   final Value<bool> isSynced;
+  final Value<bool> isDeleted;
   final Value<int> rowid;
   const ExpenseSplitsCompanion({
     this.id = const Value.absent(),
@@ -2018,6 +2248,7 @@ class ExpenseSplitsCompanion extends UpdateCompanion<ExpenseSplit> {
     this.userId = const Value.absent(),
     this.amount = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ExpenseSplitsCompanion.insert({
@@ -2026,6 +2257,7 @@ class ExpenseSplitsCompanion extends UpdateCompanion<ExpenseSplit> {
     required String userId,
     required double amount,
     this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         expenseId = Value(expenseId),
@@ -2037,6 +2269,7 @@ class ExpenseSplitsCompanion extends UpdateCompanion<ExpenseSplit> {
     Expression<String>? userId,
     Expression<double>? amount,
     Expression<bool>? isSynced,
+    Expression<bool>? isDeleted,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2045,6 +2278,7 @@ class ExpenseSplitsCompanion extends UpdateCompanion<ExpenseSplit> {
       if (userId != null) 'user_id': userId,
       if (amount != null) 'amount': amount,
       if (isSynced != null) 'is_synced': isSynced,
+      if (isDeleted != null) 'is_deleted': isDeleted,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2055,6 +2289,7 @@ class ExpenseSplitsCompanion extends UpdateCompanion<ExpenseSplit> {
       Value<String>? userId,
       Value<double>? amount,
       Value<bool>? isSynced,
+      Value<bool>? isDeleted,
       Value<int>? rowid}) {
     return ExpenseSplitsCompanion(
       id: id ?? this.id,
@@ -2062,6 +2297,7 @@ class ExpenseSplitsCompanion extends UpdateCompanion<ExpenseSplit> {
       userId: userId ?? this.userId,
       amount: amount ?? this.amount,
       isSynced: isSynced ?? this.isSynced,
+      isDeleted: isDeleted ?? this.isDeleted,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2084,6 +2320,9 @@ class ExpenseSplitsCompanion extends UpdateCompanion<ExpenseSplit> {
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2098,6 +2337,7 @@ class ExpenseSplitsCompanion extends UpdateCompanion<ExpenseSplit> {
           ..write('userId: $userId, ')
           ..write('amount: $amount, ')
           ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2147,9 +2387,19 @@ class $ExpensePayersTable extends ExpensePayers
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _isDeletedMeta =
+      const VerificationMeta('isDeleted');
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+      'is_deleted', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_deleted" IN (0, 1))'),
+      defaultValue: const Constant(false));
   @override
   List<GeneratedColumn> get $columns =>
-      [id, expenseId, userId, amount, isSynced];
+      [id, expenseId, userId, amount, isSynced, isDeleted];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2187,6 +2437,10 @@ class $ExpensePayersTable extends ExpensePayers
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
     }
+    if (data.containsKey('is_deleted')) {
+      context.handle(_isDeletedMeta,
+          isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta));
+    }
     return context;
   }
 
@@ -2206,6 +2460,8 @@ class $ExpensePayersTable extends ExpensePayers
           .read(DriftSqlType.double, data['${effectivePrefix}amount'])!,
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+      isDeleted: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_deleted'])!,
     );
   }
 
@@ -2221,12 +2477,14 @@ class ExpensePayer extends DataClass implements Insertable<ExpensePayer> {
   final String userId;
   final double amount;
   final bool isSynced;
+  final bool isDeleted;
   const ExpensePayer(
       {required this.id,
       required this.expenseId,
       required this.userId,
       required this.amount,
-      required this.isSynced});
+      required this.isSynced,
+      required this.isDeleted});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2235,6 +2493,7 @@ class ExpensePayer extends DataClass implements Insertable<ExpensePayer> {
     map['user_id'] = Variable<String>(userId);
     map['amount'] = Variable<double>(amount);
     map['is_synced'] = Variable<bool>(isSynced);
+    map['is_deleted'] = Variable<bool>(isDeleted);
     return map;
   }
 
@@ -2245,6 +2504,7 @@ class ExpensePayer extends DataClass implements Insertable<ExpensePayer> {
       userId: Value(userId),
       amount: Value(amount),
       isSynced: Value(isSynced),
+      isDeleted: Value(isDeleted),
     );
   }
 
@@ -2257,6 +2517,7 @@ class ExpensePayer extends DataClass implements Insertable<ExpensePayer> {
       userId: serializer.fromJson<String>(json['userId']),
       amount: serializer.fromJson<double>(json['amount']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
     );
   }
   @override
@@ -2268,6 +2529,7 @@ class ExpensePayer extends DataClass implements Insertable<ExpensePayer> {
       'userId': serializer.toJson<String>(userId),
       'amount': serializer.toJson<double>(amount),
       'isSynced': serializer.toJson<bool>(isSynced),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
     };
   }
 
@@ -2276,13 +2538,15 @@ class ExpensePayer extends DataClass implements Insertable<ExpensePayer> {
           String? expenseId,
           String? userId,
           double? amount,
-          bool? isSynced}) =>
+          bool? isSynced,
+          bool? isDeleted}) =>
       ExpensePayer(
         id: id ?? this.id,
         expenseId: expenseId ?? this.expenseId,
         userId: userId ?? this.userId,
         amount: amount ?? this.amount,
         isSynced: isSynced ?? this.isSynced,
+        isDeleted: isDeleted ?? this.isDeleted,
       );
   ExpensePayer copyWithCompanion(ExpensePayersCompanion data) {
     return ExpensePayer(
@@ -2291,6 +2555,7 @@ class ExpensePayer extends DataClass implements Insertable<ExpensePayer> {
       userId: data.userId.present ? data.userId.value : this.userId,
       amount: data.amount.present ? data.amount.value : this.amount,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
     );
   }
 
@@ -2301,13 +2566,15 @@ class ExpensePayer extends DataClass implements Insertable<ExpensePayer> {
           ..write('expenseId: $expenseId, ')
           ..write('userId: $userId, ')
           ..write('amount: $amount, ')
-          ..write('isSynced: $isSynced')
+          ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, expenseId, userId, amount, isSynced);
+  int get hashCode =>
+      Object.hash(id, expenseId, userId, amount, isSynced, isDeleted);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2316,7 +2583,8 @@ class ExpensePayer extends DataClass implements Insertable<ExpensePayer> {
           other.expenseId == this.expenseId &&
           other.userId == this.userId &&
           other.amount == this.amount &&
-          other.isSynced == this.isSynced);
+          other.isSynced == this.isSynced &&
+          other.isDeleted == this.isDeleted);
 }
 
 class ExpensePayersCompanion extends UpdateCompanion<ExpensePayer> {
@@ -2325,6 +2593,7 @@ class ExpensePayersCompanion extends UpdateCompanion<ExpensePayer> {
   final Value<String> userId;
   final Value<double> amount;
   final Value<bool> isSynced;
+  final Value<bool> isDeleted;
   final Value<int> rowid;
   const ExpensePayersCompanion({
     this.id = const Value.absent(),
@@ -2332,6 +2601,7 @@ class ExpensePayersCompanion extends UpdateCompanion<ExpensePayer> {
     this.userId = const Value.absent(),
     this.amount = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ExpensePayersCompanion.insert({
@@ -2340,6 +2610,7 @@ class ExpensePayersCompanion extends UpdateCompanion<ExpensePayer> {
     required String userId,
     required double amount,
     this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         expenseId = Value(expenseId),
@@ -2351,6 +2622,7 @@ class ExpensePayersCompanion extends UpdateCompanion<ExpensePayer> {
     Expression<String>? userId,
     Expression<double>? amount,
     Expression<bool>? isSynced,
+    Expression<bool>? isDeleted,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2359,6 +2631,7 @@ class ExpensePayersCompanion extends UpdateCompanion<ExpensePayer> {
       if (userId != null) 'user_id': userId,
       if (amount != null) 'amount': amount,
       if (isSynced != null) 'is_synced': isSynced,
+      if (isDeleted != null) 'is_deleted': isDeleted,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2369,6 +2642,7 @@ class ExpensePayersCompanion extends UpdateCompanion<ExpensePayer> {
       Value<String>? userId,
       Value<double>? amount,
       Value<bool>? isSynced,
+      Value<bool>? isDeleted,
       Value<int>? rowid}) {
     return ExpensePayersCompanion(
       id: id ?? this.id,
@@ -2376,6 +2650,7 @@ class ExpensePayersCompanion extends UpdateCompanion<ExpensePayer> {
       userId: userId ?? this.userId,
       amount: amount ?? this.amount,
       isSynced: isSynced ?? this.isSynced,
+      isDeleted: isDeleted ?? this.isDeleted,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2398,6 +2673,9 @@ class ExpensePayersCompanion extends UpdateCompanion<ExpensePayer> {
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2412,6 +2690,7 @@ class ExpensePayersCompanion extends UpdateCompanion<ExpensePayer> {
           ..write('userId: $userId, ')
           ..write('amount: $amount, ')
           ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2475,9 +2754,19 @@ class $SettlementsTable extends Settlements
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _isDeletedMeta =
+      const VerificationMeta('isDeleted');
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+      'is_deleted', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_deleted" IN (0, 1))'),
+      defaultValue: const Constant(false));
   @override
   List<GeneratedColumn> get $columns =>
-      [id, tourId, fromId, toId, amount, date, isSynced];
+      [id, tourId, fromId, toId, amount, date, isSynced, isDeleted];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2525,6 +2814,10 @@ class $SettlementsTable extends Settlements
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
     }
+    if (data.containsKey('is_deleted')) {
+      context.handle(_isDeletedMeta,
+          isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta));
+    }
     return context;
   }
 
@@ -2548,6 +2841,8 @@ class $SettlementsTable extends Settlements
           .read(DriftSqlType.dateTime, data['${effectivePrefix}date'])!,
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+      isDeleted: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_deleted'])!,
     );
   }
 
@@ -2565,6 +2860,7 @@ class Settlement extends DataClass implements Insertable<Settlement> {
   final double amount;
   final DateTime date;
   final bool isSynced;
+  final bool isDeleted;
   const Settlement(
       {required this.id,
       required this.tourId,
@@ -2572,7 +2868,8 @@ class Settlement extends DataClass implements Insertable<Settlement> {
       required this.toId,
       required this.amount,
       required this.date,
-      required this.isSynced});
+      required this.isSynced,
+      required this.isDeleted});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2583,6 +2880,7 @@ class Settlement extends DataClass implements Insertable<Settlement> {
     map['amount'] = Variable<double>(amount);
     map['date'] = Variable<DateTime>(date);
     map['is_synced'] = Variable<bool>(isSynced);
+    map['is_deleted'] = Variable<bool>(isDeleted);
     return map;
   }
 
@@ -2595,6 +2893,7 @@ class Settlement extends DataClass implements Insertable<Settlement> {
       amount: Value(amount),
       date: Value(date),
       isSynced: Value(isSynced),
+      isDeleted: Value(isDeleted),
     );
   }
 
@@ -2609,6 +2908,7 @@ class Settlement extends DataClass implements Insertable<Settlement> {
       amount: serializer.fromJson<double>(json['amount']),
       date: serializer.fromJson<DateTime>(json['date']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
     );
   }
   @override
@@ -2622,6 +2922,7 @@ class Settlement extends DataClass implements Insertable<Settlement> {
       'amount': serializer.toJson<double>(amount),
       'date': serializer.toJson<DateTime>(date),
       'isSynced': serializer.toJson<bool>(isSynced),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
     };
   }
 
@@ -2632,7 +2933,8 @@ class Settlement extends DataClass implements Insertable<Settlement> {
           String? toId,
           double? amount,
           DateTime? date,
-          bool? isSynced}) =>
+          bool? isSynced,
+          bool? isDeleted}) =>
       Settlement(
         id: id ?? this.id,
         tourId: tourId ?? this.tourId,
@@ -2641,6 +2943,7 @@ class Settlement extends DataClass implements Insertable<Settlement> {
         amount: amount ?? this.amount,
         date: date ?? this.date,
         isSynced: isSynced ?? this.isSynced,
+        isDeleted: isDeleted ?? this.isDeleted,
       );
   Settlement copyWithCompanion(SettlementsCompanion data) {
     return Settlement(
@@ -2651,6 +2954,7 @@ class Settlement extends DataClass implements Insertable<Settlement> {
       amount: data.amount.present ? data.amount.value : this.amount,
       date: data.date.present ? data.date.value : this.date,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
     );
   }
 
@@ -2663,14 +2967,15 @@ class Settlement extends DataClass implements Insertable<Settlement> {
           ..write('toId: $toId, ')
           ..write('amount: $amount, ')
           ..write('date: $date, ')
-          ..write('isSynced: $isSynced')
+          ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted')
           ..write(')'))
         .toString();
   }
 
   @override
   int get hashCode =>
-      Object.hash(id, tourId, fromId, toId, amount, date, isSynced);
+      Object.hash(id, tourId, fromId, toId, amount, date, isSynced, isDeleted);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2681,7 +2986,8 @@ class Settlement extends DataClass implements Insertable<Settlement> {
           other.toId == this.toId &&
           other.amount == this.amount &&
           other.date == this.date &&
-          other.isSynced == this.isSynced);
+          other.isSynced == this.isSynced &&
+          other.isDeleted == this.isDeleted);
 }
 
 class SettlementsCompanion extends UpdateCompanion<Settlement> {
@@ -2692,6 +2998,7 @@ class SettlementsCompanion extends UpdateCompanion<Settlement> {
   final Value<double> amount;
   final Value<DateTime> date;
   final Value<bool> isSynced;
+  final Value<bool> isDeleted;
   final Value<int> rowid;
   const SettlementsCompanion({
     this.id = const Value.absent(),
@@ -2701,6 +3008,7 @@ class SettlementsCompanion extends UpdateCompanion<Settlement> {
     this.amount = const Value.absent(),
     this.date = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SettlementsCompanion.insert({
@@ -2711,6 +3019,7 @@ class SettlementsCompanion extends UpdateCompanion<Settlement> {
     required double amount,
     this.date = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         tourId = Value(tourId),
@@ -2725,6 +3034,7 @@ class SettlementsCompanion extends UpdateCompanion<Settlement> {
     Expression<double>? amount,
     Expression<DateTime>? date,
     Expression<bool>? isSynced,
+    Expression<bool>? isDeleted,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2735,6 +3045,7 @@ class SettlementsCompanion extends UpdateCompanion<Settlement> {
       if (amount != null) 'amount': amount,
       if (date != null) 'date': date,
       if (isSynced != null) 'is_synced': isSynced,
+      if (isDeleted != null) 'is_deleted': isDeleted,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2747,6 +3058,7 @@ class SettlementsCompanion extends UpdateCompanion<Settlement> {
       Value<double>? amount,
       Value<DateTime>? date,
       Value<bool>? isSynced,
+      Value<bool>? isDeleted,
       Value<int>? rowid}) {
     return SettlementsCompanion(
       id: id ?? this.id,
@@ -2756,6 +3068,7 @@ class SettlementsCompanion extends UpdateCompanion<Settlement> {
       amount: amount ?? this.amount,
       date: date ?? this.date,
       isSynced: isSynced ?? this.isSynced,
+      isDeleted: isDeleted ?? this.isDeleted,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2784,6 +3097,9 @@ class SettlementsCompanion extends UpdateCompanion<Settlement> {
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2800,6 +3116,7 @@ class SettlementsCompanion extends UpdateCompanion<Settlement> {
           ..write('amount: $amount, ')
           ..write('date: $date, ')
           ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2867,9 +3184,28 @@ class $ProgramIncomesTable extends ProgramIncomes
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _isDeletedMeta =
+      const VerificationMeta('isDeleted');
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, tourId, amount, source, description, collectedBy, date, isSynced];
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+      'is_deleted', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_deleted" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        tourId,
+        amount,
+        source,
+        description,
+        collectedBy,
+        date,
+        isSynced,
+        isDeleted
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2925,6 +3261,10 @@ class $ProgramIncomesTable extends ProgramIncomes
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
     }
+    if (data.containsKey('is_deleted')) {
+      context.handle(_isDeletedMeta,
+          isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta));
+    }
     return context;
   }
 
@@ -2950,6 +3290,8 @@ class $ProgramIncomesTable extends ProgramIncomes
           .read(DriftSqlType.dateTime, data['${effectivePrefix}date'])!,
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+      isDeleted: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_deleted'])!,
     );
   }
 
@@ -2968,6 +3310,7 @@ class ProgramIncome extends DataClass implements Insertable<ProgramIncome> {
   final String collectedBy;
   final DateTime date;
   final bool isSynced;
+  final bool isDeleted;
   const ProgramIncome(
       {required this.id,
       required this.tourId,
@@ -2976,7 +3319,8 @@ class ProgramIncome extends DataClass implements Insertable<ProgramIncome> {
       this.description,
       required this.collectedBy,
       required this.date,
-      required this.isSynced});
+      required this.isSynced,
+      required this.isDeleted});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -2990,6 +3334,7 @@ class ProgramIncome extends DataClass implements Insertable<ProgramIncome> {
     map['collected_by'] = Variable<String>(collectedBy);
     map['date'] = Variable<DateTime>(date);
     map['is_synced'] = Variable<bool>(isSynced);
+    map['is_deleted'] = Variable<bool>(isDeleted);
     return map;
   }
 
@@ -3005,6 +3350,7 @@ class ProgramIncome extends DataClass implements Insertable<ProgramIncome> {
       collectedBy: Value(collectedBy),
       date: Value(date),
       isSynced: Value(isSynced),
+      isDeleted: Value(isDeleted),
     );
   }
 
@@ -3020,6 +3366,7 @@ class ProgramIncome extends DataClass implements Insertable<ProgramIncome> {
       collectedBy: serializer.fromJson<String>(json['collectedBy']),
       date: serializer.fromJson<DateTime>(json['date']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
     );
   }
   @override
@@ -3034,6 +3381,7 @@ class ProgramIncome extends DataClass implements Insertable<ProgramIncome> {
       'collectedBy': serializer.toJson<String>(collectedBy),
       'date': serializer.toJson<DateTime>(date),
       'isSynced': serializer.toJson<bool>(isSynced),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
     };
   }
 
@@ -3045,7 +3393,8 @@ class ProgramIncome extends DataClass implements Insertable<ProgramIncome> {
           Value<String?> description = const Value.absent(),
           String? collectedBy,
           DateTime? date,
-          bool? isSynced}) =>
+          bool? isSynced,
+          bool? isDeleted}) =>
       ProgramIncome(
         id: id ?? this.id,
         tourId: tourId ?? this.tourId,
@@ -3055,6 +3404,7 @@ class ProgramIncome extends DataClass implements Insertable<ProgramIncome> {
         collectedBy: collectedBy ?? this.collectedBy,
         date: date ?? this.date,
         isSynced: isSynced ?? this.isSynced,
+        isDeleted: isDeleted ?? this.isDeleted,
       );
   ProgramIncome copyWithCompanion(ProgramIncomesCompanion data) {
     return ProgramIncome(
@@ -3068,6 +3418,7 @@ class ProgramIncome extends DataClass implements Insertable<ProgramIncome> {
           data.collectedBy.present ? data.collectedBy.value : this.collectedBy,
       date: data.date.present ? data.date.value : this.date,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
     );
   }
 
@@ -3081,14 +3432,15 @@ class ProgramIncome extends DataClass implements Insertable<ProgramIncome> {
           ..write('description: $description, ')
           ..write('collectedBy: $collectedBy, ')
           ..write('date: $date, ')
-          ..write('isSynced: $isSynced')
+          ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-      id, tourId, amount, source, description, collectedBy, date, isSynced);
+  int get hashCode => Object.hash(id, tourId, amount, source, description,
+      collectedBy, date, isSynced, isDeleted);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3100,7 +3452,8 @@ class ProgramIncome extends DataClass implements Insertable<ProgramIncome> {
           other.description == this.description &&
           other.collectedBy == this.collectedBy &&
           other.date == this.date &&
-          other.isSynced == this.isSynced);
+          other.isSynced == this.isSynced &&
+          other.isDeleted == this.isDeleted);
 }
 
 class ProgramIncomesCompanion extends UpdateCompanion<ProgramIncome> {
@@ -3112,6 +3465,7 @@ class ProgramIncomesCompanion extends UpdateCompanion<ProgramIncome> {
   final Value<String> collectedBy;
   final Value<DateTime> date;
   final Value<bool> isSynced;
+  final Value<bool> isDeleted;
   final Value<int> rowid;
   const ProgramIncomesCompanion({
     this.id = const Value.absent(),
@@ -3122,6 +3476,7 @@ class ProgramIncomesCompanion extends UpdateCompanion<ProgramIncome> {
     this.collectedBy = const Value.absent(),
     this.date = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ProgramIncomesCompanion.insert({
@@ -3133,6 +3488,7 @@ class ProgramIncomesCompanion extends UpdateCompanion<ProgramIncome> {
     required String collectedBy,
     this.date = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         tourId = Value(tourId),
@@ -3148,6 +3504,7 @@ class ProgramIncomesCompanion extends UpdateCompanion<ProgramIncome> {
     Expression<String>? collectedBy,
     Expression<DateTime>? date,
     Expression<bool>? isSynced,
+    Expression<bool>? isDeleted,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3159,6 +3516,7 @@ class ProgramIncomesCompanion extends UpdateCompanion<ProgramIncome> {
       if (collectedBy != null) 'collected_by': collectedBy,
       if (date != null) 'date': date,
       if (isSynced != null) 'is_synced': isSynced,
+      if (isDeleted != null) 'is_deleted': isDeleted,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3172,6 +3530,7 @@ class ProgramIncomesCompanion extends UpdateCompanion<ProgramIncome> {
       Value<String>? collectedBy,
       Value<DateTime>? date,
       Value<bool>? isSynced,
+      Value<bool>? isDeleted,
       Value<int>? rowid}) {
     return ProgramIncomesCompanion(
       id: id ?? this.id,
@@ -3182,6 +3541,7 @@ class ProgramIncomesCompanion extends UpdateCompanion<ProgramIncome> {
       collectedBy: collectedBy ?? this.collectedBy,
       date: date ?? this.date,
       isSynced: isSynced ?? this.isSynced,
+      isDeleted: isDeleted ?? this.isDeleted,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3213,6 +3573,9 @@ class ProgramIncomesCompanion extends UpdateCompanion<ProgramIncome> {
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3230,6 +3593,7 @@ class ProgramIncomesCompanion extends UpdateCompanion<ProgramIncome> {
           ..write('collectedBy: $collectedBy, ')
           ..write('date: $date, ')
           ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3283,9 +3647,19 @@ class $MealRecordsTable extends MealRecords
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _isDeletedMeta =
+      const VerificationMeta('isDeleted');
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+      'is_deleted', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_deleted" IN (0, 1))'),
+      defaultValue: const Constant(false));
   @override
   List<GeneratedColumn> get $columns =>
-      [id, tourId, userId, date, count, isSynced];
+      [id, tourId, userId, date, count, isSynced, isDeleted];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -3329,6 +3703,10 @@ class $MealRecordsTable extends MealRecords
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
     }
+    if (data.containsKey('is_deleted')) {
+      context.handle(_isDeletedMeta,
+          isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta));
+    }
     return context;
   }
 
@@ -3350,6 +3728,8 @@ class $MealRecordsTable extends MealRecords
           .read(DriftSqlType.double, data['${effectivePrefix}count'])!,
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+      isDeleted: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_deleted'])!,
     );
   }
 
@@ -3366,13 +3746,15 @@ class MealRecord extends DataClass implements Insertable<MealRecord> {
   final DateTime date;
   final double count;
   final bool isSynced;
+  final bool isDeleted;
   const MealRecord(
       {required this.id,
       required this.tourId,
       required this.userId,
       required this.date,
       required this.count,
-      required this.isSynced});
+      required this.isSynced,
+      required this.isDeleted});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -3382,6 +3764,7 @@ class MealRecord extends DataClass implements Insertable<MealRecord> {
     map['date'] = Variable<DateTime>(date);
     map['count'] = Variable<double>(count);
     map['is_synced'] = Variable<bool>(isSynced);
+    map['is_deleted'] = Variable<bool>(isDeleted);
     return map;
   }
 
@@ -3393,6 +3776,7 @@ class MealRecord extends DataClass implements Insertable<MealRecord> {
       date: Value(date),
       count: Value(count),
       isSynced: Value(isSynced),
+      isDeleted: Value(isDeleted),
     );
   }
 
@@ -3406,6 +3790,7 @@ class MealRecord extends DataClass implements Insertable<MealRecord> {
       date: serializer.fromJson<DateTime>(json['date']),
       count: serializer.fromJson<double>(json['count']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
     );
   }
   @override
@@ -3418,6 +3803,7 @@ class MealRecord extends DataClass implements Insertable<MealRecord> {
       'date': serializer.toJson<DateTime>(date),
       'count': serializer.toJson<double>(count),
       'isSynced': serializer.toJson<bool>(isSynced),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
     };
   }
 
@@ -3427,7 +3813,8 @@ class MealRecord extends DataClass implements Insertable<MealRecord> {
           String? userId,
           DateTime? date,
           double? count,
-          bool? isSynced}) =>
+          bool? isSynced,
+          bool? isDeleted}) =>
       MealRecord(
         id: id ?? this.id,
         tourId: tourId ?? this.tourId,
@@ -3435,6 +3822,7 @@ class MealRecord extends DataClass implements Insertable<MealRecord> {
         date: date ?? this.date,
         count: count ?? this.count,
         isSynced: isSynced ?? this.isSynced,
+        isDeleted: isDeleted ?? this.isDeleted,
       );
   MealRecord copyWithCompanion(MealRecordsCompanion data) {
     return MealRecord(
@@ -3444,6 +3832,7 @@ class MealRecord extends DataClass implements Insertable<MealRecord> {
       date: data.date.present ? data.date.value : this.date,
       count: data.count.present ? data.count.value : this.count,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
     );
   }
 
@@ -3455,13 +3844,15 @@ class MealRecord extends DataClass implements Insertable<MealRecord> {
           ..write('userId: $userId, ')
           ..write('date: $date, ')
           ..write('count: $count, ')
-          ..write('isSynced: $isSynced')
+          ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, tourId, userId, date, count, isSynced);
+  int get hashCode =>
+      Object.hash(id, tourId, userId, date, count, isSynced, isDeleted);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -3471,7 +3862,8 @@ class MealRecord extends DataClass implements Insertable<MealRecord> {
           other.userId == this.userId &&
           other.date == this.date &&
           other.count == this.count &&
-          other.isSynced == this.isSynced);
+          other.isSynced == this.isSynced &&
+          other.isDeleted == this.isDeleted);
 }
 
 class MealRecordsCompanion extends UpdateCompanion<MealRecord> {
@@ -3481,6 +3873,7 @@ class MealRecordsCompanion extends UpdateCompanion<MealRecord> {
   final Value<DateTime> date;
   final Value<double> count;
   final Value<bool> isSynced;
+  final Value<bool> isDeleted;
   final Value<int> rowid;
   const MealRecordsCompanion({
     this.id = const Value.absent(),
@@ -3489,6 +3882,7 @@ class MealRecordsCompanion extends UpdateCompanion<MealRecord> {
     this.date = const Value.absent(),
     this.count = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   MealRecordsCompanion.insert({
@@ -3498,6 +3892,7 @@ class MealRecordsCompanion extends UpdateCompanion<MealRecord> {
     required DateTime date,
     required double count,
     this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         tourId = Value(tourId),
@@ -3511,6 +3906,7 @@ class MealRecordsCompanion extends UpdateCompanion<MealRecord> {
     Expression<DateTime>? date,
     Expression<double>? count,
     Expression<bool>? isSynced,
+    Expression<bool>? isDeleted,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -3520,6 +3916,7 @@ class MealRecordsCompanion extends UpdateCompanion<MealRecord> {
       if (date != null) 'date': date,
       if (count != null) 'count': count,
       if (isSynced != null) 'is_synced': isSynced,
+      if (isDeleted != null) 'is_deleted': isDeleted,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -3531,6 +3928,7 @@ class MealRecordsCompanion extends UpdateCompanion<MealRecord> {
       Value<DateTime>? date,
       Value<double>? count,
       Value<bool>? isSynced,
+      Value<bool>? isDeleted,
       Value<int>? rowid}) {
     return MealRecordsCompanion(
       id: id ?? this.id,
@@ -3539,6 +3937,7 @@ class MealRecordsCompanion extends UpdateCompanion<MealRecord> {
       date: date ?? this.date,
       count: count ?? this.count,
       isSynced: isSynced ?? this.isSynced,
+      isDeleted: isDeleted ?? this.isDeleted,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -3564,6 +3963,9 @@ class MealRecordsCompanion extends UpdateCompanion<MealRecord> {
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -3579,6 +3981,7 @@ class MealRecordsCompanion extends UpdateCompanion<MealRecord> {
           ..write('date: $date, ')
           ..write('count: $count, ')
           ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3826,9 +4229,19 @@ class $JoinRequestsTable extends JoinRequests
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _isDeletedMeta =
+      const VerificationMeta('isDeleted');
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+      'is_deleted', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_deleted" IN (0, 1))'),
+      defaultValue: const Constant(false));
   @override
   List<GeneratedColumn> get $columns =>
-      [id, tourId, userId, userName, status, isSynced];
+      [id, tourId, userId, userName, status, isSynced, isDeleted];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -3870,6 +4283,10 @@ class $JoinRequestsTable extends JoinRequests
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
     }
+    if (data.containsKey('is_deleted')) {
+      context.handle(_isDeletedMeta,
+          isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta));
+    }
     return context;
   }
 
@@ -3891,6 +4308,8 @@ class $JoinRequestsTable extends JoinRequests
           .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+      isDeleted: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_deleted'])!,
     );
   }
 
@@ -3907,13 +4326,15 @@ class JoinRequest extends DataClass implements Insertable<JoinRequest> {
   final String userName;
   final String status;
   final bool isSynced;
+  final bool isDeleted;
   const JoinRequest(
       {required this.id,
       required this.tourId,
       required this.userId,
       required this.userName,
       required this.status,
-      required this.isSynced});
+      required this.isSynced,
+      required this.isDeleted});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -3923,6 +4344,7 @@ class JoinRequest extends DataClass implements Insertable<JoinRequest> {
     map['user_name'] = Variable<String>(userName);
     map['status'] = Variable<String>(status);
     map['is_synced'] = Variable<bool>(isSynced);
+    map['is_deleted'] = Variable<bool>(isDeleted);
     return map;
   }
 
@@ -3934,6 +4356,7 @@ class JoinRequest extends DataClass implements Insertable<JoinRequest> {
       userName: Value(userName),
       status: Value(status),
       isSynced: Value(isSynced),
+      isDeleted: Value(isDeleted),
     );
   }
 
@@ -3947,6 +4370,7 @@ class JoinRequest extends DataClass implements Insertable<JoinRequest> {
       userName: serializer.fromJson<String>(json['userName']),
       status: serializer.fromJson<String>(json['status']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
     );
   }
   @override
@@ -3959,6 +4383,7 @@ class JoinRequest extends DataClass implements Insertable<JoinRequest> {
       'userName': serializer.toJson<String>(userName),
       'status': serializer.toJson<String>(status),
       'isSynced': serializer.toJson<bool>(isSynced),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
     };
   }
 
@@ -3968,7 +4393,8 @@ class JoinRequest extends DataClass implements Insertable<JoinRequest> {
           String? userId,
           String? userName,
           String? status,
-          bool? isSynced}) =>
+          bool? isSynced,
+          bool? isDeleted}) =>
       JoinRequest(
         id: id ?? this.id,
         tourId: tourId ?? this.tourId,
@@ -3976,6 +4402,7 @@ class JoinRequest extends DataClass implements Insertable<JoinRequest> {
         userName: userName ?? this.userName,
         status: status ?? this.status,
         isSynced: isSynced ?? this.isSynced,
+        isDeleted: isDeleted ?? this.isDeleted,
       );
   JoinRequest copyWithCompanion(JoinRequestsCompanion data) {
     return JoinRequest(
@@ -3985,6 +4412,7 @@ class JoinRequest extends DataClass implements Insertable<JoinRequest> {
       userName: data.userName.present ? data.userName.value : this.userName,
       status: data.status.present ? data.status.value : this.status,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
     );
   }
 
@@ -3996,14 +4424,15 @@ class JoinRequest extends DataClass implements Insertable<JoinRequest> {
           ..write('userId: $userId, ')
           ..write('userName: $userName, ')
           ..write('status: $status, ')
-          ..write('isSynced: $isSynced')
+          ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted')
           ..write(')'))
         .toString();
   }
 
   @override
   int get hashCode =>
-      Object.hash(id, tourId, userId, userName, status, isSynced);
+      Object.hash(id, tourId, userId, userName, status, isSynced, isDeleted);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4013,7 +4442,8 @@ class JoinRequest extends DataClass implements Insertable<JoinRequest> {
           other.userId == this.userId &&
           other.userName == this.userName &&
           other.status == this.status &&
-          other.isSynced == this.isSynced);
+          other.isSynced == this.isSynced &&
+          other.isDeleted == this.isDeleted);
 }
 
 class JoinRequestsCompanion extends UpdateCompanion<JoinRequest> {
@@ -4023,6 +4453,7 @@ class JoinRequestsCompanion extends UpdateCompanion<JoinRequest> {
   final Value<String> userName;
   final Value<String> status;
   final Value<bool> isSynced;
+  final Value<bool> isDeleted;
   final Value<int> rowid;
   const JoinRequestsCompanion({
     this.id = const Value.absent(),
@@ -4031,6 +4462,7 @@ class JoinRequestsCompanion extends UpdateCompanion<JoinRequest> {
     this.userName = const Value.absent(),
     this.status = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   JoinRequestsCompanion.insert({
@@ -4040,6 +4472,7 @@ class JoinRequestsCompanion extends UpdateCompanion<JoinRequest> {
     required String userName,
     this.status = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         tourId = Value(tourId),
@@ -4052,6 +4485,7 @@ class JoinRequestsCompanion extends UpdateCompanion<JoinRequest> {
     Expression<String>? userName,
     Expression<String>? status,
     Expression<bool>? isSynced,
+    Expression<bool>? isDeleted,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -4061,6 +4495,7 @@ class JoinRequestsCompanion extends UpdateCompanion<JoinRequest> {
       if (userName != null) 'user_name': userName,
       if (status != null) 'status': status,
       if (isSynced != null) 'is_synced': isSynced,
+      if (isDeleted != null) 'is_deleted': isDeleted,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -4072,6 +4507,7 @@ class JoinRequestsCompanion extends UpdateCompanion<JoinRequest> {
       Value<String>? userName,
       Value<String>? status,
       Value<bool>? isSynced,
+      Value<bool>? isDeleted,
       Value<int>? rowid}) {
     return JoinRequestsCompanion(
       id: id ?? this.id,
@@ -4080,6 +4516,7 @@ class JoinRequestsCompanion extends UpdateCompanion<JoinRequest> {
       userName: userName ?? this.userName,
       status: status ?? this.status,
       isSynced: isSynced ?? this.isSynced,
+      isDeleted: isDeleted ?? this.isDeleted,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -4105,6 +4542,9 @@ class JoinRequestsCompanion extends UpdateCompanion<JoinRequest> {
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -4120,6 +4560,7 @@ class JoinRequestsCompanion extends UpdateCompanion<JoinRequest> {
           ..write('userName: $userName, ')
           ..write('status: $status, ')
           ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -4168,6 +4609,8 @@ typedef $$UsersTableCreateCompanionBuilder = UsersCompanion Function({
   Value<String?> purpose,
   Value<bool> isMe,
   Value<bool> isSynced,
+  Value<bool> isDeleted,
+  Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
   Value<int> rowid,
 });
@@ -4180,6 +4623,8 @@ typedef $$UsersTableUpdateCompanionBuilder = UsersCompanion Function({
   Value<String?> purpose,
   Value<bool> isMe,
   Value<bool> isSynced,
+  Value<bool> isDeleted,
+  Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
   Value<int> rowid,
 });
@@ -4321,6 +4766,12 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
@@ -4506,6 +4957,12 @@ class $$UsersTableOrderingComposer
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
 }
@@ -4542,6 +4999,12 @@ class $$UsersTableAnnotationComposer
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
@@ -4732,6 +5195,8 @@ class $$UsersTableTableManager extends RootTableManager<
             Value<String?> purpose = const Value.absent(),
             Value<bool> isMe = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -4744,6 +5209,8 @@ class $$UsersTableTableManager extends RootTableManager<
             purpose: purpose,
             isMe: isMe,
             isSynced: isSynced,
+            isDeleted: isDeleted,
+            createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
           ),
@@ -4756,6 +5223,8 @@ class $$UsersTableTableManager extends RootTableManager<
             Value<String?> purpose = const Value.absent(),
             Value<bool> isMe = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -4768,6 +5237,8 @@ class $$UsersTableTableManager extends RootTableManager<
             purpose: purpose,
             isMe: isMe,
             isSynced: isSynced,
+            isDeleted: isDeleted,
+            createdAt: createdAt,
             updatedAt: updatedAt,
             rowid: rowid,
           ),
@@ -4915,6 +5386,7 @@ typedef $$ToursTableCreateCompanionBuilder = ToursCompanion Function({
   required String createdBy,
   Value<String> purpose,
   Value<bool> isSynced,
+  Value<bool> isDeleted,
   Value<DateTime> updatedAt,
   Value<int> rowid,
 });
@@ -4927,6 +5399,7 @@ typedef $$ToursTableUpdateCompanionBuilder = ToursCompanion Function({
   Value<String> createdBy,
   Value<String> purpose,
   Value<bool> isSynced,
+  Value<bool> isDeleted,
   Value<DateTime> updatedAt,
   Value<int> rowid,
 });
@@ -5052,6 +5525,9 @@ class $$ToursTableFilterComposer extends Composer<_$AppDatabase, $ToursTable> {
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
@@ -5216,6 +5692,9 @@ class $$ToursTableOrderingComposer
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
 }
@@ -5252,6 +5731,9 @@ class $$ToursTableAnnotationComposer
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
@@ -5420,6 +5902,7 @@ class $$ToursTableTableManager extends RootTableManager<
             Value<String> createdBy = const Value.absent(),
             Value<String> purpose = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -5432,6 +5915,7 @@ class $$ToursTableTableManager extends RootTableManager<
             createdBy: createdBy,
             purpose: purpose,
             isSynced: isSynced,
+            isDeleted: isDeleted,
             updatedAt: updatedAt,
             rowid: rowid,
           ),
@@ -5444,6 +5928,7 @@ class $$ToursTableTableManager extends RootTableManager<
             required String createdBy,
             Value<String> purpose = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -5456,6 +5941,7 @@ class $$ToursTableTableManager extends RootTableManager<
             createdBy: createdBy,
             purpose: purpose,
             isSynced: isSynced,
+            isDeleted: isDeleted,
             updatedAt: updatedAt,
             rowid: rowid,
           ),
@@ -5588,6 +6074,7 @@ typedef $$TourMembersTableCreateCompanionBuilder = TourMembersCompanion
   Value<String> status,
   Value<String> role,
   Value<bool> isSynced,
+  Value<bool> isDeleted,
   Value<int> rowid,
 });
 typedef $$TourMembersTableUpdateCompanionBuilder = TourMembersCompanion
@@ -5599,6 +6086,7 @@ typedef $$TourMembersTableUpdateCompanionBuilder = TourMembersCompanion
   Value<String> status,
   Value<String> role,
   Value<bool> isSynced,
+  Value<bool> isDeleted,
   Value<int> rowid,
 });
 
@@ -5658,6 +6146,9 @@ class $$TourMembersTableFilterComposer
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnFilters(column));
 
   $$ToursTableFilterComposer get tourId {
     final $$ToursTableFilterComposer composer = $composerBuilder(
@@ -5724,6 +6215,9 @@ class $$TourMembersTableOrderingComposer
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnOrderings(column));
+
   $$ToursTableOrderingComposer get tourId {
     final $$ToursTableOrderingComposer composer = $composerBuilder(
         composer: this,
@@ -5788,6 +6282,9 @@ class $$TourMembersTableAnnotationComposer
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
 
   $$ToursTableAnnotationComposer get tourId {
     final $$ToursTableAnnotationComposer composer = $composerBuilder(
@@ -5860,6 +6357,7 @@ class $$TourMembersTableTableManager extends RootTableManager<
             Value<String> status = const Value.absent(),
             Value<String> role = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               TourMembersCompanion(
@@ -5870,6 +6368,7 @@ class $$TourMembersTableTableManager extends RootTableManager<
             status: status,
             role: role,
             isSynced: isSynced,
+            isDeleted: isDeleted,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -5880,6 +6379,7 @@ class $$TourMembersTableTableManager extends RootTableManager<
             Value<String> status = const Value.absent(),
             Value<String> role = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               TourMembersCompanion.insert(
@@ -5890,6 +6390,7 @@ class $$TourMembersTableTableManager extends RootTableManager<
             status: status,
             role: role,
             isSynced: isSynced,
+            isDeleted: isDeleted,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -5967,6 +6468,7 @@ typedef $$ExpensesTableCreateCompanionBuilder = ExpensesCompanion Function({
   required String category,
   Value<String?> messCostType,
   Value<bool> isSynced,
+  Value<bool> isDeleted,
   Value<DateTime> createdAt,
   Value<int> rowid,
 });
@@ -5979,6 +6481,7 @@ typedef $$ExpensesTableUpdateCompanionBuilder = ExpensesCompanion Function({
   Value<String> category,
   Value<String?> messCostType,
   Value<bool> isSynced,
+  Value<bool> isDeleted,
   Value<DateTime> createdAt,
   Value<int> rowid,
 });
@@ -6072,6 +6575,9 @@ class $$ExpensesTableFilterComposer
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -6187,6 +6693,9 @@ class $$ExpensesTableOrderingComposer
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
 
@@ -6257,6 +6766,9 @@ class $$ExpensesTableAnnotationComposer
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -6379,6 +6891,7 @@ class $$ExpensesTableTableManager extends RootTableManager<
             Value<String> category = const Value.absent(),
             Value<String?> messCostType = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -6391,6 +6904,7 @@ class $$ExpensesTableTableManager extends RootTableManager<
             category: category,
             messCostType: messCostType,
             isSynced: isSynced,
+            isDeleted: isDeleted,
             createdAt: createdAt,
             rowid: rowid,
           ),
@@ -6403,6 +6917,7 @@ class $$ExpensesTableTableManager extends RootTableManager<
             required String category,
             Value<String?> messCostType = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -6415,6 +6930,7 @@ class $$ExpensesTableTableManager extends RootTableManager<
             category: category,
             messCostType: messCostType,
             isSynced: isSynced,
+            isDeleted: isDeleted,
             createdAt: createdAt,
             rowid: rowid,
           ),
@@ -6526,6 +7042,7 @@ typedef $$ExpenseSplitsTableCreateCompanionBuilder = ExpenseSplitsCompanion
   required String userId,
   required double amount,
   Value<bool> isSynced,
+  Value<bool> isDeleted,
   Value<int> rowid,
 });
 typedef $$ExpenseSplitsTableUpdateCompanionBuilder = ExpenseSplitsCompanion
@@ -6535,6 +7052,7 @@ typedef $$ExpenseSplitsTableUpdateCompanionBuilder = ExpenseSplitsCompanion
   Value<String> userId,
   Value<double> amount,
   Value<bool> isSynced,
+  Value<bool> isDeleted,
   Value<int> rowid,
 });
 
@@ -6590,6 +7108,9 @@ class $$ExpenseSplitsTableFilterComposer
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnFilters(column));
 
   $$ExpensesTableFilterComposer get expenseId {
     final $$ExpensesTableFilterComposer composer = $composerBuilder(
@@ -6650,6 +7171,9 @@ class $$ExpenseSplitsTableOrderingComposer
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnOrderings(column));
+
   $$ExpensesTableOrderingComposer get expenseId {
     final $$ExpensesTableOrderingComposer composer = $composerBuilder(
         composer: this,
@@ -6708,6 +7232,9 @@ class $$ExpenseSplitsTableAnnotationComposer
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
 
   $$ExpensesTableAnnotationComposer get expenseId {
     final $$ExpensesTableAnnotationComposer composer = $composerBuilder(
@@ -6778,6 +7305,7 @@ class $$ExpenseSplitsTableTableManager extends RootTableManager<
             Value<String> userId = const Value.absent(),
             Value<double> amount = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ExpenseSplitsCompanion(
@@ -6786,6 +7314,7 @@ class $$ExpenseSplitsTableTableManager extends RootTableManager<
             userId: userId,
             amount: amount,
             isSynced: isSynced,
+            isDeleted: isDeleted,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -6794,6 +7323,7 @@ class $$ExpenseSplitsTableTableManager extends RootTableManager<
             required String userId,
             required double amount,
             Value<bool> isSynced = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ExpenseSplitsCompanion.insert(
@@ -6802,6 +7332,7 @@ class $$ExpenseSplitsTableTableManager extends RootTableManager<
             userId: userId,
             amount: amount,
             isSynced: isSynced,
+            isDeleted: isDeleted,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -6877,6 +7408,7 @@ typedef $$ExpensePayersTableCreateCompanionBuilder = ExpensePayersCompanion
   required String userId,
   required double amount,
   Value<bool> isSynced,
+  Value<bool> isDeleted,
   Value<int> rowid,
 });
 typedef $$ExpensePayersTableUpdateCompanionBuilder = ExpensePayersCompanion
@@ -6886,6 +7418,7 @@ typedef $$ExpensePayersTableUpdateCompanionBuilder = ExpensePayersCompanion
   Value<String> userId,
   Value<double> amount,
   Value<bool> isSynced,
+  Value<bool> isDeleted,
   Value<int> rowid,
 });
 
@@ -6941,6 +7474,9 @@ class $$ExpensePayersTableFilterComposer
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnFilters(column));
 
   $$ExpensesTableFilterComposer get expenseId {
     final $$ExpensesTableFilterComposer composer = $composerBuilder(
@@ -7001,6 +7537,9 @@ class $$ExpensePayersTableOrderingComposer
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnOrderings(column));
+
   $$ExpensesTableOrderingComposer get expenseId {
     final $$ExpensesTableOrderingComposer composer = $composerBuilder(
         composer: this,
@@ -7059,6 +7598,9 @@ class $$ExpensePayersTableAnnotationComposer
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
 
   $$ExpensesTableAnnotationComposer get expenseId {
     final $$ExpensesTableAnnotationComposer composer = $composerBuilder(
@@ -7129,6 +7671,7 @@ class $$ExpensePayersTableTableManager extends RootTableManager<
             Value<String> userId = const Value.absent(),
             Value<double> amount = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ExpensePayersCompanion(
@@ -7137,6 +7680,7 @@ class $$ExpensePayersTableTableManager extends RootTableManager<
             userId: userId,
             amount: amount,
             isSynced: isSynced,
+            isDeleted: isDeleted,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -7145,6 +7689,7 @@ class $$ExpensePayersTableTableManager extends RootTableManager<
             required String userId,
             required double amount,
             Value<bool> isSynced = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ExpensePayersCompanion.insert(
@@ -7153,6 +7698,7 @@ class $$ExpensePayersTableTableManager extends RootTableManager<
             userId: userId,
             amount: amount,
             isSynced: isSynced,
+            isDeleted: isDeleted,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -7230,6 +7776,7 @@ typedef $$SettlementsTableCreateCompanionBuilder = SettlementsCompanion
   required double amount,
   Value<DateTime> date,
   Value<bool> isSynced,
+  Value<bool> isDeleted,
   Value<int> rowid,
 });
 typedef $$SettlementsTableUpdateCompanionBuilder = SettlementsCompanion
@@ -7241,6 +7788,7 @@ typedef $$SettlementsTableUpdateCompanionBuilder = SettlementsCompanion
   Value<double> amount,
   Value<DateTime> date,
   Value<bool> isSynced,
+  Value<bool> isDeleted,
   Value<int> rowid,
 });
 
@@ -7311,6 +7859,9 @@ class $$SettlementsTableFilterComposer
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnFilters(column));
 
   $$ToursTableFilterComposer get tourId {
     final $$ToursTableFilterComposer composer = $composerBuilder(
@@ -7394,6 +7945,9 @@ class $$SettlementsTableOrderingComposer
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnOrderings(column));
+
   $$ToursTableOrderingComposer get tourId {
     final $$ToursTableOrderingComposer composer = $composerBuilder(
         composer: this,
@@ -7475,6 +8029,9 @@ class $$SettlementsTableAnnotationComposer
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
 
   $$ToursTableAnnotationComposer get tourId {
     final $$ToursTableAnnotationComposer composer = $composerBuilder(
@@ -7567,6 +8124,7 @@ class $$SettlementsTableTableManager extends RootTableManager<
             Value<double> amount = const Value.absent(),
             Value<DateTime> date = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SettlementsCompanion(
@@ -7577,6 +8135,7 @@ class $$SettlementsTableTableManager extends RootTableManager<
             amount: amount,
             date: date,
             isSynced: isSynced,
+            isDeleted: isDeleted,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -7587,6 +8146,7 @@ class $$SettlementsTableTableManager extends RootTableManager<
             required double amount,
             Value<DateTime> date = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               SettlementsCompanion.insert(
@@ -7597,6 +8157,7 @@ class $$SettlementsTableTableManager extends RootTableManager<
             amount: amount,
             date: date,
             isSynced: isSynced,
+            isDeleted: isDeleted,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -7686,6 +8247,7 @@ typedef $$ProgramIncomesTableCreateCompanionBuilder = ProgramIncomesCompanion
   required String collectedBy,
   Value<DateTime> date,
   Value<bool> isSynced,
+  Value<bool> isDeleted,
   Value<int> rowid,
 });
 typedef $$ProgramIncomesTableUpdateCompanionBuilder = ProgramIncomesCompanion
@@ -7698,6 +8260,7 @@ typedef $$ProgramIncomesTableUpdateCompanionBuilder = ProgramIncomesCompanion
   Value<String> collectedBy,
   Value<DateTime> date,
   Value<bool> isSynced,
+  Value<bool> isDeleted,
   Value<int> rowid,
 });
 
@@ -7762,6 +8325,9 @@ class $$ProgramIncomesTableFilterComposer
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnFilters(column));
 
   $$ToursTableFilterComposer get tourId {
     final $$ToursTableFilterComposer composer = $composerBuilder(
@@ -7831,6 +8397,9 @@ class $$ProgramIncomesTableOrderingComposer
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnOrderings(column));
+
   $$ToursTableOrderingComposer get tourId {
     final $$ToursTableOrderingComposer composer = $composerBuilder(
         composer: this,
@@ -7898,6 +8467,9 @@ class $$ProgramIncomesTableAnnotationComposer
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
 
   $$ToursTableAnnotationComposer get tourId {
     final $$ToursTableAnnotationComposer composer = $composerBuilder(
@@ -7972,6 +8544,7 @@ class $$ProgramIncomesTableTableManager extends RootTableManager<
             Value<String> collectedBy = const Value.absent(),
             Value<DateTime> date = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ProgramIncomesCompanion(
@@ -7983,6 +8556,7 @@ class $$ProgramIncomesTableTableManager extends RootTableManager<
             collectedBy: collectedBy,
             date: date,
             isSynced: isSynced,
+            isDeleted: isDeleted,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -7994,6 +8568,7 @@ class $$ProgramIncomesTableTableManager extends RootTableManager<
             required String collectedBy,
             Value<DateTime> date = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ProgramIncomesCompanion.insert(
@@ -8005,6 +8580,7 @@ class $$ProgramIncomesTableTableManager extends RootTableManager<
             collectedBy: collectedBy,
             date: date,
             isSynced: isSynced,
+            isDeleted: isDeleted,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -8082,6 +8658,7 @@ typedef $$MealRecordsTableCreateCompanionBuilder = MealRecordsCompanion
   required DateTime date,
   required double count,
   Value<bool> isSynced,
+  Value<bool> isDeleted,
   Value<int> rowid,
 });
 typedef $$MealRecordsTableUpdateCompanionBuilder = MealRecordsCompanion
@@ -8092,6 +8669,7 @@ typedef $$MealRecordsTableUpdateCompanionBuilder = MealRecordsCompanion
   Value<DateTime> date,
   Value<double> count,
   Value<bool> isSynced,
+  Value<bool> isDeleted,
   Value<int> rowid,
 });
 
@@ -8148,6 +8726,9 @@ class $$MealRecordsTableFilterComposer
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnFilters(column));
 
   $$ToursTableFilterComposer get tourId {
     final $$ToursTableFilterComposer composer = $composerBuilder(
@@ -8211,6 +8792,9 @@ class $$MealRecordsTableOrderingComposer
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnOrderings(column));
+
   $$ToursTableOrderingComposer get tourId {
     final $$ToursTableOrderingComposer composer = $composerBuilder(
         composer: this,
@@ -8272,6 +8856,9 @@ class $$MealRecordsTableAnnotationComposer
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
 
   $$ToursTableAnnotationComposer get tourId {
     final $$ToursTableAnnotationComposer composer = $composerBuilder(
@@ -8343,6 +8930,7 @@ class $$MealRecordsTableTableManager extends RootTableManager<
             Value<DateTime> date = const Value.absent(),
             Value<double> count = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               MealRecordsCompanion(
@@ -8352,6 +8940,7 @@ class $$MealRecordsTableTableManager extends RootTableManager<
             date: date,
             count: count,
             isSynced: isSynced,
+            isDeleted: isDeleted,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -8361,6 +8950,7 @@ class $$MealRecordsTableTableManager extends RootTableManager<
             required DateTime date,
             required double count,
             Value<bool> isSynced = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               MealRecordsCompanion.insert(
@@ -8370,6 +8960,7 @@ class $$MealRecordsTableTableManager extends RootTableManager<
             date: date,
             count: count,
             isSynced: isSynced,
+            isDeleted: isDeleted,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
@@ -8574,6 +9165,7 @@ typedef $$JoinRequestsTableCreateCompanionBuilder = JoinRequestsCompanion
   required String userName,
   Value<String> status,
   Value<bool> isSynced,
+  Value<bool> isDeleted,
   Value<int> rowid,
 });
 typedef $$JoinRequestsTableUpdateCompanionBuilder = JoinRequestsCompanion
@@ -8584,6 +9176,7 @@ typedef $$JoinRequestsTableUpdateCompanionBuilder = JoinRequestsCompanion
   Value<String> userName,
   Value<String> status,
   Value<bool> isSynced,
+  Value<bool> isDeleted,
   Value<int> rowid,
 });
 
@@ -8640,6 +9233,9 @@ class $$JoinRequestsTableFilterComposer
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnFilters(column));
 
   $$ToursTableFilterComposer get tourId {
     final $$ToursTableFilterComposer composer = $composerBuilder(
@@ -8703,6 +9299,9 @@ class $$JoinRequestsTableOrderingComposer
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+      column: $table.isDeleted, builder: (column) => ColumnOrderings(column));
+
   $$ToursTableOrderingComposer get tourId {
     final $$ToursTableOrderingComposer composer = $composerBuilder(
         composer: this,
@@ -8764,6 +9363,9 @@ class $$JoinRequestsTableAnnotationComposer
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
 
   $$ToursTableAnnotationComposer get tourId {
     final $$ToursTableAnnotationComposer composer = $composerBuilder(
@@ -8835,6 +9437,7 @@ class $$JoinRequestsTableTableManager extends RootTableManager<
             Value<String> userName = const Value.absent(),
             Value<String> status = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               JoinRequestsCompanion(
@@ -8844,6 +9447,7 @@ class $$JoinRequestsTableTableManager extends RootTableManager<
             userName: userName,
             status: status,
             isSynced: isSynced,
+            isDeleted: isDeleted,
             rowid: rowid,
           ),
           createCompanionCallback: ({
@@ -8853,6 +9457,7 @@ class $$JoinRequestsTableTableManager extends RootTableManager<
             required String userName,
             Value<String> status = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
+            Value<bool> isDeleted = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               JoinRequestsCompanion.insert(
@@ -8862,6 +9467,7 @@ class $$JoinRequestsTableTableManager extends RootTableManager<
             userName: userName,
             status: status,
             isSynced: isSynced,
+            isDeleted: isDeleted,
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0

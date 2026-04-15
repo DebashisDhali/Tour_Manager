@@ -246,6 +246,7 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
           date: DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, 12, 0),
           count: count,
           isSynced: false,
+          isDeleted: false,
         );
         
         await db.upsertMealRecord(record);

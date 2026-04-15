@@ -9,15 +9,19 @@ exports.register = async (req, res) => {
   try {
     const { name, email, phone, password } = req.body;
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ 
-      where: { 
-        [Op.or]: [{ email: email || null }, { phone: phone || null }] 
-      } 
-    });
+    // Construct search conditions dynamically
+    const conditions = [];
+    if (email) conditions.push({ email });
+    if (phone && phone.trim() !== '') conditions.push({ phone });
 
-    if (existingUser) {
-      return res.status(400).json({ error: 'User with this email or phone already exists' });
+    if (conditions.length > 0) {
+      const existingUser = await User.findOne({ 
+        where: { [Op.or]: conditions } 
+      });
+
+      if (existingUser) {
+        return res.status(400).json({ error: 'User with this email or phone already exists' });
+      }
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);

@@ -113,9 +113,13 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
       data: (user) {
         final config = PurposeConfig.getConfig(user?.purpose);
         final lastSync = user != null ? ref.watch(lastSyncProvider(user.id)).value : null;
-        final syncDisplay = lastSync != null 
-            ? 'Synced ${DateFormat('hh:mm a').format(DateTime.parse(lastSync))}' 
-            : 'Not synced';
+        String syncDisplay = 'Not synced';
+        if (lastSync != null) {
+          final parsed = DateTime.tryParse(lastSync);
+          if (parsed != null) {
+            syncDisplay = 'Synced ${DateFormat('hh:mm a').format(parsed)}';
+          }
+        }
 
         return AppTourOverlay(
           key: _tourOverlayKey,
@@ -168,7 +172,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                         radius: 16,
                         backgroundColor: config.color.withOpacity(0.1),
                         backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
-                        child: user.avatarUrl == null ? Text(user.name[0].toUpperCase(), style: TextStyle(fontSize: 12, color: config.color, fontWeight: FontWeight.bold)) : null,
+                        child: user.avatarUrl == null ? Text(user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U', style: TextStyle(fontSize: 12, color: config.color, fontWeight: FontWeight.bold)) : null,
                       ),
                     ),
                   ),
@@ -256,9 +260,16 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                     radius: 18,
                     backgroundColor: config.color.withOpacity(0.1),
                     backgroundImage: item.user?.avatarUrl != null ? NetworkImage(item.user!.avatarUrl!) : null,
-                    child: item.user?.avatarUrl == null 
-                      ? Text(item.user?.name[0].toUpperCase() ?? 'U', style: TextStyle(fontWeight: FontWeight.bold, color: config.color, fontSize: 11)) 
-                      : null,
+                    child: (item.user?.avatarUrl == null)
+                        ? Text(
+                            item.user != null && item.user!.name.isNotEmpty
+                                ? item.user!.name[0].toUpperCase()
+                                : 'U',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: config.color,
+                                fontSize: 11))
+                        : null,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
