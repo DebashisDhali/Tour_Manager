@@ -241,51 +241,51 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
               if (_searchResults.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Container(
-                  constraints: const BoxConstraints(maxHeight: 250),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
                   ),
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: _searchResults.length,
-                    separatorBuilder: (_, __) => Divider(height: 1, color: Theme.of(context).dividerColor.withOpacity(0.1)),
-                    itemBuilder: (context, index) {
-                      final item = _searchResults[index];
-                      if (item == null || item is! Map) return const SizedBox.shrink();
-                      
-                      final u = Map<String, dynamic>.from(item);
-                      final uId = u['id']?.toString() ?? '';
-                      if (uId.isEmpty) return const SizedBox.shrink();
+                  child: Column(
+                    children: _searchResults.map((item) {
+                      try {
+                        if (item == null || item is! Map) return const SizedBox.shrink();
+                        
+                        final u = Map<String, dynamic>.from(item);
+                        final uId = u['id']?.toString() ?? '';
+                        if (uId.isEmpty) return const SizedBox.shrink();
 
-                      final isSelected = _selectedUsers.any((selected) => selected['id']?.toString() == uId);
-                      final name = u['name']?.toString() ?? 'Member';
-                      final phone = u['phone']?.toString() ?? u['email']?.toString() ?? 'No contact';
-                      
-                      return ListTile(
-                        onTap: () => _toggleUserSelection(u),
-                        dense: true,
-                        leading: CircleAvatar(
-                          backgroundColor: isSelected ? config.color : config.color.withOpacity(0.1),
-                          child: isSelected 
-                            ? const Icon(Icons.check, color: Colors.white, size: 16)
-                            : Text(
-                                (name.isNotEmpty) ? name[0].toUpperCase() : "M", 
-                                style: TextStyle(color: config.color, fontSize: 12, fontWeight: FontWeight.bold)
-                              ),
-                        ),
-                        title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                        subtitle: Text(phone, style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
-                        trailing: Checkbox(
-                          value: isSelected,
-                          activeColor: config.color,
-                          shape: const CircleBorder(),
-                          onChanged: (_) => _toggleUserSelection(u),
-                        ),
-                      );
-                    },
+                        final isSelected = _selectedUsers.any((selected) => selected['id']?.toString() == uId);
+                        final rawName = u['name']?.toString() ?? 'Member';
+                        final name = rawName.trim().isEmpty ? 'Member' : rawName.trim();
+                        final phone = u['phone']?.toString() ?? u['email']?.toString() ?? 'No contact';
+                        
+                        return ListTile(
+                          onTap: () => _toggleUserSelection(u),
+                          dense: true,
+                          leading: CircleAvatar(
+                            backgroundColor: isSelected ? config.color : config.color.withOpacity(0.1),
+                            child: isSelected 
+                              ? const Icon(Icons.check, color: Colors.white, size: 16)
+                              : Text(
+                                  name[0].toUpperCase(), 
+                                  style: TextStyle(color: config.color, fontSize: 12, fontWeight: FontWeight.bold)
+                                ),
+                          ),
+                          title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          subtitle: Text(phone, style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
+                          trailing: Checkbox(
+                            value: isSelected,
+                            activeColor: config.color,
+                            shape: const CircleBorder(),
+                            onChanged: (_) => _toggleUserSelection(u),
+                          ),
+                        );
+                      } catch (e) {
+                         return const SizedBox.shrink();
+                      }
+                    }).toList(),
                   ),
                 ),
               ],
