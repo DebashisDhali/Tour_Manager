@@ -579,7 +579,7 @@ class SyncService {
   Future<List<dynamic>> searchUsers(String query) async {
     try {
       final response = await dio.get('$baseUrl/users/search', queryParameters: {'query': query});
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 && response.data is List) {
         return List<dynamic>.from(response.data);
       }
       return [];

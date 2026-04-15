@@ -249,8 +249,13 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                     itemCount: _searchResults.length,
                     separatorBuilder: (_, __) => Divider(height: 1, color: Theme.of(context).dividerColor.withOpacity(0.1)),
                     itemBuilder: (context, index) {
-                      final u = _searchResults[index];
+                      final item = _searchResults[index];
+                      if (item == null || item is! Map) return const SizedBox.shrink();
+                      
+                      final u = Map<String, dynamic>.from(item);
                       final isSelected = _selectedUsers.any((selected) => selected['id'] == u['id']);
+                      final name = u['name']?.toString() ?? 'Unknown User';
+                      final phone = u['phone']?.toString() ?? u['email']?.toString() ?? 'No contact info';
                       
                       return ListTile(
                         onTap: () => _toggleUserSelection(u),
@@ -260,14 +265,12 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                           child: isSelected 
                             ? const Icon(Icons.check, color: Colors.white, size: 16)
                             : Text(
-                                (u['name'] != null && u['name'].toString().isNotEmpty) 
-                                  ? u['name'].toString()[0].toUpperCase() 
-                                  : "U", 
+                                (name.isNotEmpty) ? name[0].toUpperCase() : "U", 
                                 style: TextStyle(color: config.color, fontSize: 12, fontWeight: FontWeight.bold)
                               ),
                         ),
-                        title: Text(u['name'] ?? 'Unknown User', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(u['phone'] ?? u['email'] ?? 'No contact info', style: const TextStyle(fontSize: 10)),
+                        title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text(phone, style: const TextStyle(fontSize: 10)),
                         trailing: Checkbox(
                           value: isSelected,
                           activeColor: config.color,
