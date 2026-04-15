@@ -395,16 +395,41 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                           ),
                         ),
                         if (!tour.isSynced)
+                          GestureDetector(
+                            onTap: () => _syncData(context),
+                            child: Container(
+                              margin: const EdgeInsets.only(left: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.1), 
+                                borderRadius: BorderRadius.circular(8), 
+                                border: Border.all(color: Colors.orange.withOpacity(0.3))
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.cloud_upload_outlined, color: Colors.orange, size: 10),
+                                  SizedBox(width: 4),
+                                  Text("LOCAL (সিঙ্ক করুন)", style: TextStyle(color: Colors.orange, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 0)),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
                           Container(
                             margin: const EdgeInsets.only(left: 8),
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(color: Colors.amber.withOpacity(0.1), borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.amber.withOpacity(0.3))),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.1), 
+                              borderRadius: BorderRadius.circular(8), 
+                              border: Border.all(color: Colors.green.withOpacity(0.3))
+                            ),
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.cloud_off_rounded, color: Colors.amber, size: 8),
+                                Icon(Icons.cloud_done_rounded, color: Colors.green, size: 10),
                                 SizedBox(width: 4),
-                                Text("LOCAL", style: TextStyle(color: Colors.amber, fontSize: 7, fontWeight: FontWeight.bold)),
+                                Text("CLOUD PROTECTED", style: TextStyle(color: Colors.green, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 0)),
                               ],
                             ),
                           ),
