@@ -10,15 +10,14 @@ exports.getTourInsights = async (req, res) => {
     }
 
     // Fetch Tour Data
-    const tour = await Tour.findByPk(tourId);
+    const tour = await Tour.findByPk(tourId, {
+      include: [User]
+    });
     if (!tour) {
       return res.status(404).json({ error: "Tour not found" });
     }
 
-    const members = await TourMember.findAll({
-      where: { tour_id: tourId },
-      include: [User]
-    });
+    const members = tour.Users || [];
 
     const expenses = await Expense.findAll({
       where: { tour_id: tourId },
@@ -34,7 +33,7 @@ exports.getTourInsights = async (req, res) => {
     contextStr += `Total Members: ${members.length}\n`;
     contextStr += `Total Expenses: ${expenses.length}\n\n`;
 
-    const memberNames = members.map(m => m.User ? m.User.name : 'Unknown').join(', ');
+    const memberNames = members.map(m => m.name || 'Unknown').join(', ');
     contextStr += `Members involved: ${memberNames}\n\n`;
 
     contextStr += `Expenses:\n`;
@@ -70,7 +69,7 @@ Make sure the output is pure Markdown and strictly follows the structure. Do not
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "openrouter/auto",
+        model: "google/gemini-2.5-pro",
         messages: [
           {
             role: "system",
@@ -81,7 +80,6 @@ Make sure the output is pure Markdown and strictly follows the structure. Do not
             content: contextStr
           }
         ],
-        // Set model to "auto" if supported, but OpenRouter usually needs a specific model string like `google/gemini-pro`
       })
     });
 
