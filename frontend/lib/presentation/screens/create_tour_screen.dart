@@ -171,18 +171,26 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
          }
          
          if (mounted) {
-           try {
-             await ref.read(syncServiceProvider).startSync(currentUser.id);
-           } catch (syncErr) {
-             debugPrint("Initial cloud sync failed: $syncErr");
-             if (mounted) {
-               ScaffoldMessenger.of(context).showSnackBar(
-                 const SnackBar(
-                   content: Text("Saved locally! Cloud sync pending (check internet to share code)."),
-                   backgroundColor: Colors.orange,
-                 ),
-               );
+           bool synced = false;
+           for (int attempt = 1; attempt <= 3; attempt++) {
+             try {
+               await ref.read(syncServiceProvider).startSync(currentUser.id);
+               synced = true;
+               debugPrint("✅ Tour synced on attempt $attempt");
+               break;
+             } catch (syncErr) {
+               debugPrint("⚠️ Sync attempt $attempt failed: $syncErr");
+               if (attempt < 3) await Future.delayed(const Duration(seconds: 2));
              }
+           }
+           if (!synced && mounted) {
+             ScaffoldMessenger.of(context).showSnackBar(
+               const SnackBar(
+                 content: Text("Saved locally. Sync pending — share code when online."),
+                 backgroundColor: Colors.orange,
+                 duration: Duration(seconds: 4),
+               ),
+             );
            }
            if (mounted) Navigator.pop(context);
          }
