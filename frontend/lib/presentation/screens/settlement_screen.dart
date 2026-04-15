@@ -83,6 +83,11 @@ class SettlementScreen extends ConsumerWidget {
     final totalMeals = tourMembers.fold(0.0, (s, m) => s + m.mealCount);
     final mealRate = totalMeals > 0 ? totalMealCost / totalMeals : 0;
 
+    // Check permissions
+    final myMember = tourMembers.where((m) => m.user.id == myId).firstOrNull;
+    final myRole = myMember?.role ?? 'viewer';
+    final isAdminOrEditor = myRole == 'admin' || myRole == 'editor';
+
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       children: [
@@ -381,7 +386,7 @@ class SettlementScreen extends ConsumerWidget {
             ),
           )
         else ...[
-          _buildVisualFlow(context, ref, instructions, config),
+          _buildVisualFlow(context, ref, instructions, config, canManage: isAdminOrEditor),
         ],
 
         if (previousSettlements.isNotEmpty) ...[
@@ -401,14 +406,14 @@ class SettlementScreen extends ConsumerWidget {
                 title: Text("${fromUser.name} ➔ ${toUser.name}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 subtitle: Text(DateFormat('MMM dd, hh:mm a').format(s.date), style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5), fontWeight: FontWeight.w500)),
                 trailing: Text("৳${s.amount.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
-                onLongPress: () => _confirmDeleteSettlement(context, ref, s),
+                onLongPress: isAdminOrEditor ? () => _confirmDeleteSettlement(context, ref, s) : null,
               ),
             );
           }),
         ],
         
         const SizedBox(height: 24),
-        if (tour.purpose.toLowerCase() == 'mess') 
+        if (tour.purpose.toLowerCase() == 'mess' && isAdminOrEditor) 
           SizedBox(
             height: 56,
             child: OutlinedButton.icon(
@@ -523,7 +528,7 @@ class SettlementScreen extends ConsumerWidget {
     }
   }
 
-  Widget _buildVisualFlow(BuildContext context, WidgetRef ref, List<SettlementInstruction> instructions, PurposeConfig config) {
+  Widget _buildVisualFlow(BuildContext context, WidgetRef ref, List<SettlementInstruction> instructions, PurposeConfig config, {required bool canManage}) {
     final groupedByPayer = <String, List<SettlementInstruction>>{};
     for (var s in instructions) {
       groupedByPayer.putIfAbsent(s.payerName, () => []).add(s);
@@ -555,7 +560,7 @@ class SettlementScreen extends ConsumerWidget {
               ...receivers.map((r) => Padding(
                 padding: const EdgeInsets.only(left: 24, bottom: 12),
                 child: InkWell(
-                  onTap: () => _markAsPaid(context, ref, r, config),
+                  onTap: canManage ? () => _markAsPaid(context, ref, r, config) : null,
                   borderRadius: BorderRadius.circular(16),
                   child: Container(
                     padding: const EdgeInsets.all(12),
@@ -574,7 +579,10 @@ class SettlementScreen extends ConsumerWidget {
                         const SizedBox(width: 8),
                         Text(r.receiverName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                         const Spacer(),
-                        const Text("PAID?", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.green)),
+                        if (canManage)
+                          const Text("PAID?", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.green))
+                        else
+                          Icon(Icons.lock_outline_rounded, size: 14, color: Theme.of(context).disabledColor),
                       ],
                     ),
                   ),
