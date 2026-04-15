@@ -82,13 +82,15 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
          
          if (currentUser == null) throw Exception("Profile not found.");
 
+         final String finalTourId;
+
          if (widget.initialTour == null) {
-           final tourId = const Uuid().v4();
+           finalTourId = const Uuid().v4();
            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
            final inviteCode = List.generate(6, (index) => chars[Random().nextInt(chars.length)]).join();
 
            await db.createTour(Tour(
-               id: tourId,
+               id: finalTourId,
                name: _nameController.text.trim(),
                startDate: _selectedDateRange?.start,
                endDate: _selectedDateRange?.end,
@@ -101,7 +103,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
            ));
 
            await db.into(db.tourMembers).insert(TourMember(
-               tourId: tourId,
+               tourId: finalTourId,
                userId: currentUser.id,
                status: 'active',
                role: 'admin',
@@ -123,7 +125,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                updatedAt: DateTime.now(),
              ));
              await db.into(db.tourMembers).insert(TourMember(
-               tourId: tourId,
+               tourId: finalTourId,
                userId: memberId,
                status: 'active',
                role: 'viewer',
@@ -133,6 +135,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
              ));
            }
          } else {
+           finalTourId = widget.initialTour!.id;
            await db.createTour(widget.initialTour!.copyWith(
                name: _nameController.text.trim(),
                purpose: _selectedPurpose,
@@ -156,7 +159,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                updatedAt: DateTime.now(),
              ));
              await db.into(db.tourMembers).insert(TourMember(
-               tourId: widget.initialTour!.id,
+               tourId: finalTourId,
                userId: memberId,
                status: 'active',
                role: 'viewer',
@@ -168,8 +171,26 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
          }
          
          if (mounted) {
-           ref.read(syncServiceProvider).startSync(currentUser.id).catchError((e) => debugPrint(e.toString()));
-           Navigator.pop(context);
+           try {
+             await ref.read(syncServiceProvider).startSync(currentUser.id);
+           } catch (syncErr) {
+             debugPrint("Initial cloud sync failed: $syncErr");
+             if (mounted) {
+               ScaffoldMessenger.of(context).showSnackBar(
+                 const SnackBar(
+                   content: Text("Saved locally! Cloud sync pending (check internet to share code)."),
+                   backgroundColor: Colors.orange,
+                 ),
+               );
+             }
+           }
+           if (mounted) Navigator.pop(context);
+         }
+       } catch (e) {
+         if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+           );
          }
        } finally {
          if (mounted) setState(() => _isLoading = false);

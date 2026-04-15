@@ -57,7 +57,8 @@ exports.getTourDetails = async (req, res) => {
 
 // Invitation Logic - Joins Immediately (No Approval Required)
 exports.findTourByCode = async (req, res) => {
-  const { code } = req.params;
+  const code = req.params.code ? req.params.code.trim() : '';
+  console.log(`Searching for tour with code: "${code}"`);
   try {
     const tour = await Tour.findOne({ 
       where: sequelize.where(

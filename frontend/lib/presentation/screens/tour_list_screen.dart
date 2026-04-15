@@ -756,7 +756,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
 
                           final tourRes = await ref.read(syncServiceProvider).findTourByCode(code);
                           if (tourRes == null) {
-                            setState(() => errorText = "Tour not found");
+                            setState(() => errorText = "Not found. Ask host to sync.");
                             return;
                           }
 
