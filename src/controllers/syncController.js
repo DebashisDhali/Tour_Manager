@@ -53,25 +53,33 @@ exports.syncData = async (req, res) => {
         // 1.2 Process Tours
         if (tours?.length > 0) {
           for (const t of tours) {
-             try {
-               if (t.isDeleted) {
-                 await Tour.destroy({ where: { id: t.id }, transaction });
-               } else {
-                 await Tour.upsert({
-                   id: t.id, name: t.name, created_by: t.createdBy, 
-                   invite_code: t.inviteCode, start_date: t.startDate, 
-                   end_date: t.endDate, updated_at: now 
-                 }, { transaction });
-                 
-                 if (t.createdBy) {
-                   await TourMember.upsert({ 
-                     tour_id: t.id, user_id: t.createdBy, 
-                     status: 'active', role: 'admin', 
-                     joined_at: t.startDate || now, updated_at: now 
-                   }, { transaction });
-                 }
+             if (t.isDeleted) {
+               await Tour.destroy({ where: { id: t.id }, transaction });
+             } else {
+               // Ensure the creator exists on the server to avoid FK issues with TourMember
+               // We don't have all user info here, but we can create a shell if missing
+               if (t.createdBy) {
+                 await User.findOrCreate({
+                   where: { id: t.createdBy },
+                   defaults: { id: t.createdBy, name: 'Cloud User', updated_at: now },
+                   transaction
+                 });
                }
-             } catch (e) { console.error(`⚠️ Tour Sync Fail [${t.id}]:`, e.message); }
+
+               await Tour.upsert({
+                 id: t.id, name: t.name, created_by: t.createdBy, 
+                 invite_code: t.inviteCode, start_date: t.startDate, 
+                 end_date: t.endDate, updated_at: now, purpose: t.purpose || 'tour'
+               }, { transaction });
+               
+               if (t.createdBy) {
+                 await TourMember.upsert({ 
+                   tour_id: t.id, user_id: t.createdBy, 
+                   status: 'active', role: 'admin', 
+                   joined_at: t.startDate || now, updated_at: now 
+                 }, { transaction });
+               }
+             }
           }
         }
 
@@ -168,19 +176,29 @@ exports.syncData = async (req, res) => {
     } catch (pushErr) {
       console.error('❌ Push Sync Phase Failed:', pushErr);
       if (transaction) await transaction.rollback();
-      transaction = null;
-      // We don't throw here so the user can still pull data if push partially failed or is blocked
+      return res.status(400).json({ 
+        error: "Push Sync Failed", 
+        message: pushErr.message,
+        details: "One or more items could not be saved to the database. Check for duplicate invite codes or missing data."
+      });
     }
 
 
 
-    // 2. Optimized Incremental Pull
+    // Fetch ALL tour IDs where the user is an active member (ignore dates for IDs)
     const activeTourRecords = await TourMember.findAll({
-      where: { user_id: userId, status: 'active' },
+      where: { 
+        user_id: sequelize.where(
+          sequelize.fn('LOWER', sequelize.col('user_id')),
+          userId.toLowerCase()
+        ), 
+        status: 'active' 
+      },
       attributes: ['tour_id'],
       raw: true
     });
     const tourIds = activeTourRecords.map(r => r.tour_id);
+    console.log(`📡 Pulling data for User: ${userId}. Involved Tours: [${tourIds.join(', ')}]`);
 
     // Fetch only tours and their updated children
     const pullCondition = { [Op.gt]: lastSyncDate };

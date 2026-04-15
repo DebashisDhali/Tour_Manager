@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/data/providers/app_providers.dart';
@@ -23,6 +24,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
   bool _rememberMe = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  List<Map<String, String>> _savedAccounts = [];
 
   @override
   void initState() {
@@ -40,9 +42,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
 
   Future<void> _loadSavedCredentials() async {
     final prefs = await SharedPreferences.getInstance();
+    
+    // Load a single last remembered account for default fill
     final savedLogin = prefs.getString('remembered_login');
     final savedPass = prefs.getString('remembered_password');
     final isRemembered = prefs.getBool('remember_me') ?? false;
+
+    // Load multiple accounts list
+    final accountsJson = prefs.getString('saved_accounts_list');
+    if (accountsJson != null) {
+      try {
+        final List<dynamic> decoded = jsonDecode(accountsJson);
+        setState(() {
+          _savedAccounts = decoded.map((e) => Map<String, String>.from(e)).toList();
+        });
+      } catch (e) {
+        debugPrint("Error decoding accounts: $e");
+      }
+    }
 
     if (isRemembered && savedLogin != null) {
       setState(() {
@@ -82,10 +99,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
 
       // Save credentials if Remember Me is checked
       final prefs = await SharedPreferences.getInstance();
+      final loginInfo = _loginController.text.trim();
+      final password = _passwordController.text.trim();
+
       if (_rememberMe) {
-        await prefs.setString('remembered_login', _loginController.text.trim());
-        await prefs.setString('remembered_password', _passwordController.text.trim());
+        await prefs.setString('remembered_login', loginInfo);
+        await prefs.setString('remembered_password', password);
         await prefs.setBool('remember_me', true);
+
+        // Update multiple accounts list
+        final List<Map<String, String>> newList = List.from(_savedAccounts);
+        // Remove if exists to re-add at front (or just update)
+        newList.removeWhere((acc) => acc['login'] == loginInfo);
+        newList.insert(0, {'login': loginInfo, 'password': password});
+        
+        // Keep only last 5 accounts
+        if (newList.length > 5) newList.removeRange(5, newList.length);
+        
+        await prefs.setString('saved_accounts_list', jsonEncode(newList));
       } else {
         await prefs.remove('remembered_login');
         await prefs.remove('remembered_password');
@@ -194,7 +225,47 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(height: 56),
+                      const SizedBox(height: 24),
+                      
+                      // Saved Accounts Suggestions
+                      if (_savedAccounts.isNotEmpty) ...[
+                        SizedBox(
+                          height: 48,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: _savedAccounts.length,
+                            itemBuilder: (context, index) {
+                              final acc = _savedAccounts[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: ActionChip(
+                                  avatar: CircleAvatar(
+                                    backgroundColor: Colors.blue.shade100,
+                                    child: Text(acc['login']![0].toUpperCase(), 
+                                        style: TextStyle(color: Colors.blue.shade800, fontSize: 12, fontWeight: FontWeight.bold)),
+                                  ),
+                                  label: Text(acc['login']!, style: const TextStyle(fontSize: 12)),
+                                  onPressed: () {
+                                    setState(() {
+                                      _loginController.text = acc['login']!;
+                                      _passwordController.text = acc['password']!;
+                                      _rememberMe = true;
+                                    });
+                                  },
+                                  backgroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(24),
+                                    side: BorderSide(color: Colors.blue.shade100),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                      ] else ...[
+                        const SizedBox(height: 56),
+                      ],
                       
                       // Login Fields
                       Form(

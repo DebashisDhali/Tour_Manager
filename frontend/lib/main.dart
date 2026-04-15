@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'presentation/screens/tour_list_screen.dart';
 import 'presentation/screens/welcome_screen.dart';
 import 'presentation/screens/onboarding_screen.dart';
+import 'presentation/screens/login_screen.dart';
 import 'data/providers/app_providers.dart';
 import 'presentation/widgets/sync_handler.dart';
 
@@ -150,6 +151,6 @@ class _OnboardingOrWelcomeState extends State<_OnboardingOrWelcome> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    return _showOnboarding! ? const OnboardingScreen() : const WelcomeScreen();
+    return _showOnboarding! ? const OnboardingScreen() : const LoginScreen();
   }
 }

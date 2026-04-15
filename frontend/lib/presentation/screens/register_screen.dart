@@ -19,6 +19,7 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _inviteCodeController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
   late AnimationController _animationController;
@@ -44,6 +45,7 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
+    _inviteCodeController.dispose();
     super.dispose();
   }
 
@@ -223,6 +225,13 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
                               ),
                               validator: (v) => v != null && v.length < 6 ? "Min 6 chars" : (v == null || v.isEmpty ? "Required" : null),
                             ),
+                            _buildModernTextField(
+                              controller: _inviteCodeController,
+                              label: "Invite Code (Optional)",
+                              hint: "ABC123",
+                              icon: Icons.qr_code_rounded,
+                              onChanged: (v) => setState(() {}),
+                            ),
                             const SizedBox(height: 40),
                             
                             // Signup Button
@@ -249,9 +258,9 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
                                         color: Colors.white,
                                       ),
                                     )
-                                  : const Text(
-                                      "Create Account",
-                                      style: TextStyle(
+                                  : Text(
+                                      _inviteCodeController.text.length == 6 ? "Join Team" : "Create Account",
+                                      style: const TextStyle(
                                         fontSize: 17, 
                                         fontWeight: FontWeight.w700,
                                         letterSpacing: 0.5,
@@ -310,6 +319,7 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
     Widget? suffixIcon,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
+    void Function(String)? onChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -330,6 +340,7 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
           obscureText: obscureText,
           validator: validator,
           keyboardType: keyboardType,
+          onChanged: onChanged,
           style: TextStyle(color: Colors.blueGrey.shade900, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
             hintText: hint,

@@ -61,10 +61,16 @@ exports.findTourByCode = async (req, res) => {
   console.log(`Searching for tour with code: "${code}"`);
   try {
     const tour = await Tour.findOne({ 
-      where: sequelize.where(
-        sequelize.fn('LOWER', sequelize.col('invite_code')),
-        code.toLowerCase()
-      ), 
+      where: {
+        [Op.or]: [
+          { invite_code: code },
+          { invite_code: code.toUpperCase() },
+          sequelize.where(
+            sequelize.fn('LOWER', sequelize.col('invite_code')),
+            code.toLowerCase()
+          )
+        ]
+      },
       attributes: ['id', 'name', 'purpose', 'created_by'] 
     });
     if (!tour) return res.status(404).json({ error: 'Tour not found' });
@@ -82,10 +88,16 @@ exports.joinTour = async (req, res) => {
     
     // Find tour with current members
     const tour = await Tour.findOne({ 
-      where: sequelize.where(
-        sequelize.fn('LOWER', sequelize.col('invite_code')),
-        invite_code.toLowerCase()
-      ),
+      where: {
+        [Op.or]: [
+          { invite_code: invite_code },
+          { invite_code: invite_code.toUpperCase() },
+          sequelize.where(
+            sequelize.fn('LOWER', sequelize.col('invite_code')),
+            invite_code.toLowerCase()
+          )
+        ]
+      },
       transaction: t
     });
     

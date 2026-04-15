@@ -38,6 +38,16 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkAndStartTour();
     });
+
+    // Aggressive Auto-Sync: Watch for unsynced changes and trigger sync
+    ref.listenManual(hasUnsyncedChangesProvider, (previous, next) {
+      if (next.value == true) {
+        final user = ref.read(currentUserProvider).value;
+        if (user != null) {
+          ref.read(syncServiceProvider).startSync(user.id).catchError((e) => debugPrint("Aggressive Auto-sync failed: $e"));
+        }
+      }
+    });
   }
 
   Future<void> _checkAndStartTour() async {

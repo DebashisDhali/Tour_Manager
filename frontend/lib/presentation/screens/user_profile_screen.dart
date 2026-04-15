@@ -28,6 +28,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   bool _isEditing = false;
   bool _isLoading = false;
   final ImagePicker _picker = ImagePicker();
+  
+  ThemeData get theme => Theme.of(context);
+  bool get isDark => theme.brightness == Brightness.dark;
 
   @override
   void initState() {
@@ -110,9 +113,6 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
@@ -171,13 +171,15 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
-                  colors: [Colors.blue.shade100, Colors.blue.shade50],
+                  colors: isDark 
+                    ? [Colors.indigo.shade900, Colors.indigo.shade800] 
+                    : [Colors.blue.shade100, Colors.blue.shade50],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.blue.withOpacity(0.1),
+                    color: (isDark ? Colors.black : Colors.blue).withOpacity(0.1),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -227,7 +229,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         if (!_isEditing) ...[
           Text(
             _nameController.text,
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.blueGrey.shade900, letterSpacing: -0.5),
+            style: TextStyle(
+              fontSize: 26, 
+              fontWeight: FontWeight.w900, 
+              color: isDark ? Colors.white : Colors.blueGrey.shade900, 
+              letterSpacing: -0.5
+            ),
           ),
           const SizedBox(height: 4),
           Text(
@@ -265,10 +272,17 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                   decoration: BoxDecoration(color: Colors.indigo.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
                   child: Icon(ref.watch(themeProvider) == ThemeMode.dark ? Icons.dark_mode_rounded : Icons.light_mode_rounded, color: Colors.indigo, size: 20),
                 ),
-                title: const Text("Dark Theme", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                title: const Text("App Performance Theme", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                subtitle: Text(
+                  ref.watch(themeProvider) == ThemeMode.system 
+                    ? "Currently following system logic" 
+                    : "Manual preference enabled",
+                  style: TextStyle(fontSize: 11, color: isDark ? Colors.blueGrey.shade400 : Colors.blueGrey.shade500)
+                ),
                 trailing: Switch.adaptive(
-                  value: ref.watch(themeProvider) == ThemeMode.dark,
+                  value: isDark,
                   activeColor: Colors.indigo,
+                  activeTrackColor: Colors.indigo.withOpacity(0.5),
                   onChanged: (val) {
                     ref.read(themeProvider.notifier).setTheme(val ? ThemeMode.dark : ThemeMode.light);
                   },
@@ -286,10 +300,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
               icon: const Icon(Icons.logout_rounded, size: 20),
               label: const Text("Sign Out", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
+                backgroundColor: isDark ? theme.colorScheme.surface : Colors.white,
                 foregroundColor: Colors.red.shade600,
                 elevation: 0,
-                side: BorderSide(color: Colors.red.shade100, width: 1.5),
+                side: BorderSide(color: Colors.red.shade100.withOpacity(isDark ? 0.2 : 1.0), width: 1.5),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
             ),

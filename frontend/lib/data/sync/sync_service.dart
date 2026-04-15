@@ -291,12 +291,14 @@ class SyncService {
         });
 
         // Handle Deletions (Membership changes)
+        // ONLY delete if we got a valid list of tours back from the server
         final allTourIds = (response.data['allTourIds'] as List?)?.map((id) => id.toString()).toSet();
-        if (allTourIds != null) {
+        if (allTourIds != null && allTourIds.isNotEmpty) {
           final localTours = await db.select(db.tours).get();
           for (final lt in localTours) {
+            // Only remove if it was already synced and is genuinely missing from server's active list
             if (lt.isSynced && !allTourIds.contains(lt.id)) {
-               print("🗑️ Removing tour ${lt.name} - no longer a member");
+               print("🗑️ Removing tour ${lt.name} - no longer a member on server");
                await db.deleteTourWithDetails(lt.id); 
             }
           }
