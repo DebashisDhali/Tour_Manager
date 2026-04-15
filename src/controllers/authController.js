@@ -29,7 +29,7 @@ exports.register = async (req, res) => {
     const user = await User.create({
       name,
       email,
-      phone,
+      phone: (phone && phone.trim() !== '') ? phone : null,
       password: hashedPassword,
       is_registered: true
     });
