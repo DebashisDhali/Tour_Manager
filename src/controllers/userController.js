@@ -26,19 +26,34 @@ exports.getAllUsers = async (req, res) => {
 exports.searchUsers = async (req, res) => {
   try {
     const { query } = req.query;
-    if (!query) return res.json([]);
+    if (!query || query.trim().length === 0) return res.json([]);
     
+    const searchTerm = query.trim();
+
     const users = await User.findAll({
       where: {
         [Op.or]: [
-          { name: { [Op.like]: `%${query}%` } },
-          { phone: { [Op.like]: `%${query}%` } }
+          { name: { [Op.iLike]: `%${searchTerm}%` } },
+          { phone: { [Op.iLike]: `%${searchTerm}%` } },
+          { email: { [Op.iLike]: `%${searchTerm}%` } }
         ]
       },
-      limit: 10
+      attributes: ['id', 'name', 'phone', 'email', 'avatar_url'],
+      limit: 15
     });
-    res.json(users);
+
+    // Final safety check: ensure all returned users have a valid name string
+    const sanitizedUsers = users.map(u => {
+      const plain = u.toJSON();
+      if (!plain.name || plain.name.trim() === '') {
+        plain.name = "Member"; // Fallback for legacy corrupted data
+      }
+      return plain;
+    });
+
+    res.json(sanitizedUsers);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Search API Error:", err);
+    res.status(500).json({ error: "Search failed. Please try again." });
   }
 };
