@@ -44,7 +44,7 @@ class AuthService {
     }
   }
 
-  Future<User> register(String name, String email, String phone, String password) async {
+  Future<void> register(String name, String email, String phone, String password) async {
     try {
       final response = await dio.post(
         '$baseUrl/auth/register',
@@ -66,18 +66,13 @@ class AuthService {
       final data = response.data;
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        if (data['token'] != null && data['user'] != null) {
-          return await _saveAuthData(data['token'] as String, data['user'] as Map<String, dynamic>);
-        } else {
-          throw Exception('Registration successful but server returned no user data.');
-        }
+        return;
       } else {
         final errMsg = data['error'] ?? data['message'] ?? 'Registration failed.';
         throw Exception(errMsg);
       }
     } on DioException catch (e) {
       _handleDioError(e, 'Registration');
-      rethrow;
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Unexpected error: $e');

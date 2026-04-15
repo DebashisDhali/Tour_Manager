@@ -5,7 +5,7 @@ import 'package:frontend/presentation/widgets/no_internet_sheet.dart';
 import 'package:frontend/presentation/widgets/sync_handler.dart';
 import 'tour_list_screen.dart';
 import 'register_screen.dart';
-import 'dart:ui';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -20,6 +20,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _rememberMe = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
@@ -34,6 +35,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
     _animationController.forward();
+    _loadSavedCredentials();
+  }
+
+  Future<void> _loadSavedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedLogin = prefs.getString('remembered_login');
+    final savedPass = prefs.getString('remembered_password');
+    final isRemembered = prefs.getBool('remember_me') ?? false;
+
+    if (isRemembered && savedLogin != null) {
+      setState(() {
+        _loginController.text = savedLogin;
+        _passwordController.text = savedPass ?? '';
+        _rememberMe = true;
+      });
+    }
   }
 
   @override
@@ -62,6 +79,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
             _loginController.text.trim(),
             _passwordController.text.trim(),
           );
+
+      // Save credentials if Remember Me is checked
+      final prefs = await SharedPreferences.getInstance();
+      if (_rememberMe) {
+        await prefs.setString('remembered_login', _loginController.text.trim());
+        await prefs.setString('remembered_password', _passwordController.text.trim());
+        await prefs.setBool('remember_me', true);
+      } else {
+        await prefs.remove('remembered_login');
+        await prefs.remove('remembered_password');
+        await prefs.setBool('remember_me', false);
+      }
 
       // Start background sync
       ref.read(syncServiceProvider).startSync(user.id).catchError((e) => debugPrint("Auto Sync failed: $e"));
@@ -196,21 +225,45 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                               ),
                               validator: (v) => v == null || v.isEmpty ? "Required" : null,
                             ),
-                            const SizedBox(height: 12),
                             Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: () {},
-                                style: TextButton.styleFrom(
-                                  foregroundColor: Colors.blue.shade600,
-                                ),
-                                child: const Text(
-                                  "Forgot Password?",
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
+                              alignment: Alignment.centerLeft,
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: Checkbox(
+                                      value: _rememberMe,
+                                      activeColor: Colors.blue.shade600,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                      onChanged: (v) => setState(() => _rememberMe = v ?? false),
+                                    ),
                                   ),
-                                ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    "Remember Me",
+                                    style: TextStyle(
+                                      color: Colors.blueGrey.shade700,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  TextButton(
+                                    onPressed: () {},
+                                    style: TextButton.styleFrom(
+                                      foregroundColor: Colors.blue.shade600,
+                                      padding: EdgeInsets.zero,
+                                    ),
+                                    child: const Text(
+                                      "Forgot Password?",
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                             const SizedBox(height: 32),

@@ -48,32 +48,25 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     final enteredInviteCode = _inviteCodeController.text.trim().toUpperCase();
 
     setState(() => _isLoading = true);
-    try {
-      // 1. Register on Server first to get token and local User
-      final currentUser = await ref.read(authServiceProvider).register(
+     try {
+      // 1. Register on Server
+      await ref.read(authServiceProvider).register(
         _nameController.text.trim(),
         _emailController.text.trim(),
         _phoneController.text.trim(),
         _passwordController.text.trim(),
       );
 
-      // 2. Sync profile metadata
-      await ref.read(syncServiceProvider).startSync(currentUser.id).catchError((e) => debugPrint("Profile Sync failed: $e"));
-
-      // 4. If there's an invite code, join immediately
-      if (enteredInviteCode.isNotEmpty) {
-        await ref.read(syncServiceProvider).joinByInvite(
-          enteredInviteCode,
-          currentUser.id,
-          currentUser.name,
-          email: currentUser.email,
-        );
-      }
-      
       if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Registration Successful! Please Login."),
+            backgroundColor: Colors.green,
+          ),
+        );
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const TourListScreen()),
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
         );
       }
     } catch (e) {
