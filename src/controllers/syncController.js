@@ -188,7 +188,10 @@ exports.syncData = async (req, res) => {
     // Fetch ALL tour IDs where the user is an active member
     const activeTourRecords = await TourMember.findAll({
       where: { 
-        user_id: userId, 
+        user_id: sequelize.where(
+          sequelize.fn('LOWER', sequelize.cast(sequelize.col('user_id'), 'text')),
+          userId.toLowerCase()
+        ), 
         status: 'active' 
       },
       attributes: ['tour_id'],

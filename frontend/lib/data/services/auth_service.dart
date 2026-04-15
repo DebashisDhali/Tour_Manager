@@ -141,7 +141,7 @@ class AuthService {
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
-    await (db.update(db.users)).write(const UsersCompanion(isMe: Value(false)));
+    await db.clearAllData();
   }
 
   Future<String?> getToken() async {

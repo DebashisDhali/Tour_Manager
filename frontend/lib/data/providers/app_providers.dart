@@ -70,7 +70,16 @@ final currentUserProvider = StreamProvider<User?>((ref) {
 
 final tourListProvider = StreamProvider.autoDispose<List<Tour>>((ref) {
   final db = ref.watch(databaseProvider);
-  return (db.select(db.tours)..where((t) => t.isDeleted.equals(false))..orderBy([(t) => OrderingTerm.desc(t.updatedAt)])).watch();
+  final currentUser = ref.watch(currentUserProvider).value;
+  
+  if (currentUser == null) return Stream.value([]);
+
+  final query = db.select(db.tours).join([
+    innerJoin(db.tourMembers, db.tourMembers.tourId.equalsExp(db.tours.id)),
+  ])..where(db.tourMembers.userId.equals(currentUser.id) & db.tours.isDeleted.equals(false))
+    ..orderBy([OrderingTerm.desc(db.tours.updatedAt)]);
+
+  return query.watch().map((rows) => rows.map((row) => row.readTable(db.tours)).toList());
 });
 
 final userListProvider = StreamProvider.autoDispose<List<User>>((ref) {
