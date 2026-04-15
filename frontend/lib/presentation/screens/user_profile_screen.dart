@@ -111,8 +111,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(widget.isMe ? "My Profile" : "Member Profile", 
           style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
@@ -122,7 +124,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         actions: [
           if (widget.isMe)
             IconButton(
-              icon: Icon(_isEditing ? Icons.close_rounded : Icons.edit_note_rounded, color: Colors.blue.shade700),
+              icon: Icon(_isEditing ? Icons.close_rounded : Icons.edit_note_rounded, color: isDark ? Colors.indigo.shade300 : Colors.blue.shade700),
               onPressed: () => setState(() => _isEditing = !_isEditing),
             )
         ],
@@ -340,24 +342,28 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   }
 
   Widget _buildSectionCard({required String title, required List<Widget> items}) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          )
+          if (!isDark)
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            )
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.blueGrey.shade400, letterSpacing: 0.5)),
+          Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: isDark ? Colors.blueGrey.shade300 : Colors.blueGrey.shade400, letterSpacing: 0.5)),
           const SizedBox(height: 12),
           ...items,
         ],
@@ -366,6 +372,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   }
 
   Widget _buildInfoTile(IconData icon, String label, String value, Color color) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
@@ -380,8 +388,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.blueGrey.shade400)),
-                Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.blueGrey.shade800)),
+                Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? Colors.blueGrey.shade300 : Colors.blueGrey.shade400)),
+                Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.blueGrey.shade800)),
               ],
             ),
           )
@@ -426,23 +434,26 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   }
 
   Widget _buildModernTextField(TextEditingController controller, String label, IconData icon, {TextInputType type = TextInputType.text}) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.blueGrey.shade700)),
+          child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: isDark ? Colors.blueGrey.shade200 : Colors.blueGrey.shade700)),
         ),
         TextFormField(
           controller: controller,
           keyboardType: type,
           style: const TextStyle(fontWeight: FontWeight.w600),
           decoration: InputDecoration(
-            prefixIcon: Icon(icon, size: 20, color: Colors.blue.shade600),
+            prefixIcon: Icon(icon, size: 20, color: isDark ? Colors.indigo.shade300 : Colors.blue.shade600),
             filled: true,
-            fillColor: Colors.white,
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.blueGrey.shade200, width: 1.5)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.blue.shade600, width: 2)),
+            fillColor: theme.cardColor,
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: isDark ? Colors.white10 : Colors.blueGrey.shade200, width: 1.5)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: isDark ? Colors.indigo.shade400 : Colors.blue.shade600, width: 2)),
             contentPadding: const EdgeInsets.all(18),
           ),
         ),
