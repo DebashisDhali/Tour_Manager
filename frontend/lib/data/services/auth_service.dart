@@ -7,6 +7,7 @@ class AuthService {
   final Dio dio;
   final AppDatabase db;
   final String baseUrl;
+  String? _cachedToken;
 
   AuthService(this.dio, this.db, this.baseUrl);
 
@@ -103,6 +104,7 @@ class AuthService {
   Future<User> _saveAuthData(String token, Map<String, dynamic> userData) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('auth_token', token);
+    _cachedToken = token;
 
     // Robust ID handling (convert UUID or Int to String)
     final userId = (userData['id'] ?? userData['_id'] ?? '').toString();
@@ -139,13 +141,16 @@ class AuthService {
   }
 
   Future<void> logout() async {
+    _cachedToken = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
     await db.clearAllData();
   }
 
   Future<String?> getToken() async {
+    if (_cachedToken != null) return _cachedToken;
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
+    _cachedToken = prefs.getString('auth_token');
+    return _cachedToken;
   }
 }

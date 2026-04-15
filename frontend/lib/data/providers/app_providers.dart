@@ -21,10 +21,18 @@ final dioProvider = Provider<Dio>((ref) {
 
   dio.interceptors.add(InterceptorsWrapper(
     onRequest: (options, handler) async {
-      final authService = ref.read(authServiceProvider);
-      final token = await authService.getToken();
-      if (token != null) {
-        options.headers['Authorization'] = 'Bearer $token';
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString('auth_token');
+        
+        if (token != null && token.isNotEmpty) {
+          options.headers['Authorization'] = 'Bearer $token';
+          print("🔑 Auth Interceptor: Token attached to ${options.path}");
+        } else {
+          print("⚠️ Auth Interceptor: No token found for ${options.path}");
+        }
+      } catch (e) {
+        print("❌ Auth Interceptor Error: $e");
       }
       return handler.next(options);
     },
