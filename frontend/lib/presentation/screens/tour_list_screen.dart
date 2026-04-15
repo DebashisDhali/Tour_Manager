@@ -27,7 +27,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
   final _tabBarKey = GlobalKey();
   final _fabKey = GlobalKey();
   final _profileKey = GlobalKey();
-  final _joinCodeKey = GlobalKey();
+  final _joinCodeAppBarKey = GlobalKey();
   final _tourOverlayKey = GlobalKey<AppTourOverlayState>();
 
   @override
@@ -86,7 +86,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
         accentColor: const Color(0xFF10B981),
       ),
       TourStep(
-        targetKey: _joinCodeKey,
+        targetKey: _joinCodeAppBarKey,
         title: 'কোড দিয়ে যোগ দিন',
         description: 'অন্যের ট্যুরে যোগ দিতে 6-digit invite code ব্যবহার করুন। Home screen-এ "Join with Code" অপশনটি ব্যবহার করুন।',
         icon: Icons.qr_code_rounded,
@@ -151,7 +151,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                 ),
                 actions: [
                   IconButton(
-                    key: _joinCodeKey,
+                    key: _joinCodeAppBarKey,
                     onPressed: () => _showJoinDialog(context, config),
                     icon: const Icon(Icons.qr_code_scanner_rounded),
                     tooltip: 'Join with Code',
@@ -228,7 +228,6 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                 if (items.isEmpty) ...[
                 const SizedBox(height: 24),
                 OutlinedButton.icon(
-                  key: _joinCodeKey,
                   onPressed: () => _showJoinDialog(context, config),
                   icon: const Icon(Icons.qr_code_scanner_rounded),
                   label: const Text("Join with Code"),
