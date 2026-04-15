@@ -20,8 +20,11 @@ class AuthService {
           'password': password,
         },
         options: Options(
-          validateStatus: (status) => status != null && status < 500,
+          validateStatus: (status) => status != null && (status < 500 || status == 401 || status == 404),
           headers: {'Content-Type': 'application/json'},
+          connectTimeout: const Duration(seconds: 15),
+          sendTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 30),
         ),
       );
 
@@ -34,11 +37,9 @@ class AuthService {
         throw Exception(errMsg);
       }
     } on DioException catch (e) {
-      if (e.response?.data != null) {
-        final errMsg = e.response!.data['error'] ?? e.response!.data['message'] ?? 'Login failed';
-        throw Exception(errMsg);
-      }
-      throw Exception('Cannot connect to server. Check your internet connection.');
+      _handleDioError(e, 'Login');
+    } catch (e) {
+       throw Exception('Unexpected error: $e');
     }
   }
 
@@ -48,41 +49,54 @@ class AuthService {
         '$baseUrl/auth/register',
         data: {
           'name': name.trim(),
-          'email': email.trim(),
+          'email': email.trim().toLowerCase(),
           'phone': phone.trim(),
           'password': password,
         },
         options: Options(
           validateStatus: (status) => status != null && status < 500,
           headers: {'Content-Type': 'application/json'},
-          sendTimeout: const Duration(seconds: 30),
+          connectTimeout: const Duration(seconds: 20),
+          sendTimeout: const Duration(seconds: 20),
           receiveTimeout: const Duration(seconds: 30),
         ),
       );
 
       final data = response.data;
 
-      // Accept both 200 and 201 success codes
       if (response.statusCode == 201 || response.statusCode == 200) {
-        // Registration successful. Do not auto-login to force user back to login screen.
         return;
       } else {
-        final errMsg = data['error'] ?? data['message'] ?? 'Registration failed. Please try again.';
+        final errMsg = data['error'] ?? data['message'] ?? 'Registration failed.';
         throw Exception(errMsg);
       }
     } on DioException catch (e) {
-      if (e.response?.data != null) {
-        final errMsg = e.response!.data['error'] ?? e.response!.data['message'] ?? 'Registration failed';
-        throw Exception(errMsg);
-      }
-      if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout) {
-        throw Exception('Connection timed out. The server may be starting up, please try again.');
-      }
-      throw Exception('Cannot connect to server. Check your internet connection.');
+      _handleDioError(e, 'Registration');
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Unexpected error: $e');
     }
+  }
+
+  void _handleDioError(DioException e, String context) {
+    if (e.response?.data != null && e.response?.data is Map) {
+      final errMsg = e.response!.data['error'] ?? e.response!.data['message'] ?? '$context failed';
+      throw Exception(errMsg);
+    }
+    
+    if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout) {
+      throw Exception('Server is taking too long to respond. It might be waking up, please try again in a few seconds.');
+    }
+    
+    if (e.type == DioExceptionType.connectionError) {
+      throw Exception('Cannot reach the server. Please check if your internet or DNS is working correctly.');
+    }
+
+    if (e.error != null && e.error.toString().contains('SocketException')) {
+       throw Exception('Network unreachable. Please check your data connection or Wi-Fi.');
+    }
+
+    throw Exception('Server communication error. Please try again later.');
   }
 
   Future<void> _saveAuthData(String token, Map<String, dynamic> userData) async {

@@ -12,6 +12,7 @@ import '../../data/local/app_database.dart' as models;
 import '../widgets/premium_card.dart';
 import '../widgets/app_tour_overlay.dart';
 import '../widgets/sync_handler.dart';
+import '../widgets/no_internet_sheet.dart';
 
 class TourListScreen extends ConsumerStatefulWidget {
   const TourListScreen({super.key});
@@ -625,18 +626,11 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
     }
   }
 
-  /// Beautiful "No Internet" bottom sheet shown when user taps Sync offline.
   void _showNoInternetSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _NoInternetSheet(
-        onRetry: () {
-          Navigator.of(ctx).pop();
-          _syncData(context);
-        },
-      ),
+    NoInternetSheet.show(
+      context, 
+      onRetry: () => _syncData(context),
+      title: 'সিঙ্ক করা সম্ভব হচ্ছে না',
     );
   }
 
@@ -843,11 +837,6 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// No Internet Bottom Sheet
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _NoInternetSheet extends StatefulWidget {
   final VoidCallback onRetry;
   const _NoInternetSheet({required this.onRetry});
 

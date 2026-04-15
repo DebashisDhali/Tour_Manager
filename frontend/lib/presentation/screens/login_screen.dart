@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/data/providers/app_providers.dart';
+import 'package:frontend/presentation/widgets/no_internet_sheet.dart';
+import 'package:frontend/presentation/widgets/sync_handler.dart';
 import 'tour_list_screen.dart';
 import 'register_screen.dart';
 import 'dart:ui';
@@ -45,6 +47,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Proactive Connectivity Check
+    final isOnline = await SyncHandler.isConnected();
+    if (!isOnline) {
+      if (mounted) {
+        NoInternetSheet.show(context, onRetry: _login);
+      }
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       await ref.read(authServiceProvider).login(
@@ -62,14 +73,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll("Exception: ", "")), 
-            backgroundColor: Colors.redAccent,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        final errorMsg = e.toString().toLowerCase();
+        if (errorMsg.contains('internet') || errorMsg.contains('network') || errorMsg.contains('server communication')) {
+           NoInternetSheet.show(context, onRetry: _login, message: e.toString().replaceAll("Exception: ", ""));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString().replaceAll("Exception: ", "")), 
+              backgroundColor: Colors.redAccent,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
