@@ -10,7 +10,7 @@ class AuthService {
 
   AuthService(this.dio, this.db, this.baseUrl);
 
-  Future<void> login(String loginInfo, String password) async {
+  Future<User> login(String loginInfo, String password) async {
     try {
       final isEmail = loginInfo.contains('@');
       final response = await dio.post(
@@ -31,19 +31,20 @@ class AuthService {
       final data = response.data;
 
       if (response.statusCode == 200 && data['token'] != null) {
-        await _saveAuthData(data['token'] as String, data['user'] as Map<String, dynamic>);
+        return await _saveAuthData(data['token'] as String, data['user'] as Map<String, dynamic>);
       } else {
         final errMsg = data['error'] ?? data['message'] ?? 'Login failed. Check your credentials.';
         throw Exception(errMsg);
       }
     } on DioException catch (e) {
       _handleDioError(e, 'Login');
+      rethrow; // Should not reach here due to _handleDioError throwing
     } catch (e) {
        throw Exception('Unexpected error: $e');
     }
   }
 
-  Future<void> register(String name, String email, String phone, String password) async {
+  Future<User> register(String name, String email, String phone, String password) async {
     try {
       final response = await dio.post(
         '$baseUrl/auth/register',
@@ -65,13 +66,18 @@ class AuthService {
       final data = response.data;
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        return;
+        if (data['token'] != null && data['user'] != null) {
+          return await _saveAuthData(data['token'] as String, data['user'] as Map<String, dynamic>);
+        } else {
+          throw Exception('Registration successful but server returned no user data.');
+        }
       } else {
         final errMsg = data['error'] ?? data['message'] ?? 'Registration failed.';
         throw Exception(errMsg);
       }
     } on DioException catch (e) {
       _handleDioError(e, 'Registration');
+      rethrow;
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Unexpected error: $e');
@@ -99,12 +105,12 @@ class AuthService {
     throw Exception('Server communication error. Please try again later.');
   }
 
-  Future<void> _saveAuthData(String token, Map<String, dynamic> userData) async {
+  Future<User> _saveAuthData(String token, Map<String, dynamic> userData) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('auth_token', token);
 
-    // Backend may return snake_case or camelCase — handle both
-    final userId = (userData['id'] ?? userData['_id'] ?? '') as String;
+    // Robust ID handling (convert UUID or Int to String)
+    final userId = (userData['id'] ?? userData['_id'] ?? '').toString();
     final userName = (userData['name'] ?? 'Unknown') as String;
     final userEmail = userData['email'] as String?;
     final userPhone = userData['phone'] as String?;
@@ -114,8 +120,7 @@ class AuthService {
       throw Exception('Server returned invalid user data.');
     }
 
-    // Save to local DB with isMe = true
-    await db.createUser(User(
+    final newUser = User(
       id: userId,
       name: userName,
       email: userEmail,
@@ -126,11 +131,16 @@ class AuthService {
       isDeleted: false,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
-    ));
+    );
+
+    // Save to local DB with isMe = true
+    await db.createUser(newUser);
 
     // Ensure all other users in local DB have isMe = false
     await (db.update(db.users)..where((u) => u.id.isNotValue(userId)))
         .write(const UsersCompanion(isMe: Value(false)));
+        
+    return newUser;
   }
 
   Future<void> logout() async {

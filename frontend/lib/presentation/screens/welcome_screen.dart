@@ -49,19 +49,15 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
 
     setState(() => _isLoading = true);
     try {
-      // 1. Register on Server first to get token
-      await ref.read(authServiceProvider).register(
+      // 1. Register on Server first to get token and local User
+      final currentUser = await ref.read(authServiceProvider).register(
         _nameController.text.trim(),
         _emailController.text.trim(),
         _phoneController.text.trim(),
         _passwordController.text.trim(),
       );
 
-      // 2. Get the newly created user (AuthService._saveAuthData saves it locally with isMe: true)
-      final currentUser = await ref.read(currentUserProvider.future);
-      if (currentUser == null) throw Exception("Failed to retrieve profile after registration.");
-      
-      // 3. Sync profile metadata
+      // 2. Sync profile metadata
       await ref.read(syncServiceProvider).startSync(currentUser.id).catchError((e) => debugPrint("Profile Sync failed: $e"));
 
       // 4. If there's an invite code, join immediately

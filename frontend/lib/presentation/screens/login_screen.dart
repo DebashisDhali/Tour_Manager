@@ -58,12 +58,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
 
     setState(() => _isLoading = true);
     try {
-      await ref.read(authServiceProvider).login(
+      final user = await ref.read(authServiceProvider).login(
             _loginController.text.trim(),
             _passwordController.text.trim(),
           );
 
-      ref.invalidate(currentUserProvider);
+      // Start background sync
+      ref.read(syncServiceProvider).startSync(user.id).catchError((e) => debugPrint("Auto Sync failed: $e"));
       
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
