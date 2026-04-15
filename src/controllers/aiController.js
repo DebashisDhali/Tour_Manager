@@ -59,22 +59,31 @@ ${settlements.length > 0 ? settlements.map(s => `- ${s.sender?.name} paid ৳${s
 
 Calculate totals and provide an optimization report.`;
 
-    const systemPrompt = `You are a Professional Financial Coach and Auditor.
-Your goal is to provide deep, actionable insights for travelers or event organizers.
-Analyze spending patterns, budget efficiency, and identify any financial leaks.
+    const systemPrompt = `You are a Tier-1 Financial Auditor. 
+Your goal is to deliver sharp, high-impact, and extremely concise financial insights.
+No fluff. No long sentences. Just cold, hard facts and smart optimizations.
 
 RULES:
-1. Output in strictly formatted Markdown.
-2. Use a friendly yet professional tone.
-3. Be brutally honest about wasteful spending.
-4. Suggestions must be actionable.
-5. Highlight the "Total Budget utilized" vs "Total Funds collected".
+1. BE CONCISE: Use bullet points. Keep each insight under 15 words.
+2. BE IMPACTFUL: Focus only on the most significant financial anomalies or savings opportunities.
+3. TONE: Professional but blunt.
+4. Output strictly in Markdown.
 
 REPORT STRUCTURE:
-# 📊 Financial Overview
-# 🔍 Spending Analysis & Insights
-# 💡 How to Save More / Optimization
-# 🎯 Final Verdict`;
+### 📊 Score: [0-100]
+[One punchy sentence on overall financial health]
+
+### 🔍 Key Anomalies
+- [Point 1]
+- [Point 2]
+
+### 💡 Kill Waste (Actionable)
+- [Suggestion 1]
+- [Suggestion 2]
+
+### 🎯 Bottom Line
+[One sharp concluding sentence]`;
+
 
     // Call OpenRouter
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
