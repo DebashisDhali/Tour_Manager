@@ -68,6 +68,7 @@ class SyncService {
             'id': t.id, 'name': t.name, 'createdBy': t.createdBy,
             'inviteCode': t.inviteCode, 'startDate': t.startDate?.toIso8601String(),
             'endDate': t.endDate?.toIso8601String(),
+            'purpose': t.purpose,
             'isDeleted': t.isDeleted,
           }).toList(),
           'expenses': unsyncedExpenses.map((e) => {

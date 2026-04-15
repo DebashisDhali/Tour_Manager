@@ -59,26 +59,27 @@ exports.syncData = async (req, res) => {
                // Ensure the creator exists on the server to avoid FK issues with TourMember
                // We don't have all user info here, but we can create a shell if missing
                if (t.createdBy) {
-                 await User.findOrCreate({
-                   where: { id: t.createdBy },
-                   defaults: { id: t.createdBy, name: 'Cloud User', updated_at: now },
-                   transaction
-                 });
-               }
+                  const creatorId = t.createdBy.toLowerCase();
+                  await User.findOrCreate({
+                    where: { id: creatorId },
+                    defaults: { id: creatorId, name: 'Cloud User', updated_at: now },
+                    transaction
+                  });
+                }
 
                 await Tour.upsert({
-                  id: t.id.toLowerCase(), name: t.name, created_by: t.createdBy.toLowerCase(), 
-                  invite_code: t.inviteCode, start_date: t.startDate, 
-                  end_date: t.endDate, updated_at: now, purpose: t.purpose || 'tour'
+                  id: t.id.toLowerCase(), name: t.name, created_by: t.createdBy ? t.createdBy.toLowerCase() : null, 
+                  invite_code: t.inviteCode || null, start_date: t.startDate || null,
+                  end_date: t.endDate || null, updated_at: now, purpose: t.purpose || 'tour'
                 }, { transaction });
-               
-               if (t.createdBy) {
-                 await TourMember.upsert({ 
-                   tour_id: t.id.toLowerCase(), user_id: t.createdBy.toLowerCase(), 
-                   status: 'active', role: 'admin', 
-                   joined_at: t.startDate || now, updated_at: now 
-                 }, { transaction });
-               }
+                
+                if (t.createdBy) {
+                  await TourMember.upsert({ 
+                    tour_id: t.id.toLowerCase(), user_id: t.createdBy.toLowerCase(), 
+                    status: 'active', role: 'admin', 
+                    joined_at: t.startDate || now, updated_at: now 
+                  }, { transaction });
+                }
              }
           }
         }
@@ -175,14 +176,15 @@ exports.syncData = async (req, res) => {
 
       await transaction.commit();
       transaction = null;
+      console.log('✅ Push phase completed successfully.');
     } catch (pushErr) {
-      console.error('❌ Push Sync Phase Failed:', pushErr);
-      if (transaction) await transaction.rollback();
-      return res.status(400).json({ 
-        error: "Push Sync Failed", 
-        message: pushErr.message,
-        details: "One or more items could not be saved to the database. Check for duplicate invite codes or missing data."
-      });
+      console.error('⚠️ Push Sync Phase had errors (non-fatal, continuing to pull):', pushErr.message);
+      // CRITICAL: Do NOT return here. Roll back the failed transaction
+      // but continue to the pull phase so the user still gets their server data.
+      if (transaction) {
+        try { await transaction.rollback(); } catch(rbErr) { /* ignore */ }
+        transaction = null;
+      }
     }
 
 
