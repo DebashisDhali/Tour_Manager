@@ -1,28 +1,58 @@
 const https = require('https');
 
-https.get('https://tour-manager-navy.vercel.app/tours/diagnostic/db-schema', (res) => {
-  let data = '';
-  res.on('data', chunk => { data += chunk; });
-  res.on('end', () => {
-    try {
-      const json = JSON.parse(data);
-      // Group by what appears to be each table (heuristic: look for tell-tale columns)
-      const schema = json.rawSchema;
-      
-      // Find columns per table based on unique column combinations
-      const columns = schema.map(c => c.column_name);
-      console.log("=== ALL COLUMNS IN DB ===");
-      console.log(columns.join('\n'));
-      console.log("\n=== FULL MODEL FIELDS (Tour) ===");
-      console.log(json.models.Tour.join('\n'));
-      console.log("\n=== invite_code present? ===", columns.includes('invite_code'));
-      console.log("=== created_by present? ===", columns.includes('created_by'));
-      console.log("=== status present? ===", columns.includes('status'));
-      console.log("\n=== RAW SCHEMA (invite_code rows) ===");
-      schema.filter(c => c.column_name === 'invite_code').forEach(c => console.log(JSON.stringify(c)));
-      schema.filter(c => c.column_name === 'created_by').forEach(c => console.log(JSON.stringify(c)));
-    } catch(e) {
-      console.error("Failed to parse:", data.substring(0, 500));
-    }
+function get(path) {
+  return new Promise((resolve) => {
+    https.get(`https://tour-manager-navy.vercel.app${path}`, (res) => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { resolve({ raw: data.substring(0, 300) }); } });
+    }).on('error', err => resolve({ error: err.message }));
   });
-}).on('error', err => console.log('Error: ', err.message));
+}
+
+(async () => {
+  console.log("=== Checking Vercel DB: All Tours & Invite Codes ===\n");
+  const result = await get('/tours/diagnostic/list-codes');
+  
+  if (result.error) {
+    console.log("❌ Error:", result.error);
+    return;
+  }
+  if (result.raw) {
+    console.log("Raw response:", result.raw);
+    return;
+  }
+  
+  console.log(`Total tours in DB: ${result.count}\n`);
+  
+  if (!result.tours || result.tours.length === 0) {
+    console.log("⚠️  NO TOURS FOUND IN DATABASE! This is the root cause.");
+    console.log("   → Sync is not pushing tours to the server.");
+    console.log("   → Check if the user is authenticated when syncing.");
+    return;
+  }
+  
+  result.tours.forEach((t, i) => {
+    const codeStatus = t.has_invite_code ? `✅ ${t.invite_code}` : '❌ NULL (MISSING!)';
+    console.log(`[${i+1}] "${t.name}"`);
+    console.log(`    invite_code: ${codeStatus}`);
+    console.log(`    id: ${t.id}`);
+    console.log(`    last updated: ${t.updated_at}`);
+    console.log('');
+  });
+  
+  const missing = result.tours.filter(t => !t.has_invite_code);
+  const present = result.tours.filter(t => t.has_invite_code);
+  
+  console.log("=== SUMMARY ===");
+  console.log(`Tours WITH invite_code: ${present.length}`);
+  console.log(`Tours WITHOUT invite_code: ${missing.length}`);
+  
+  if (missing.length > 0) {
+    console.log("\n⚠️ ROOT CAUSE FOUND: Some tours have NULL invite_code on server!");
+    console.log("   → invite_code is not being saved during sync.");
+  } else if (present.length > 0) {
+    console.log("\n✅ All tours have invite_codes. Test join with one of these codes:");
+    present.forEach(t => console.log(`   → ${t.invite_code} (${t.name})`));
+  }
+})();

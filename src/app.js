@@ -25,7 +25,7 @@ app.get('/', (req, res) => {
   res.status(200).send('Tour Manager API is Live');
 });
 
-// Diagnostic route
+// Diagnostic route - inspect DB schema
 const { Tour, TourMember, User } = require('./models');
 app.get('/tours/diagnostic/db-schema', async (req, res) => {
   try {
@@ -39,6 +39,31 @@ app.get('/tours/diagnostic/db-schema', async (req, res) => {
       status: 'success',
       rawSchema,
       models: { Tour: Object.keys(Tour.rawAttributes) }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Diagnostic route - list all tours and their invite_codes (to debug join issue)
+app.get('/tours/diagnostic/list-codes', async (req, res) => {
+  try {
+    const tours = await Tour.findAll({
+      attributes: ['id', 'name', 'invite_code', 'created_by', 'created_at', 'updated_at'],
+      order: [['updated_at', 'DESC']],
+      limit: 20,
+      raw: true
+    });
+    res.json({
+      count: tours.length,
+      tours: tours.map(t => ({
+        id: t.id,
+        name: t.name,
+        invite_code: t.invite_code,
+        has_invite_code: !!t.invite_code,
+        created_by: t.created_by,
+        updated_at: t.updated_at
+      }))
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
