@@ -99,8 +99,8 @@ async function initDb() {
     console.log('🔄 Initializing Database Connection...');
     await sequelize.authenticate();
     console.log('✅ Database connected.');
-    // Only sync schema in dev or if explicitly needed. alter: true is expensive.
-    await sequelize.sync({ alter: false });
+    // Enable alter: true temporarily to ensure all new schema columns (like invite_code, purpose, etc.) are synced to PostgreSQL without dropping data.
+    await sequelize.sync({ alter: true });
     console.log('✅ Database schema verified.');
     isDbInitialized = true;
   } catch (dbErr) {
