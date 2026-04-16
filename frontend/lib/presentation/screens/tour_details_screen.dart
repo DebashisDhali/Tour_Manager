@@ -107,6 +107,12 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
         _initTabController(tour);
         final config = PurposeConfig.getConfig(tour.purpose);
 
+        final me = ref.watch(currentUserProvider).value;
+        final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
+        final myMember = membersAsync.value?.where((m) => m.user.id == me?.id).firstOrNull;
+        final myRole = myMember?.role ?? 'viewer';
+        final isAdmin = me?.id == tour.createdBy || myRole == 'admin';
+
         return Scaffold(
           appBar: AppBar(
             automaticallyImplyLeading: true,
@@ -156,7 +162,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                   onPressed: () => _generateAndShowCode(context, tour),
                   tooltip: 'Generate Invite Code',
                 ),
-              if (ref.watch(currentUserProvider).value?.id == tour.createdBy)
+              if (isAdmin)
                 PopupMenuButton<String>(
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   icon: const Icon(Icons.more_vert_rounded),
@@ -235,6 +241,16 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
     final int index = _tabController?.index ?? 0;
     final config = PurposeConfig.getConfig(tour.purpose);
 
+    final me = ref.watch(currentUserProvider).value;
+    final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
+    final myMember = membersAsync.value?.where((m) => m.user.id == me?.id).firstOrNull;
+    final myRole = myMember?.role ?? 'viewer';
+    final isEditor = me?.id == tour.createdBy || myRole == 'admin' || myRole == 'editor';
+    final isAdmin = me?.id == tour.createdBy || myRole == 'admin';
+
+    if (!isEditor) return null;
+
+
     IconData icon = Icons.add;
     String label = "Add Expense";
     VoidCallback? action;
@@ -258,6 +274,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
           action = () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddExpenseScreen(tourId: widget.tourId)));
           break;
         case 3: // Members
+          if (!isAdmin) return null;
           icon = Icons.person_add;
           label = "Add ${config.memberLabel}";
           action = () => showDialog(context: context, builder: (_) => AddMemberDialog(tourId: widget.tourId));
@@ -276,6 +293,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
           action = () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddExpenseScreen(tourId: widget.tourId)));
           break;
         case 1: // Members
+          if (!isAdmin) return null;
           icon = Icons.person_add;
           label = "Add ${config.memberLabel}";
           action = () => showDialog(context: context, builder: (_) => AddMemberDialog(tourId: widget.tourId));
@@ -338,6 +356,15 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
       inviteCode: drift.Value(code),
       isSynced: const drift.Value(false),
     ));
+    
+    try {
+      final me = ref.read(currentUserProvider).value;
+      if (me != null) {
+        ref.read(syncServiceProvider).startSync(me.id);
+      }
+    } catch (e) {
+      debugPrint("Invite code sync deferred: $e");
+    }
     
     if (context.mounted) {
       _showInviteCode(context, code, tour.purpose);
@@ -406,11 +433,17 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
     final allUsersAsync = ref.watch(tourUsersProvider(widget.tourId));
     final config = PurposeConfig.getConfig(tour.purpose);
 
+    final me = ref.watch(currentUserProvider).value;
+    final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
+    final myMember = membersAsync.value?.where((m) => m.user.id == me?.id).firstOrNull;
+    final myRole = myMember?.role ?? 'viewer';
+    final isEditor = me?.id == tour.createdBy || myRole == 'admin' || myRole == 'editor';
+
     return expensesAsync.when(
       data: (allExpenses) {
-        final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
         final allPayers = allPayersAsync.value ?? [];
         final filteredExpenses = _selectedFilterMemberId == null 
+
           ? allExpenses 
           : allExpenses.where((e) {
               if (e.expense.payerId == _selectedFilterMemberId) return true;
@@ -562,18 +595,19 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                           ],
                         ),
                         const SizedBox(width: 4),
-                        PopupMenuButton<String>(
-                          padding: EdgeInsets.zero,
-                          iconSize: 20,
-                          onSelected: (val) {
-                            if (val == 'edit') Navigator.push(context, MaterialPageRoute(builder: (_) => AddExpenseScreen(tourId: widget.tourId, initialExpense: exp)));
-                            if (val == 'delete') _showDeleteDialog(context, exp);
-                          },
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(value: 'edit', child: Text('Edit', style: TextStyle(fontSize: 13))),
-                            const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red, fontSize: 13))),
-                          ],
-                        ),
+                        if (isEditor)
+                          PopupMenuButton<String>(
+                            padding: EdgeInsets.zero,
+                            iconSize: 20,
+                            onSelected: (val) {
+                              if (val == 'edit') Navigator.push(context, MaterialPageRoute(builder: (_) => AddExpenseScreen(tourId: widget.tourId, initialExpense: exp)));
+                              if (val == 'delete') _showDeleteDialog(context, exp);
+                            },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(value: 'edit', child: Text('Edit', style: TextStyle(fontSize: 13))),
+                              const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red, fontSize: 13))),
+                            ],
+                          ),
                       ],
                     ),
                   );
@@ -590,7 +624,10 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
 
   Widget _buildJoinRequests(Tour tour) {
     final me = ref.watch(currentUserProvider).value;
-    if (me?.id != tour.createdBy) return const SizedBox.shrink();
+    final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
+    final isAdmin = me?.id == tour.createdBy || (membersAsync.value?.any((m) => m.user.id == me?.id && m.role == 'admin') ?? false);
+    
+    if (!isAdmin) return const SizedBox.shrink();
 
     final db = ref.read(databaseProvider);
     return StreamBuilder<List<JoinRequest>>(
@@ -1619,6 +1656,13 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
     final mealRecordsAsync = ref.watch(tourMealRecordsProvider(widget.tourId));
     final usersAsync = ref.watch(tourUsersProvider(widget.tourId));
     
+    final me = ref.watch(currentUserProvider).value;
+    final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
+    final myMember = membersAsync.value?.where((m) => m.user.id == me?.id).firstOrNull;
+    final myRole = myMember?.role ?? 'viewer';
+    final isEditor = me?.id == tour.createdBy || myRole == 'admin' || myRole == 'editor';
+
+    
     return mealRecordsAsync.when(
       data: (records) {
         return usersAsync.when(
@@ -1634,12 +1678,13 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                     const SizedBox(height: 16),
                     const Text("No meal records found.", style: TextStyle(color: Colors.grey)),
                     const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MealEntryScreen(tourId: widget.tourId))),
-                      icon: const Icon(Icons.add),
-                      label: const Text("Enter Daily Meals"),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
-                    ),
+                    if (isEditor)
+                      ElevatedButton.icon(
+                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MealEntryScreen(tourId: widget.tourId))),
+                        icon: const Icon(Icons.add),
+                        label: const Text("Enter Daily Meals"),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
+                      ),
                   ],
                 ),
               );
@@ -1667,7 +1712,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                     leading: CircleAvatar(backgroundColor: Colors.orange.withOpacity(0.1), child: const Icon(Icons.calendar_today, size: 18, color: Colors.orange)),
                     title: Text(DateFormat('EEEE, MMM dd').format(date), style: const TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text("Total Meals: ${dailyTotal.toStringAsFixed(1)}"),
-                    trailing: PopupMenuButton<String>(
+                    trailing: isEditor ? PopupMenuButton<String>(
                       onSelected: (v) {
                         if (v == 'edit') {
                            Navigator.push(context, MaterialPageRoute(builder: (_) => MealEntryScreen(tourId: widget.tourId, initialDate: date)));
@@ -1679,7 +1724,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                          const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text("Edit Day")])),
                          const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 18, color: Colors.red), SizedBox(width: 8), Text("Delete Day", style: TextStyle(color: Colors.red))])),
                       ],
-                    ),
+                    ) : null,
                     children: [
                        ...dailyRecords.map((r) => ListTile(
                          dense: true,

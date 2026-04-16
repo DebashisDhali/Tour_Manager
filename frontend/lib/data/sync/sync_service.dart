@@ -393,7 +393,7 @@ class SyncService {
                     email: memberEmail,
                     avatarUrl: (member['avatar_url'] ?? member['avatarUrl'])?.toString(),
                     purpose: (member['purpose'] ?? 'tour').toString(),
-                    isMe: mId == userId,
+                    isMe: mId.toLowerCase() == userId.toLowerCase(),
                     isSynced: true,
                     isDeleted: false,
                     createdAt: DateTime.now(),
@@ -642,7 +642,7 @@ class SyncService {
       final existingSplits = await (db.select(db.expenseSplits)
         ..where((s) => s.expenseId.equals(expense.id))).get();
 
-      final alreadyIncluded = existingSplits.any((s) => s.userId == newUserId);
+      final alreadyIncluded = existingSplits.any((s) => s.userId.toLowerCase() == newUserId.toLowerCase());
       if (alreadyIncluded) continue;
 
       final newCount = existingSplits.length + 1;

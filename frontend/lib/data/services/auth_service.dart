@@ -147,10 +147,11 @@ class AuthService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('auth_token');
       
-      // Wipe the database in the background without blocking the UI
-      unawaited(db.clearAllData().catchError((e) {
-        print("🚩 Background database wipe failed: $e");
-      }));
+      // Wiping the database here causes critical data loss of offline unsynced items.
+      // E.g., if a user creates a tour offline and logs out, the tour and its invite code are lost forever.
+      // unawaited(db.clearAllData().catchError((e) {
+      //   print("🚩 Background database wipe failed: $e");
+      // }));
     } catch (e) {
        print("🚩 Error during logout process: $e");
        // Re-throw to inform the UI if needed
