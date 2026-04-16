@@ -91,6 +91,13 @@ class SyncService {
       });
 
       if (response.statusCode == 200) {
+        final pushSuccess = response.data['pushSuccess'] ?? true;
+        if (pushSuccess == false) {
+          final pushError = response.data['pushError'] ?? 'Unknown push error';
+          print("⚠️ Push failed on server: $pushError");
+          throw Exception("Sync partial failure: $pushError. Server prevented local changes from being saved.");
+        }
+
         print("✅ Server returned 200. Marking pushed items as synced.");
         // 2. Mark Pushed data as synced
         await Future.wait([

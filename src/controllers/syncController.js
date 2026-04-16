@@ -3,6 +3,7 @@ const { Op } = require('sequelize');
 
 exports.syncData = async (req, res) => {
   let transaction;
+  let pushPhaseError = null;
   try {
     const { userId, unsyncedData, lastSync } = req.body;
     
@@ -179,8 +180,7 @@ exports.syncData = async (req, res) => {
       console.log('✅ Push phase completed successfully.');
     } catch (pushErr) {
       console.error('⚠️ Push Sync Phase had errors (non-fatal, continuing to pull):', pushErr.message);
-      // CRITICAL: Do NOT return here. Roll back the failed transaction
-      // but continue to the pull phase so the user still gets their server data.
+      pushPhaseError = pushErr.message; // Store error to send to client
       if (transaction) {
         try { await transaction.rollback(); } catch(rbErr) { /* ignore */ }
         transaction = null;
@@ -247,6 +247,8 @@ exports.syncData = async (req, res) => {
 
     res.json({
       timestamp: now.toISOString(),
+      pushSuccess: pushPhaseError === null,
+      pushError: pushPhaseError,
       tours: toursData,
       allTourIds: tourIds 
     });
