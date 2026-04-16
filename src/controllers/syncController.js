@@ -53,12 +53,15 @@ exports.syncData = async (req, res) => {
 
         // 1.2 Process Tours
         if (tours?.length > 0) {
+          console.log(`📦 Processing ${tours.length} tour(s) from client...`);
           for (const t of tours) {
              if (t.isDeleted) {
                await Tour.destroy({ where: { id: t.id }, transaction });
              } else {
+               // Log exactly what we received
+               console.log(`🏕️ Tour sync: id=${t.id}, name=${t.name}, invite_code=${t.inviteCode ?? 'NULL'}, createdBy=${t.createdBy}`);
+               
                // Ensure the creator exists on the server to avoid FK issues with TourMember
-               // We don't have all user info here, but we can create a shell if missing
                if (t.createdBy) {
                   const creatorId = t.createdBy.toLowerCase();
                   await User.findOrCreate({
@@ -68,11 +71,29 @@ exports.syncData = async (req, res) => {
                   });
                 }
 
-                await Tour.upsert({
-                  id: t.id.toLowerCase(), name: t.name, created_by: t.createdBy ? t.createdBy.toLowerCase() : null, 
+                const tourPayload = {
+                  id: t.id.toLowerCase(), name: t.name, created_by: t.createdBy ? t.createdBy.toLowerCase() : null,
                   invite_code: t.inviteCode || null, start_date: t.startDate || null,
                   end_date: t.endDate || null, updated_at: now, purpose: t.purpose || 'tour'
-                }, { transaction });
+                };
+                
+                // If invite_code is explicitly provided, force-update it
+                // (upsert may skip columns that aren't changed in some configs)
+                const [tourRecord] = await Tour.upsert(tourPayload, { 
+                  transaction,
+                  returning: true // get the saved record back
+                });
+                
+                // Double-check: if invite_code not saved (can happen with some PG upsert quirks), update explicitly
+                if (t.inviteCode && tourRecord) {
+                  const savedCode = tourRecord.invite_code || tourRecord.dataValues?.invite_code;
+                  if (!savedCode) {
+                    console.log(`⚠️ invite_code was not saved by upsert, forcing update for tour ${t.id}`);
+                    await Tour.update({ invite_code: t.inviteCode }, { where: { id: t.id.toLowerCase() }, transaction });
+                  } else {
+                    console.log(`✅ Tour saved with invite_code: ${savedCode}`);
+                  }
+                }
                 
                 if (t.createdBy) {
                   await TourMember.upsert({ 
