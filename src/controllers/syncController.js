@@ -98,7 +98,7 @@ exports.syncData = async (req, res) => {
                   const mUserId = m.userId.toLowerCase();
                   await TourMember.upsert({
                     tour_id: mTourId, user_id: mUserId,
-                    status: m.leftAt ? 'removed' : 'active',
+                    status: m.status || (m.leftAt ? 'removed' : 'active'),
                     removed_at: m.leftAt || null,
                     role: m.role || 'viewer',
                     meal_count: m.mealCount || 0.0,

@@ -57,7 +57,7 @@ exports.getTourDetails = async (req, res) => {
 
 // Invitation Logic - Joins Immediately (No Approval Required)
 exports.findTourByCode = async (req, res) => {
-  const code = req.params.code ? req.params.code.trim() : '';
+  const code = req.params.code ? req.params.code.replace(/[^a-zA-Z0-9]/g, '').trim().toUpperCase() : '';
   console.log(`Searching for tour with code: "${code}"`);
   try {
     const tour = await Tour.findOne({ 
@@ -83,7 +83,8 @@ exports.findTourByCode = async (req, res) => {
 exports.joinTour = async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { invite_code, user_id, user_name } = req.body;
+    let { invite_code, user_id, user_name } = req.body;
+    invite_code = invite_code ? invite_code.replace(/[^a-zA-Z0-9]/g, '').trim().toUpperCase() : '';
     console.log(`Join attempt: Code=${invite_code}, User=${user_name} (${user_id})`);
     
     // Find tour with current members

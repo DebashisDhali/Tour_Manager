@@ -723,8 +723,8 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                               try {
                                 final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
                                 if (clipboardData != null && clipboardData.text != null) {
-                                  final pastedText = clipboardData.text!.trim().toUpperCase();
-                                  if (pastedText.length == 6 && RegExp(r'^[A-Z0-9]+$').hasMatch(pastedText)) {
+                                  final pastedText = clipboardData.text!.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').trim().toUpperCase();
+                                  if (pastedText.length == 6) {
                                     controller.text = pastedText;
                                     setState(() => errorText = null);
                                   } else {
@@ -748,7 +748,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                     height: 60,
                     child: FilledButton(
                       onPressed: isLoading ? null : () async {
-                        final code = controller.text.trim().toUpperCase();
+                        final code = controller.text.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').trim().toUpperCase();
                         if (code.length != 6) {
                           setState(() => errorText = "6 digits required");
                           return;

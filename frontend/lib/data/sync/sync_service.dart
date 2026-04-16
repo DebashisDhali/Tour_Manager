@@ -73,7 +73,7 @@ class SyncService {
           }).toList(),
           'members': unsyncedMembers.map((m) => {
             'tourId': m.tourId, 'userId': m.userId, 'leftAt': m.leftAt?.toIso8601String(), 
-            'mealCount': m.mealCount, 'role': m.role,
+            'mealCount': m.mealCount, 'role': m.role, 'status': m.status, 'isDeleted': m.isDeleted,
           }).toList(),
           'settlements': unsyncedSettlements.map((s) => {
             'id': s.id, 'tourId': s.tourId, 'fromId': s.fromId, 'toId': s.toId, 'amount': s.amount, 'date': s.date.toIso8601String(),
