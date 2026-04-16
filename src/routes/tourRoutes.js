@@ -9,6 +9,9 @@ router.post('/', auth, tourController.createTour);
 router.get('/', auth, tourController.getAllTours);
 router.post('/join', auth, tourController.joinTour);
 
+// Temporary Diagnostic Route (no auth for direct inspection via ping)
+router.get('/diagnostic/db-schema', tourController.checkDbSchema);
+
 // Join Requests
 router.get('/find/:code', auth, tourController.findTourByCode);
 router.post('/:tourId/request-join', auth, joinRequestController.createJoinRequest);

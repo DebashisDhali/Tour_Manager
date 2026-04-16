@@ -357,16 +357,28 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
       isSynced: const drift.Value(false),
     ));
     
+    bool synced = false;
     try {
       final me = ref.read(currentUserProvider).value;
       if (me != null) {
-        ref.read(syncServiceProvider).startSync(me.id);
+        for (int attempt = 1; attempt <= 3; attempt++) {
+          try {
+            await ref.read(syncServiceProvider).startSync(me.id);
+            synced = true;
+            break;
+          } catch (syncErr) {
+            if (attempt < 3) await Future.delayed(const Duration(seconds: 2));
+          }
+        }
       }
     } catch (e) {
       debugPrint("Invite code sync deferred: $e");
     }
     
     if (context.mounted) {
+      if (!synced) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offline: Code generated but not synced yet.')));
+      }
       _showInviteCode(context, code, tour.purpose);
     }
   }

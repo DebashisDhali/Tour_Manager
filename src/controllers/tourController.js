@@ -362,3 +362,26 @@ exports.retroactiveSplit = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+exports.checkDbSchema = async (req, res) => {
+  try {
+    const rawSchema = await sequelize.query(
+      `SELECT column_name, data_type, is_nullable, column_default 
+       FROM information_schema.columns 
+       WHERE table_name IN ('Tours', 'Users', 'TourMembers', 'tours', 'users', 'tourmembers')`,
+      { type: sequelize.QueryTypes.SELECT }
+    );
+    res.json({
+      status: 'success',
+      node_env: process.env.NODE_ENV,
+      rawSchema,
+      models: {
+        Tour: Object.keys(Tour.rawAttributes),
+        TourMember: Object.keys(TourMember.rawAttributes),
+        User: Object.keys(User.rawAttributes)
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message, status: 'failed' });
+  }
+};
