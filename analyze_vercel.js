@@ -1,9 +1,15 @@
-const axios = require('axios');
-const jwt = require('jsonwebtoken');
+const https = require('https');
 
-// Create a token that the Vercel backend will accept. Wait, do I have the JWT_SECRET from Vercel? No!
-// I cannot generate a valid JWT token for Vercel without the secret. 
-
-// Wait, the Vercel backend uses JWT validation. 
-// Can I bypass auth? No, `/sync` has `auth` middleware. 
-// Is there a public endpoint? No.
+https.get('https://tour-manager-navy.vercel.app/tours/diagnostic/db-schema', (res) => {
+  let data = '';
+  res.on('data', chunk => { data += chunk; });
+  res.on('end', () => {
+    try {
+      console.log(JSON.stringify(JSON.parse(data), null, 2));
+    } catch(e) {
+      console.error("Failed to parse JSON:", data);
+    }
+  });
+}).on('error', err => {
+  console.log('Error: ', err.message);
+});

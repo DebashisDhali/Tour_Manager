@@ -25,6 +25,26 @@ app.get('/', (req, res) => {
   res.status(200).send('Tour Manager API is Live');
 });
 
+// Diagnostic route
+const { Tour, TourMember, User } = require('./models');
+app.get('/tours/diagnostic/db-schema', async (req, res) => {
+  try {
+    const rawSchema = await require('./models').sequelize.query(
+      `SELECT column_name, data_type, is_nullable, column_default 
+       FROM information_schema.columns 
+       WHERE table_name IN ('Tours', 'Users', 'TourMembers', 'tours', 'users', 'tourmembers')`,
+      { type: require('./models').sequelize.QueryTypes.SELECT }
+    );
+    res.json({
+      status: 'success',
+      rawSchema,
+      models: { Tour: Object.keys(Tour.rawAttributes) }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/health', (req, res) => res.sendStatus(200));
 
 // --- SECURITY MIDDLEWARE ---
