@@ -141,15 +141,17 @@ let isDbInitialized = false;
 async function initDb() {
   if (isDbInitialized) return;
   try {
-    console.log('🔄 Initializing Database Connection...');
+    console.log('🔄 Connecting to Database...');
     await sequelize.authenticate();
     console.log('✅ Database connected.');
-    // Enable alter: true temporarily to ensure all new schema columns (like invite_code, purpose, etc.) are synced to PostgreSQL without dropping data.
-    await sequelize.sync({ alter: true });
-    console.log('✅ Database schema verified.');
+    // NOTE: Do NOT use alter:true at runtime on Vercel — it's too slow and causes 10s timeout.
+    // Schema is already correct from initial deployment. Only sync if truly necessary.
     isDbInitialized = true;
+    console.log('✅ Database ready.');
   } catch (dbErr) {
-    console.error('❌ Database Initialization Failed:', dbErr);
+    console.error('❌ Database Connection Failed:', dbErr.message);
+    // Set initialized anyway so we don't block every request; let queries fail naturally
+    isDbInitialized = true;
   }
 }
 
