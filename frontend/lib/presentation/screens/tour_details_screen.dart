@@ -358,6 +358,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
     ));
     
     bool synced = false;
+    bool isPublishedToCloud = false;
     try {
       final me = ref.read(currentUserProvider).value;
       if (me != null) {
@@ -370,6 +371,14 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
             if (attempt < 3) await Future.delayed(const Duration(seconds: 2));
           }
         }
+
+        // Verify invite code is actually queryable from server before sharing.
+        if (synced) {
+          final cloudTour = await ref.read(syncServiceProvider).findTourByCode(code);
+          if (cloudTour != null && cloudTour['id']?.toString() == tour.id) {
+            isPublishedToCloud = true;
+          }
+        }
       }
     } catch (e) {
       debugPrint("Invite code sync deferred: $e");
@@ -378,12 +387,16 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
     if (context.mounted) {
       if (!synced) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offline: Code generated but not synced yet.')));
+      } else if (!isPublishedToCloud) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Code saved locally, but not yet published to cloud. Please sync again before sharing.')),
+        );
       }
-      _showInviteCode(context, code, tour.purpose);
+      _showInviteCode(context, code, tour.purpose, isPublishedToCloud: isPublishedToCloud);
     }
   }
 
-  void _showInviteCode(BuildContext context, String code, String? purpose) {
+  void _showInviteCode(BuildContext context, String code, String? purpose, {bool isPublishedToCloud = false}) {
     final config = PurposeConfig.getConfig(purpose);
 
     showDialog(
@@ -393,7 +406,11 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Share this code with others. They can join from the home screen.'),
+            Text(
+              isPublishedToCloud
+                  ? 'Share this code with others. They can join from the home screen.'
+                  : 'Do not share yet. This code is not published to cloud yet. Sync once more.',
+            ),
             const SizedBox(height: 20),
             InkWell(
               onTap: () {
@@ -425,13 +442,13 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
           FilledButton.icon(
-            onPressed: () {
+            onPressed: isPublishedToCloud ? () {
               final text = "Join my ${config.label.toLowerCase()}! Code: $code";
               Share.share(text);
               Navigator.pop(context);
-            },
+            } : null,
             icon: const Icon(Icons.share),
-            label: const Text('Share'),
+            label: Text(isPublishedToCloud ? 'Share' : 'Sync Required'),
             style: FilledButton.styleFrom(backgroundColor: config.color),
           ),
         ],
