@@ -4,6 +4,56 @@ const { Op } = require('sequelize');
 exports.syncData = async (req, res) => {
   let transaction;
   let pushPhaseError = null;
+  let inviteCodeRescueApplied = false;
+
+  const rescueTourUpserts = async (tours, now) => {
+    if (!Array.isArray(tours) || tours.length === 0) return false;
+
+    let rescuedAny = false;
+    for (const t of tours) {
+      if (!t || t.isDeleted || !t.id) continue;
+      try {
+        const normalizedTourId = t.id.toLowerCase();
+        const normalizedCreatorId = t.createdBy ? t.createdBy.toLowerCase() : null;
+
+        if (normalizedCreatorId) {
+          await User.findOrCreate({
+            where: { id: normalizedCreatorId },
+            defaults: { id: normalizedCreatorId, name: 'Cloud User', updated_at: now }
+          });
+        }
+
+        await Tour.upsert({
+          id: normalizedTourId,
+          name: t.name,
+          created_by: normalizedCreatorId,
+          invite_code: t.inviteCode || null,
+          start_date: t.startDate || null,
+          end_date: t.endDate || null,
+          purpose: t.purpose || 'tour',
+          updated_at: now
+        });
+
+        if (normalizedCreatorId) {
+          await TourMember.upsert({
+            tour_id: normalizedTourId,
+            user_id: normalizedCreatorId,
+            status: 'active',
+            role: 'admin',
+            joined_at: t.startDate || now,
+            updated_at: now
+          });
+        }
+
+        rescuedAny = true;
+      } catch (rescueErr) {
+        console.error(`⚠️ Rescue upsert failed for tour [${t.id}]:`, rescueErr.message);
+      }
+    }
+
+    return rescuedAny;
+  };
+
   try {
     const { userId, unsyncedData, lastSync } = req.body;
     
@@ -206,6 +256,16 @@ exports.syncData = async (req, res) => {
         try { await transaction.rollback(); } catch(rbErr) { /* ignore */ }
         transaction = null;
       }
+
+      // Critical fallback: keep invite codes discoverable even if full push fails.
+      try {
+        inviteCodeRescueApplied = await rescueTourUpserts(unsyncedData?.tours, now);
+        if (inviteCodeRescueApplied) {
+          console.log('✅ Invite-code rescue upsert completed after push rollback.');
+        }
+      } catch (rescueErr) {
+        console.error('⚠️ Invite-code rescue upsert crashed:', rescueErr.message);
+      }
     }
 
 
@@ -270,6 +330,7 @@ exports.syncData = async (req, res) => {
       timestamp: now.toISOString(),
       pushSuccess: pushPhaseError === null,
       pushError: pushPhaseError,
+      inviteCodeRescueApplied,
       tours: toursData,
       allTourIds: tourIds 
     });
