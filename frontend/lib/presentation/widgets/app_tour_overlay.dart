@@ -368,34 +368,40 @@ class AppTourOverlayState extends State<AppTourOverlay>
                     ),
                   )
                 else
-                  const SizedBox(),
-                FilledButton(
-                  onPressed: _nextStep,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: step.accentColor,
+                  const SizedBox(width: 70), // Placeholder to maintain spacing
+                // Next/Finish button - always visible and clickable
+                GestureDetector(
+                  onTap: _nextStep,
+                  child: Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _currentStep == widget.steps.length - 1
-                            ? "Let's Go!"
-                            : 'Next',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w800, fontSize: 14),
-                      ),
-                      const SizedBox(width: 6),
-                      Icon(
-                        _currentStep == widget.steps.length - 1
-                            ? Icons.check_rounded
-                            : Icons.arrow_forward_rounded,
-                        size: 16,
-                      ),
-                    ],
+                    decoration: BoxDecoration(
+                      color: step.accentColor,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _currentStep == widget.steps.length - 1
+                              ? "Let's Go!"
+                              : 'Next',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Icon(
+                          _currentStep == widget.steps.length - 1
+                              ? Icons.check_rounded
+                              : Icons.arrow_forward_rounded,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

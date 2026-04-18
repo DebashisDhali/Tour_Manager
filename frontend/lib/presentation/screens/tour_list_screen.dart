@@ -76,9 +76,20 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
   Future<void> _checkAndStartTour() async {
     final prefs = await SharedPreferences.getInstance();
     final tourDone = prefs.getBool('app_tour_done') ?? false;
+    debugPrint('🎯 App Tour Check: tourDone=$tourDone');
     if (!tourDone && mounted) {
       // Slight delay so the UI is fully rendered
       await Future.delayed(const Duration(milliseconds: 800));
+      debugPrint('🎯 Starting App Tour overlay');
+      _tourOverlayKey.currentState?.startTour();
+    }
+  }
+
+  /// Public method to reset and restart tour (callable from anywhere)
+  void restartAppTour() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('app_tour_done', false);
+    if (mounted) {
       _tourOverlayKey.currentState?.startTour();
     }
   }
