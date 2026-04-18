@@ -13,6 +13,7 @@ import '../../domain/logic/purpose_config.dart';
 import '../../data/local/app_database.dart' as models;
 import '../widgets/premium_card.dart';
 import '../widgets/app_tour_overlay.dart';
+import '../widgets/app_search_sheet.dart';
 import '../widgets/sync_handler.dart';
 import '../widgets/no_internet_sheet.dart';
 import '../widgets/smooth_page_transition.dart';
@@ -309,6 +310,40 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                                   .onSurface
                                   .withOpacity(0.6),
                               fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: () => showAppSearchSheet(context),
+                        child: Container(
+                          constraints: const BoxConstraints(maxWidth: 320),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                                color: Colors.white.withOpacity(0.18)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.search_rounded,
+                                  size: 18, color: Colors.white),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Search tours, events or profiles',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.white.withOpacity(0.92),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                   bottom: TabBar(
@@ -469,21 +504,31 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                             .onSurface
                             .withValues(alpha: 0.3),
                         fontWeight: FontWeight.bold)),
-                if (items.isEmpty) ...[
-                  const SizedBox(height: 24),
-                  OutlinedButton.icon(
-                    onPressed: () => _showJoinDialog(context, config),
-                    icon: const Icon(Icons.add_circle_outline_rounded),
-                    label: const Text("Join with Code"),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: config.color,
-                      side: BorderSide(
-                          color: config.color.withValues(alpha: 0.2)),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                  )
-                ],
+                const SizedBox(height: 8),
+                Text(
+                  'Search the app to find tours, events, or user profiles.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.45),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                OutlinedButton.icon(
+                  onPressed: () => _showJoinDialog(context, config),
+                  icon: const Icon(Icons.add_circle_outline_rounded),
+                  label: const Text('Join with Code'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: config.color,
+                    side:
+                        BorderSide(color: config.color.withValues(alpha: 0.2)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
               ],
             ),
           );

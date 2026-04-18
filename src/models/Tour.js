@@ -41,6 +41,9 @@ module.exports = (sequelize) => {
     updatedAt: 'updated_at',
     indexes: [
       { fields: ['updated_at'] },
+      { fields: ['created_by'] },
+      { fields: ['purpose'] },
+      { fields: ['status'] },
       { unique: true, fields: ['invite_code'] }
     ]
   });

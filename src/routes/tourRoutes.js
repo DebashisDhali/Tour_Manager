@@ -12,8 +12,13 @@ router.get('/invitations/my', auth, tourController.getMyInvitations);
 router.patch('/:tourId/invitations/respond', auth, tourController.respondToInvitation);
 router.post('/:tourId/invite-code/regenerate', auth, rbac.checkTourAccess(['admin', 'editor']), tourController.regenerateInviteCode);
 
-// Temporary Diagnostic Route (no auth for direct inspection via ping)
-router.get('/diagnostic/db-schema', tourController.checkDbSchema);
+// Diagnostic route only for non-production authenticated checks.
+router.get('/diagnostic/db-schema', auth, (req, res, next) => {
+	if (process.env.NODE_ENV === 'production') {
+		return res.status(404).json({ error: 'Not found' });
+	}
+	return next();
+}, tourController.checkDbSchema);
 
 // Join Requests
 router.get('/find/:code', auth, tourController.findTourByCode);

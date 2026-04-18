@@ -5,20 +5,20 @@ class SmoothPageTransition extends PageRouteBuilder {
   final Widget page;
   final Duration duration;
   final Curve curve;
+  final Offset slideBegin;
 
   SmoothPageTransition({
     required this.page,
     this.duration = const Duration(milliseconds: 400),
     this.curve = Curves.easeInOutCubic,
+    this.slideBegin = const Offset(0.0, 0.1),
   }) : super(
           pageBuilder: (context, animation, secondaryAnimation) => page,
           transitionDuration: duration,
           reverseTransitionDuration: duration,
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            // Fade + slide up transition
-            const begin = Offset(0.0, 0.1);
-            const end = Offset.zero;
-            final tween = Tween(begin: begin, end: end).chain(
+            // Fade + configurable slide transition.
+            final tween = Tween(begin: slideBegin, end: Offset.zero).chain(
               CurveTween(curve: curve),
             );
 
@@ -49,8 +49,12 @@ void navigateWithTransition(
   BuildContext context, {
   required Widget Function() builder,
   bool replace = false,
+  Offset slideBegin = const Offset(0.0, 0.1),
 }) {
-  final route = SmoothPageTransition(page: builder());
+  final route = SmoothPageTransition(
+    page: builder(),
+    slideBegin: slideBegin,
+  );
   if (replace) {
     Navigator.of(context).pushReplacement(route);
   } else {
@@ -67,5 +71,18 @@ void navigateWithTransitionResetStack(
   Navigator.of(context).pushAndRemoveUntil(
     route,
     (route) => false,
+  );
+}
+
+void navigateWithTransitionFromRight(
+  BuildContext context, {
+  required Widget Function() builder,
+  bool replace = false,
+}) {
+  navigateWithTransition(
+    context,
+    builder: builder,
+    replace: replace,
+    slideBegin: const Offset(1.0, 0.0),
   );
 }

@@ -3,16 +3,45 @@ const { Op } = require('sequelize');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-123';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+function sanitizeUser(user) {
+  if (!user) return null;
+  const plain = typeof user.toJSON === 'function' ? user.toJSON() : user;
+  const { password, ...safe } = plain;
+  return safe;
+}
+
+function issueToken(userId) {
+  if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET is not configured');
+  }
+  return jwt.sign({ id: userId }, JWT_SECRET, {
+    expiresIn: '30d',
+    algorithm: 'HS256',
+    issuer: 'tour-expense-backend',
+    audience: 'tour-expense-client'
+  });
+}
 
 exports.register = async (req, res) => {
   try {
     const { name, email, phone, password } = req.body;
 
+    if (!name || name.trim().length < 2) {
+      return res.status(400).json({ error: 'Name must be at least 2 characters' });
+    }
+    if (!password || password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    const normalizedEmail = email ? email.trim().toLowerCase() : null;
+    const normalizedPhone = phone && phone.trim() !== '' ? phone.trim() : null;
+
     // Construct search conditions dynamically
     const conditions = [];
-    if (email) conditions.push({ email });
-    if (phone && phone.trim() !== '') conditions.push({ phone });
+    if (normalizedEmail) conditions.push({ email: normalizedEmail });
+    if (normalizedPhone) conditions.push({ phone: normalizedPhone });
 
     if (conditions.length > 0) {
       const existingUser = await User.findOne({ 
@@ -27,16 +56,16 @@ exports.register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
-      name,
-      email,
-      phone: (phone && phone.trim() !== '') ? phone : null,
+      name: name.trim(),
+      email: normalizedEmail,
+      phone: normalizedPhone,
       password: hashedPassword,
       is_registered: true
     });
 
-    const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '30d' });
+    const token = issueToken(user.id);
 
-    res.status(201).json({ user, token });
+    res.status(201).json({ user: sanitizeUser(user), token });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -47,11 +76,18 @@ exports.login = async (req, res) => {
   try {
     const { email, phone, password } = req.body;
 
+    const normalizedEmail = email ? email.trim().toLowerCase() : null;
+    const normalizedPhone = phone ? phone.trim() : null;
+
+    if ((!normalizedEmail && !normalizedPhone) || !password) {
+      return res.status(400).json({ error: 'Email or phone and password are required' });
+    }
+
     const user = await User.findOne({ 
       where: { 
         [Op.or]: [
-          email ? { email } : null,
-          phone ? { phone } : null
+          normalizedEmail ? { email: normalizedEmail } : null,
+          normalizedPhone ? { phone: normalizedPhone } : null
         ].filter(Boolean)
       } 
     });
@@ -65,9 +101,9 @@ exports.login = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '30d' });
+    const token = issueToken(user.id);
 
-    res.json({ user, token });
+    res.json({ user: sanitizeUser(user), token });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -75,8 +111,10 @@ exports.login = async (req, res) => {
 
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findByPk(req.user.id);
-    res.json(user);
+    const user = await User.findByPk(req.user.id, {
+      attributes: { exclude: ['password'] }
+    });
+    res.json(sanitizeUser(user));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

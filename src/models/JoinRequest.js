@@ -23,5 +23,15 @@ module.exports = (sequelize) => {
       type: DataTypes.ENUM('pending', 'approved', 'rejected'),
       defaultValue: 'pending'
     }
+  }, {
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+    indexes: [
+      { fields: ['tour_id', 'status'] },
+      { fields: ['user_id', 'status'] },
+      { fields: ['updated_at'] },
+      { unique: true, fields: ['tour_id', 'user_id', 'status'] }
+    ]
   });
 };

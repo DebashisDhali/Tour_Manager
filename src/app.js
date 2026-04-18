@@ -13,7 +13,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Trust Railway Proxy
-app.enable('trust proxy');
+app.set('trust proxy', 1);
+app.disable('x-powered-by');
 
 // 0. Logging & Healthcheck (Must be first)
 app.use((req, res, next) => {
@@ -25,51 +26,6 @@ app.get('/', (req, res) => {
   res.status(200).send('Tour Manager API is Live');
 });
 
-// Diagnostic route - inspect DB schema
-const { Tour, TourMember, User } = require('./models');
-app.get('/tours/diagnostic/db-schema', async (req, res) => {
-  try {
-    const rawSchema = await require('./models').sequelize.query(
-      `SELECT column_name, data_type, is_nullable, column_default 
-       FROM information_schema.columns 
-       WHERE table_name IN ('Tours', 'Users', 'TourMembers', 'tours', 'users', 'tourmembers')`,
-      { type: require('./models').sequelize.QueryTypes.SELECT }
-    );
-    res.json({
-      status: 'success',
-      rawSchema,
-      models: { Tour: Object.keys(Tour.rawAttributes) }
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Diagnostic route - list all tours and their invite_codes (to debug join issue)
-app.get('/tours/diagnostic/list-codes', async (req, res) => {
-  try {
-    const tours = await Tour.findAll({
-      attributes: ['id', 'name', 'invite_code', 'created_by', 'created_at', 'updated_at'],
-      order: [['updated_at', 'DESC']],
-      limit: 20,
-      raw: true
-    });
-    res.json({
-      count: tours.length,
-      tours: tours.map(t => ({
-        id: t.id,
-        name: t.name,
-        invite_code: t.invite_code,
-        has_invite_code: !!t.invite_code,
-        created_by: t.created_by,
-        updated_at: t.updated_at
-      }))
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 app.get('/health', (req, res) => res.sendStatus(200));
 
 // --- SECURITY MIDDLEWARE ---
@@ -77,13 +33,25 @@ app.get('/health', (req, res) => res.sendStatus(200));
 app.use(helmet());
 
 // 2. Global Rate Limiting (Prevents Brute Force/DOS)
-const limiter = rateLimit({
+const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // Limit each IP to 200 requests per window
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
   message: { error: 'Too many requests from this IP, please try again after 15 minutes' }
 });
-app.use('/auth', limiter); // Stricter on auth
-app.use('/ai', limiter);   // Protect AI billing
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests from this IP, please try again after 15 minutes' }
+});
+
+app.use('/auth', authLimiter);
+app.use('/ai', apiLimiter);
+app.use(['/users', '/tours', '/expenses', '/sync', '/settlements', '/incomes'], apiLimiter);
 
 // 3. Prevent HTTP Parameter Pollution
 app.use(hpp());
@@ -95,16 +63,53 @@ app.use(xss());
 app.use(compression());
 
 // 1. CORS
+const allowedOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  origin(origin, callback) {
+    // Allow non-browser clients (mobile/native) with no origin header.
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.length === 0) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('CORS origin not allowed'));
+  },
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept', 'X-Requested-With'],
   credentials: true
 }));
 
-// 2. Body Parsers with increased limits for large sync payloads
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+// 2. Body Parsers with reasonable limits
+app.use(bodyParser.json({ limit: '5mb' }));
+app.use(bodyParser.urlencoded({ limit: '5mb', extended: true }));
+
+// Database Connection initialization (Safe for Serverless)
+let isDbInitialized = false;
+async function initDb() {
+  if (isDbInitialized) return;
+  try {
+    console.log('🔄 Connecting to Database...');
+    await sequelize.authenticate();
+    console.log('✅ Database connected.');
+    // NOTE: Do NOT use alter:true at runtime on Vercel — it's too slow and causes timeout.
+    isDbInitialized = true;
+    console.log('✅ Database ready.');
+  } catch (dbErr) {
+    console.error('❌ Database Connection Failed:', dbErr.message);
+    // Mark initialized to avoid request storms retrying connection.
+    isDbInitialized = true;
+  }
+}
+
+// Ensure DB init before routes for serverless cold starts.
+app.use(async (req, res, next) => {
+  if (!isDbInitialized) {
+    await initDb();
+  }
+  next();
+});
 
 // Import Routes
 const userRoutes = require('./routes/userRoutes');
@@ -126,7 +131,6 @@ app.use('/settlements', auth, settlementRoutes);
 app.use('/incomes', auth, programIncomeRoutes);
 app.use('/ai', auth, aiRoutes);
 
-
 // Global error handlers to prevent silent crashes
 process.on('uncaughtException', (err) => {
   console.error('🔥 FATAL: Uncaught Exception:', err);
@@ -134,42 +138,6 @@ process.on('uncaughtException', (err) => {
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('🔥 FATAL: Unhandled Rejection at:', promise, 'reason:', reason);
-});
-
-// Database Connection initialization (Safe for Serverless)
-let isDbInitialized = false;
-async function initDb() {
-  if (isDbInitialized) return;
-  try {
-    console.log('🔄 Connecting to Database...');
-    await sequelize.authenticate();
-    console.log('✅ Database connected.');
-    // NOTE: Do NOT use alter:true at runtime on Vercel — it's too slow and causes 10s timeout.
-    // Schema is already correct from initial deployment. Only sync if truly necessary.
-    isDbInitialized = true;
-    console.log('✅ Database ready.');
-  } catch (dbErr) {
-    console.error('❌ Database Connection Failed:', dbErr.message);
-    // Set initialized anyway so we don't block every request; let queries fail naturally
-    isDbInitialized = true;
-  }
-}
-
-// Global error handlers to prevent silent crashes
-process.on('uncaughtException', (err) => {
-  console.error('🔥 FATAL: Uncaught Exception:', err);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('🔥 FATAL: Unhandled Rejection at:', promise, 'reason:', reason);
-});
-
-// Middleware to ensure DB is initialized
-app.use(async (req, res, next) => {
-  if (!isDbInitialized) {
-    await initDb();
-  }
-  next();
 });
 
 // Helper for Railway/Local - Vercel will use exported app

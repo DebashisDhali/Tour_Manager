@@ -7,14 +7,24 @@ function generateInviteCode() {
   return Array.from({ length: 6 }, () => INVITE_CHARS[Math.floor(Math.random() * INVITE_CHARS.length)]).join('');
 }
 
+function parsePageNumber(raw, fallback) {
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
 exports.createTour = async (req, res) => {
   try {
-    const { id, name, created_by, start_date, end_date } = req.body;
-    
-    const invite_code = req.body.invite_code || Math.random().toString(36).substring(2, 8).toUpperCase();
+    const { id, name, start_date, end_date } = req.body;
+    const created_by = req.user.id;
+
+    if (!name || !name.toString().trim()) {
+      return res.status(400).json({ error: 'Tour name is required' });
+    }
+
+    const invite_code = req.body.invite_code || generateInviteCode();
     const tour = await Tour.create({ 
       id: id || uuidv4(), 
-      name, 
+      name: name.toString().trim(), 
       created_by, 
       invite_code,
       start_date,
@@ -36,7 +46,29 @@ exports.createTour = async (req, res) => {
 
 exports.getAllTours = async (req, res) => {
   try {
-    const tours = await Tour.findAll();
+    const page = parsePageNumber(req.query.page, 1);
+    const limit = Math.min(parsePageNumber(req.query.limit, 30), 100);
+    const offset = (page - 1) * limit;
+
+    const tours = await Tour.findAll({
+      include: [
+        {
+          model: TourMember,
+          required: true,
+          where: {
+            user_id: req.user.id,
+            status: 'active'
+          },
+          attributes: ['role', 'status', 'joined_at']
+        }
+      ],
+      order: [['updated_at', 'DESC']],
+      limit,
+      offset
+    });
+
+    // Light caching hint for short-lived list reads.
+    res.set('Cache-Control', 'private, max-age=30');
     res.json(tours);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -64,17 +96,15 @@ exports.getTourDetails = async (req, res) => {
 exports.findTourByCode = async (req, res) => {
   const code = req.params.code ? req.params.code.replace(/[^a-zA-Z0-9]/g, '').trim().toUpperCase() : '';
   console.log(`Searching for tour with code: "${code}"`);
+
+  if (!code || code.length < 4 || code.length > 10) {
+    return res.status(400).json({ error: 'Invalid code format' });
+  }
+
   try {
     const tour = await Tour.findOne({ 
       where: {
-        [Op.or]: [
-          { invite_code: code },
-          { invite_code: code.toUpperCase() },
-          sequelize.where(
-            sequelize.fn('LOWER', sequelize.col('invite_code')),
-            code.toLowerCase()
-          )
-        ]
+        invite_code: code
       },
       attributes: ['id', 'name', 'purpose', 'created_by'] 
     });
@@ -134,21 +164,22 @@ exports.regenerateInviteCode = async (req, res) => {
 exports.joinTour = async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    let { invite_code, user_id, user_name } = req.body;
+    let { invite_code } = req.body;
+    const user_id = req.user.id;
+    const user_name = req.user.name || req.body.user_name || 'Member';
     invite_code = invite_code ? invite_code.replace(/[^a-zA-Z0-9]/g, '').trim().toUpperCase() : '';
+
+    if (!invite_code) {
+      await t.rollback();
+      return res.status(400).json({ error: 'Invite code is required' });
+    }
+
     console.log(`Join attempt: Code=${invite_code}, User=${user_name} (${user_id})`);
     
     // Find tour with current members
     const tour = await Tour.findOne({ 
       where: {
-        [Op.or]: [
-          { invite_code: invite_code },
-          { invite_code: invite_code.toUpperCase() },
-          sequelize.where(
-            sequelize.fn('LOWER', sequelize.col('invite_code')),
-            invite_code.toLowerCase()
-          )
-        ]
+        invite_code: invite_code
       },
       transaction: t
     });
@@ -239,13 +270,13 @@ exports.joinTour = async (req, res) => {
 
 exports.deleteTour = async (req, res) => {
   try {
-    const { tourId, userId } = req.body;
+    const { tourId } = req.body;
     const tour = await Tour.findByPk(tourId);
     
     if (!tour) return res.status(404).json({ error: 'Tour not found' });
     
     // Only creator can delete for everyone
-    if (tour.created_by !== userId) {
+    if (tour.created_by !== req.user.id) {
       return res.status(403).json({ error: 'Only the creator can delete this tour' });
     }
 

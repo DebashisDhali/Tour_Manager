@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart' as drift;
+import 'package:intl/intl.dart';
 import '../../data/local/app_database.dart';
 import 'package:frontend/data/providers/app_providers.dart';
 import '../../domain/logic/purpose_config.dart';
@@ -26,6 +27,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
   final List<String> _additionalMembers = [];
   bool _isLoading = false;
   String _selectedPurpose = 'project';
+  bool _isLocalOnly = false;
 
   @override
   void initState() {
@@ -40,7 +42,16 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
           end: widget.initialTour!.endDate!,
         );
       }
+      Future.microtask(_loadStorageScope);
     }
+  }
+
+  Future<void> _loadStorageScope() async {
+    if (widget.initialTour == null) return;
+    final db = ref.read(databaseProvider);
+    final isLocalOnly = await db.isTourLocalOnly(widget.initialTour!.id);
+    if (!mounted) return;
+    setState(() => _isLocalOnly = isLocalOnly);
   }
 
   @override
@@ -124,6 +135,8 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
               isDeleted: false,
               updatedAt: DateTime.now()));
 
+          await db.setTourLocalOnly(finalTourId, _isLocalOnly);
+
           await db.into(db.tourMembers).insert(TourMember(
               tourId: finalTourId,
               userId: currentUser.id,
@@ -167,6 +180,8 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
             updatedAt: DateTime.now(),
           ));
 
+          await db.setTourLocalOnly(finalTourId, _isLocalOnly);
+
           for (final memberName in _additionalMembers) {
             final memberId = const Uuid().v4();
             await db.createUser(User(
@@ -192,27 +207,40 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
         }
 
         if (mounted) {
-          bool synced = false;
-          for (int attempt = 1; attempt <= 3; attempt++) {
-            try {
-              await ref.read(syncServiceProvider).startSync(currentUser.id);
-              synced = true;
-              debugPrint("✅ Tour synced on attempt $attempt");
-              break;
-            } catch (syncErr) {
-              debugPrint("⚠️ Sync attempt $attempt failed: $syncErr");
-              if (attempt < 3) await Future.delayed(const Duration(seconds: 2));
-            }
-          }
-          if (!synced && mounted) {
+          if (_isLocalOnly) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(
-                    "Saved locally. Sync pending — share code when online."),
-                backgroundColor: Colors.orange,
+                    'Saved as local-only. This event will stay on this device.'),
+                backgroundColor: Colors.blueGrey,
                 duration: Duration(seconds: 4),
               ),
             );
+          } else {
+            bool synced = false;
+            for (int attempt = 1; attempt <= 3; attempt++) {
+              try {
+                await ref.read(syncServiceProvider).startSync(currentUser.id);
+                synced = true;
+                debugPrint("✅ Tour synced on attempt $attempt");
+                break;
+              } catch (syncErr) {
+                debugPrint("⚠️ Sync attempt $attempt failed: $syncErr");
+                if (attempt < 3) {
+                  await Future.delayed(const Duration(seconds: 2));
+                }
+              }
+            }
+            if (!synced && mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                      "Saved locally. Sync pending — share code when online."),
+                  backgroundColor: Colors.orange,
+                  duration: Duration(seconds: 4),
+                ),
+              );
+            }
           }
           if (mounted) Navigator.pop(context);
         }
@@ -231,10 +259,16 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
   @override
   Widget build(BuildContext context) {
     final config = PurposeConfig.getConfig(_selectedPurpose);
+    final timelineText = _selectedDateRange == null
+        ? 'Set date range (optional)'
+        : '${DateFormat('dd MMM yyyy').format(_selectedDateRange!.start)} - ${DateFormat('dd MMM yyyy').format(_selectedDateRange!.end)}';
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.initialTour == null ? 'Create ' : 'Edit ',
+        title: Text(
+            widget.initialTour == null
+                ? 'Create ${config.label}'
+                : 'Edit ${config.label}',
             style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
         backgroundColor: config.color,
         flexibleSpace:
@@ -278,11 +312,17 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                       controller: _nameController,
                       style: const TextStyle(fontWeight: FontWeight.bold),
                       decoration: _getInputDecoration(
-                          hint: 'e.g. ',
+                          hint: 'e.g. Weekend Cox\'s Bazar ${config.label}',
                           icon: Icons.edit_note_rounded,
                           color: config.color),
-                      validator: (v) =>
-                          v == null || v.isEmpty ? 'Required' : null,
+                      validator: (v) {
+                        final value = v?.trim() ?? '';
+                        if (value.isEmpty) return 'Please enter a title';
+                        if (value.length < 3) {
+                          return 'Title should be at least 3 characters';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 24),
                     _buildInputLabel("Dates", config.color),
@@ -302,9 +342,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                                 child: Text(
-                              _selectedDateRange == null
-                                  ? 'Timeline (Optional)'
-                                  : ' - ',
+                              timelineText,
                               style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
@@ -319,12 +357,40 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 24),
+                    _buildInputLabel("Storage", config.color),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: config.color.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: SwitchListTile.adaptive(
+                        value: _isLocalOnly,
+                        onChanged: (value) {
+                          setState(() => _isLocalOnly = value);
+                        },
+                        activeColor: config.color,
+                        title: Text(
+                          _isLocalOnly
+                              ? 'Local Only (No Cloud Sync)'
+                              : 'Global (Sync to Cloud)',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        subtitle: Text(
+                          _isLocalOnly
+                              ? 'This event stays only on this device.'
+                              : 'This event syncs and can be shared with others.',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
               const SizedBox(height: 24),
               const ActionHelpText(
-                  'Create your tour title, choose the right purpose, add dates, then add members before you launch.'),
+                  'Choose category and title, set dates, then add members. Keep it local-only if this should stay private on your device.'),
               _buildInputLabel("Add Members", config.color),
               PremiumCard(
                 padding: const EdgeInsets.all(20),
@@ -403,8 +469,8 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                         ? const CircularProgressIndicator(color: Colors.white)
                         : Text(
                             widget.initialTour == null
-                                ? 'Launch Tour'
-                                : 'Save Changes',
+                                ? 'Create ${config.label}'
+                                : 'Save ${config.label}',
                             style: const TextStyle(
                                 fontSize: 18, fontWeight: FontWeight.bold))),
               ),

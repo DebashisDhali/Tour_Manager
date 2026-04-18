@@ -145,7 +145,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
     if (!mounted) return;
     setState(() => _unreadNotificationCount = 0);
 
-    navigateWithTransition(context,
+    navigateWithTransitionFromRight(context,
         builder: () => UserProfileScreen(user: user, isMe: true));
   }
 

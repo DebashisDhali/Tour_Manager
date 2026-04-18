@@ -55,6 +55,18 @@ exports.handleJoinRequest = async (req, res) => {
   try {
     const { requestId } = req.params;
     const { status, role } = req.body; // 'approved' or 'rejected'
+    const normalizedStatus = (status || '').toLowerCase();
+    const normalizedRole = (role || 'viewer').toLowerCase();
+
+    if (!['approved', 'rejected'].includes(normalizedStatus)) {
+      await t.rollback();
+      return res.status(400).json({ error: 'status must be approved or rejected' });
+    }
+
+    if (!['admin', 'editor', 'viewer'].includes(normalizedRole)) {
+      await t.rollback();
+      return res.status(400).json({ error: 'role must be admin, editor, or viewer' });
+    }
 
     const request = await JoinRequest.findByPk(requestId, { transaction: t });
     if (!request) {
@@ -62,7 +74,7 @@ exports.handleJoinRequest = async (req, res) => {
       return res.status(404).json({ error: 'Request not found' });
     }
 
-    if (status === 'approved') {
+    if (normalizedStatus === 'approved') {
       const tour = await Tour.findByPk(request.tour_id, { transaction: t });
       const user = await User.findByPk(request.user_id, { transaction: t });
 
@@ -75,7 +87,7 @@ exports.handleJoinRequest = async (req, res) => {
       await TourMember.upsert({
         tour_id: request.tour_id,
         user_id: request.user_id,
-        role: role || 'viewer',
+        role: normalizedRole,
         status: 'active',
         joined_at: new Date()
       }, { transaction: t });
@@ -86,7 +98,7 @@ exports.handleJoinRequest = async (req, res) => {
     }
 
     await t.commit();
-    res.json({ message: `Request ${status} successfully` });
+    res.json({ message: `Request ${normalizedStatus} successfully` });
   } catch (err) {
     if (t) await t.rollback();
     res.status(500).json({ error: err.message });

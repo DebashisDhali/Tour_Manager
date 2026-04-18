@@ -32,6 +32,15 @@ class SyncService {
     return removedAt != null ? 'removed' : 'active';
   }
 
+  Future<Set<String>> _getLocalOnlyTourIds() async {
+    try {
+      return await db.getLocalOnlyTourIds();
+    } catch (e) {
+      print('⚠️ Failed to load local-only tour preferences: $e');
+      return <String>{};
+    }
+  }
+
   Future<void> startSync(String userId) async {
     try {
       print("Sync started for user: $userId");
@@ -51,15 +60,62 @@ class SyncService {
         db.getUnsyncedJoinRequests(),
       ]);
 
-      final unsyncedUsers = results[0] as List<User>;
-      final unsyncedTours = results[1] as List<Tour>;
-      final unsyncedExpenses = results[2] as List<Expense>;
-      final unsyncedSplits = results[3] as List<ExpenseSplit>;
-      final unsyncedPayers = results[4] as List<ExpensePayer>;
-      final unsyncedMembers = results[5] as List<TourMember>;
-      final unsyncedSettlements = results[6] as List<Settlement>;
-      final unsyncedIncomes = results[7] as List<ProgramIncome>;
-      final unsyncedJoinRequests = results[8] as List<JoinRequest>;
+      final allUnsyncedUsers = results[0] as List<User>;
+      final allUnsyncedTours = results[1] as List<Tour>;
+      final allUnsyncedExpenses = results[2] as List<Expense>;
+      final allUnsyncedSplits = results[3] as List<ExpenseSplit>;
+      final allUnsyncedPayers = results[4] as List<ExpensePayer>;
+      final allUnsyncedMembers = results[5] as List<TourMember>;
+      final allUnsyncedSettlements = results[6] as List<Settlement>;
+      final allUnsyncedIncomes = results[7] as List<ProgramIncome>;
+      final allUnsyncedJoinRequests = results[8] as List<JoinRequest>;
+
+      final localOnlyTourIds = await _getLocalOnlyTourIds();
+
+      final unsyncedTours = allUnsyncedTours
+          .where((t) => !localOnlyTourIds.contains(t.id))
+          .toList();
+
+      final unsyncedExpenses = allUnsyncedExpenses
+          .where((e) => !localOnlyTourIds.contains(e.tourId))
+          .toList();
+      final syncExpenseIds = unsyncedExpenses.map((e) => e.id).toSet();
+
+      final unsyncedSplits = allUnsyncedSplits
+          .where((s) => syncExpenseIds.contains(s.expenseId))
+          .toList();
+      final unsyncedPayers = allUnsyncedPayers
+          .where((p) => syncExpenseIds.contains(p.expenseId))
+          .toList();
+      final unsyncedMembers = allUnsyncedMembers
+          .where((m) => !localOnlyTourIds.contains(m.tourId))
+          .toList();
+      final unsyncedSettlements = allUnsyncedSettlements
+          .where((s) => !localOnlyTourIds.contains(s.tourId))
+          .toList();
+      final unsyncedIncomes = allUnsyncedIncomes
+          .where((i) => !localOnlyTourIds.contains(i.tourId))
+          .toList();
+      final unsyncedJoinRequests = allUnsyncedJoinRequests
+          .where((jr) => !localOnlyTourIds.contains(jr.tourId))
+          .toList();
+
+      final referencedUserIds = <String>{userId};
+      referencedUserIds.addAll(
+          unsyncedTours.map((t) => t.createdBy).where((id) => id.isNotEmpty));
+      referencedUserIds
+          .addAll(unsyncedExpenses.map((e) => e.payerId).whereType<String>());
+      referencedUserIds.addAll(unsyncedMembers.map((m) => m.userId));
+      referencedUserIds.addAll(unsyncedSplits.map((s) => s.userId));
+      referencedUserIds.addAll(unsyncedPayers.map((p) => p.userId));
+      referencedUserIds.addAll(unsyncedSettlements.map((s) => s.fromId));
+      referencedUserIds.addAll(unsyncedSettlements.map((s) => s.toId));
+      referencedUserIds.addAll(unsyncedIncomes.map((i) => i.collectedBy));
+      referencedUserIds.addAll(unsyncedJoinRequests.map((jr) => jr.userId));
+
+      final unsyncedUsers = allUnsyncedUsers
+          .where((u) => referencedUserIds.contains(u.id) || u.isMe)
+          .toList();
 
       final response = await dio.post('$baseUrl/sync', data: {
         'userId': userId,

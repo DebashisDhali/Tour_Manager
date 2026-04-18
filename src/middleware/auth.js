@@ -3,23 +3,25 @@ const { User } = require('../models');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
-  console.error('🔥 CRITICAL: JWT_SECRET not configured in production!');
+if (!JWT_SECRET) {
+  console.error('🔥 CRITICAL: JWT_SECRET is not configured. Refusing insecure startup.');
   process.exit(1);
 }
 
-const SECRET = JWT_SECRET || 'dev-only-fallback-secret';
-
 module.exports = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    const authHeader = req.header('Authorization') || '';
+    const match = authHeader.match(/^Bearer\s+(.+)$/i);
+    const token = match ? match[1] : null;
 
     if (!token) {
       return res.status(401).json({ error: 'Auth token missing' });
     }
 
-    const decoded = jwt.verify(token, SECRET);
-    const user = await User.findByPk(decoded.id);
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
+    const user = await User.findByPk(decoded.id, {
+      attributes: { exclude: ['password'] }
+    });
 
     if (!user) {
       throw new Error();
