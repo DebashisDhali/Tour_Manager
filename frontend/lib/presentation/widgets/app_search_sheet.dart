@@ -370,15 +370,24 @@ class _AppSearchSheetState extends ConsumerState<AppSearchSheet> {
             subtitle: Text('${config.label} • $tourPurpose',
                 maxLines: 1, overflow: TextOverflow.ellipsis),
             trailing: isJoined
-                ? FilledButton(
-                    onPressed: () => _openTour(tour),
-                    child: const Text('Open'),
+                ? SizedBox(
+                    width: 70,
+                    child: FilledButton(
+                      onPressed: () => _openTour(tour),
+                      child: const Text('Open'),
+                    ),
                   )
                 : isPending
-                    ? const Chip(label: Text('Pending'))
-                    : FilledButton(
-                        onPressed: () => _requestJoin(tour),
-                        child: const Text('Request Join'),
+                    ? const SizedBox(
+                        width: 70,
+                        child: Chip(label: Text('Pending')),
+                      )
+                    : SizedBox(
+                        width: 95,
+                        child: FilledButton(
+                          onPressed: () => _requestJoin(tour),
+                          child: const Text('Request Join'),
+                        ),
                       ),
           ),
         ),
@@ -427,9 +436,12 @@ class _AppSearchSheetState extends ConsumerState<AppSearchSheet> {
                 style: const TextStyle(fontWeight: FontWeight.w800)),
             subtitle: Text(userSubtitle,
                 maxLines: 1, overflow: TextOverflow.ellipsis),
-            trailing: FilledButton(
-              onPressed: () => _openUser(user),
-              child: Text(isMe ? 'Open Me' : 'Open'),
+            trailing: SizedBox(
+              width: 65,
+              child: FilledButton(
+                onPressed: () => _openUser(user),
+                child: Text(isMe ? 'Open Me' : 'Open'),
+              ),
             ),
           ),
         ),
