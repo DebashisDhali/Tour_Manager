@@ -225,6 +225,11 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                       controller: _tabController,
                       isScrollable:
                           _isProgram || (tour.purpose.toLowerCase() == 'mess'),
+                      tabAlignment:
+                          (_isProgram || (tour.purpose.toLowerCase() == 'mess'))
+                              ? TabAlignment.start
+                              : TabAlignment.fill,
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 12),
                       indicator: const UnderlineTabIndicator(
                         borderSide: BorderSide(width: 3.0, color: Colors.white),
                         insets: EdgeInsets.symmetric(horizontal: 16.0),
