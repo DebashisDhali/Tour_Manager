@@ -93,6 +93,13 @@ class _AppSearchSheetState extends ConsumerState<AppSearchSheet> {
       return;
     }
 
+    // Escape SQL LIKE special characters: %, _, \
+    // So user-typed wildcards don't break the query
+    final escapedQuery = query
+        .replaceAll('\\', '\\\\')
+        .replaceAll('%', '\\%')
+        .replaceAll('_', '\\_');
+
     if (!mounted) return;
     setState(() {
       _query = query;
@@ -104,12 +111,14 @@ class _AppSearchSheetState extends ConsumerState<AppSearchSheet> {
       final tours = await (db.select(db.tours)
             ..where((t) =>
                 t.isDeleted.equals(false) &
-                (t.name.contains(query) | t.purpose.contains(query)))
+                (t.name.contains(escapedQuery) |
+                    t.purpose.contains(escapedQuery)))
             ..orderBy([(t) => OrderingTerm.asc(t.name)]))
           .get();
 
       final users = await (db.select(db.users)
-            ..where((u) => u.isDeleted.equals(false) & u.name.contains(query))
+            ..where((u) =>
+                u.isDeleted.equals(false) & u.name.contains(escapedQuery))
             ..orderBy([(u) => OrderingTerm.asc(u.name)]))
           .get();
 
