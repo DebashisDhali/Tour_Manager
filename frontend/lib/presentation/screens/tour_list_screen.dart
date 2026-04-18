@@ -35,6 +35,8 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
   int _unreadNotificationCount = 0;
   Set<String> _currentNotificationKeys = <String>{};
   Timer? _notificationTimer;
+  double? _edgeSwipeStartX;
+  bool _edgeSwipeTracking = false;
 
   @override
   void initState() {
@@ -233,6 +235,34 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
         builder: () => UserProfileScreen(user: user, isMe: true));
   }
 
+  void _handleEdgeSwipeDown(PointerDownEvent event) {
+    final width = MediaQuery.of(context).size.width;
+    final edgeThreshold = width - 28;
+    if (event.position.dx >= edgeThreshold) {
+      _edgeSwipeTracking = true;
+      _edgeSwipeStartX = event.position.dx;
+    }
+  }
+
+  void _handleEdgeSwipeMove(PointerMoveEvent event) {
+    if (!_edgeSwipeTracking || _edgeSwipeStartX == null) return;
+
+    final deltaX = event.position.dx - _edgeSwipeStartX!;
+    if (deltaX <= -80) {
+      final user = ref.read(currentUserProvider).value;
+      if (user != null) {
+        _edgeSwipeTracking = false;
+        _edgeSwipeStartX = null;
+        _openProfileAndMarkSeen(user);
+      }
+    }
+  }
+
+  void _resetEdgeSwipe(PointerEvent event) {
+    _edgeSwipeTracking = false;
+    _edgeSwipeStartX = null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUserAsync = ref.watch(currentUserProvider);
@@ -250,152 +280,159 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
           }
         }
 
-        return AppTourOverlay(
-          key: _tourOverlayKey,
-          steps: _buildTourSteps(),
-          onComplete: _completeAppTour,
-          child: DefaultTabController(
-            length: 2,
-            child: Scaffold(
-              appBar: AppBar(
-                title: Column(
-                  children: [
-                    Text(config.pluralLabel,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 20,
-                            letterSpacing: -0.5)),
-                    Text(syncDisplay,
-                        style: TextStyle(
-                            fontSize: 10,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withOpacity(0.6),
-                            fontWeight: FontWeight.w600)),
-                  ],
-                ),
-                bottom: TabBar(
-                  key: _tabBarKey,
-                  indicatorSize: TabBarIndicatorSize.label,
-                  indicatorWeight: 3,
-                  indicatorColor: config.color,
-                  labelColor: config.color,
-                  unselectedLabelColor: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.5),
-                  labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-                  tabs: [
-                    Tab(text: 'Activity Feed'),
-                    Tab(text: config.pluralLabel),
-                  ],
-                ),
-                actions: [
-                  IconButton(
-                    key: _joinCodeAppBarKey,
-                    onPressed: () => _showJoinDialog(context, config),
-                    icon: const Icon(Icons.qr_code_scanner_rounded),
-                    tooltip: 'Join with Code',
+        return Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: _handleEdgeSwipeDown,
+          onPointerMove: _handleEdgeSwipeMove,
+          onPointerUp: _resetEdgeSwipe,
+          onPointerCancel: _resetEdgeSwipe,
+          child: AppTourOverlay(
+            key: _tourOverlayKey,
+            steps: _buildTourSteps(),
+            onComplete: _completeAppTour,
+            child: DefaultTabController(
+              length: 2,
+              child: Scaffold(
+                appBar: AppBar(
+                  title: Column(
+                    children: [
+                      Text(config.pluralLabel,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 20,
+                              letterSpacing: -0.5)),
+                      Text(syncDisplay,
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.6),
+                              fontWeight: FontWeight.w600)),
+                    ],
                   ),
-                  IconButton(
-                    key: _syncKey,
-                    onPressed: () => _syncData(context),
-                    icon: const Icon(Icons.sync_rounded),
-                    tooltip: 'Sync Now',
+                  bottom: TabBar(
+                    key: _tabBarKey,
+                    indicatorSize: TabBarIndicatorSize.label,
+                    indicatorWeight: 3,
+                    indicatorColor: config.color,
+                    labelColor: config.color,
+                    unselectedLabelColor: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.5),
+                    labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+                    tabs: [
+                      Tab(text: 'Activity Feed'),
+                      Tab(text: config.pluralLabel),
+                    ],
                   ),
-                  if (user != null)
-                    InkWell(
-                      key: _profileKey,
-                      onTap: () => _openProfileAndMarkSeen(user),
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 16, left: 8),
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            CircleAvatar(
-                              radius: 16,
-                              backgroundColor:
-                                  config.color.withValues(alpha: 0.1),
-                              backgroundImage: user.avatarUrl != null
-                                  ? NetworkImage(user.avatarUrl!)
-                                  : null,
-                              child: user.avatarUrl == null
-                                  ? Text(
-                                      user.name.isNotEmpty
-                                          ? user.name[0].toUpperCase()
-                                          : 'U',
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          color: config.color,
-                                          fontWeight: FontWeight.bold))
-                                  : null,
-                            ),
-                            if (_unreadNotificationCount > 0)
-                              Positioned(
-                                right: -5,
-                                top: -5,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 5, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red,
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .surface,
-                                        width: 1),
-                                  ),
-                                  constraints: const BoxConstraints(
-                                    minWidth: 16,
-                                    minHeight: 16,
-                                  ),
-                                  child: Text(
-                                    _unreadNotificationCount > 99
-                                        ? '99+'
-                                        : _unreadNotificationCount.toString(),
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w700,
+                  actions: [
+                    IconButton(
+                      key: _joinCodeAppBarKey,
+                      onPressed: () => _showJoinDialog(context, config),
+                      icon: const Icon(Icons.add_circle_outline_rounded),
+                      tooltip: 'Join with Code',
+                    ),
+                    IconButton(
+                      key: _syncKey,
+                      onPressed: () => _syncData(context),
+                      icon: const Icon(Icons.sync_rounded),
+                      tooltip: 'Sync Now',
+                    ),
+                    if (user != null)
+                      InkWell(
+                        key: _profileKey,
+                        onTap: () => _openProfileAndMarkSeen(user),
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 16, left: 8),
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              CircleAvatar(
+                                radius: 16,
+                                backgroundColor:
+                                    config.color.withValues(alpha: 0.1),
+                                backgroundImage: user.avatarUrl != null
+                                    ? NetworkImage(user.avatarUrl!)
+                                    : null,
+                                child: user.avatarUrl == null
+                                    ? Text(
+                                        user.name.isNotEmpty
+                                            ? user.name[0].toUpperCase()
+                                            : 'U',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: config.color,
+                                            fontWeight: FontWeight.bold))
+                                    : null,
+                              ),
+                              if (_unreadNotificationCount > 0)
+                                Positioned(
+                                  right: -5,
+                                  top: -5,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .surface,
+                                          width: 1),
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 16,
+                                      minHeight: 16,
+                                    ),
+                                    child: Text(
+                                      _unreadNotificationCount > 99
+                                          ? '99+'
+                                          : _unreadNotificationCount.toString(),
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
+                  ],
+                ),
+                body: TabBarView(
+                  children: [
+                    RefreshIndicator(
+                      onRefresh: () => _syncData(context),
+                      child: _buildCentralFeed(context, config),
                     ),
-                ],
-              ),
-              body: TabBarView(
-                children: [
-                  RefreshIndicator(
-                    onRefresh: () => _syncData(context),
-                    child: _buildCentralFeed(context, config),
-                  ),
-                  RefreshIndicator(
-                    onRefresh: () => _syncData(context),
-                    child: _buildTourList(context, config, user),
-                  ),
-                ],
-              ),
-              floatingActionButton: FloatingActionButton.extended(
-                key: _fabKey,
-                onPressed: () {
-                  navigateWithTransition(context,
-                      builder: () => const CreateTourScreen());
-                },
-                label: const Text('New',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                icon: const Icon(Icons.add_rounded),
-                backgroundColor: config.color,
-                foregroundColor: Colors.white,
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
+                    RefreshIndicator(
+                      onRefresh: () => _syncData(context),
+                      child: _buildTourList(context, config, user),
+                    ),
+                  ],
+                ),
+                floatingActionButton: FloatingActionButton.extended(
+                  key: _fabKey,
+                  onPressed: () {
+                    navigateWithTransition(context,
+                        builder: () => const CreateTourScreen());
+                  },
+                  label: const Text('New',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  icon: const Icon(Icons.add_rounded),
+                  backgroundColor: config.color,
+                  foregroundColor: Colors.white,
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
               ),
             ),
           ),
@@ -436,7 +473,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                   const SizedBox(height: 24),
                   OutlinedButton.icon(
                     onPressed: () => _showJoinDialog(context, config),
-                    icon: const Icon(Icons.qr_code_scanner_rounded),
+                    icon: const Icon(Icons.add_circle_outline_rounded),
                     label: const Text("Join with Code"),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: config.color,
@@ -601,7 +638,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                       height: 56,
                       child: OutlinedButton.icon(
                         onPressed: () => _showJoinDialog(context, config),
-                        icon: const Icon(Icons.qr_code_rounded),
+                        icon: const Icon(Icons.add_circle_outline_rounded),
                         label: const Text("Join with Code"),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: config.color,
