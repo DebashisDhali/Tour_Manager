@@ -34,14 +34,11 @@ module.exports = (sequelize) => {
     }
   }, {
     tableName: 'TourMembers', // Keep it plural to match existing DB if any
-    timestamps: true,
-    createdAt: false,
-    updatedAt: 'updated_at',
+    timestamps: false,
     indexes: [
       { unique: true, fields: ['tour_id', 'user_id'] },
       { fields: ['tour_id'] },
-      { fields: ['user_id'] },
-      { fields: ['updated_at'] }
+      { fields: ['user_id'] }
     ]
   });
 };

@@ -24,13 +24,10 @@ module.exports = (sequelize) => {
       defaultValue: 'pending'
     }
   }, {
-    timestamps: true,
-    createdAt: false,
-    updatedAt: 'updated_at',
+    timestamps: false,
     indexes: [
       { fields: ['tour_id', 'status'] },
       { fields: ['user_id', 'status'] },
-      { fields: ['updated_at'] },
       { unique: true, fields: ['tour_id', 'user_id', 'status'] }
     ]
   });

@@ -19,7 +19,7 @@ exports.syncData = async (req, res) => {
         if (normalizedCreatorId) {
           await User.findOrCreate({
             where: { id: normalizedCreatorId },
-            defaults: { id: normalizedCreatorId, name: 'Cloud User', updated_at: now }
+            defaults: { id: normalizedCreatorId, name: 'Cloud User' }
           });
         }
 
@@ -30,8 +30,7 @@ exports.syncData = async (req, res) => {
           invite_code: t.inviteCode || null,
           start_date: t.startDate || null,
           end_date: t.endDate || null,
-          purpose: t.purpose || 'tour',
-          updated_at: now
+          purpose: t.purpose || 'tour'
         });
 
         if (normalizedCreatorId) {
@@ -40,8 +39,7 @@ exports.syncData = async (req, res) => {
             user_id: normalizedCreatorId,
             status: 'active',
             role: 'admin',
-            joined_at: t.startDate || now,
-            updated_at: now
+            joined_at: t.startDate || now
           });
         }
 
@@ -76,7 +74,7 @@ exports.syncData = async (req, res) => {
     
     try {
       // Update user's last activity
-      await User.update({ updated_at: now, is_registered: true }, { 
+      await User.update({ is_registered: true }, { 
         where: { id: userId },
         transaction 
       });
@@ -94,7 +92,7 @@ exports.syncData = async (req, res) => {
                } else {
                   await User.upsert({
                     id: u.id.toLowerCase(), name: u.name, phone: u.phone, email: u.email,
-                    avatar_url: u.avatarUrl, purpose: u.purpose, updated_at: now
+                    avatar_url: u.avatarUrl, purpose: u.purpose
                   }, { transaction });
                }
              } catch (e) { console.error(`⚠️ User Sync Fail [${u.id}]:`, e.message); }
@@ -116,7 +114,7 @@ exports.syncData = async (req, res) => {
                   const creatorId = t.createdBy.toLowerCase();
                   await User.findOrCreate({
                     where: { id: creatorId },
-                    defaults: { id: creatorId, name: 'Cloud User', updated_at: now },
+                    defaults: { id: creatorId, name: 'Cloud User' },
                     transaction
                   });
                 }
@@ -124,7 +122,7 @@ exports.syncData = async (req, res) => {
                 const tourPayload = {
                   id: t.id.toLowerCase(), name: t.name, created_by: t.createdBy ? t.createdBy.toLowerCase() : null,
                   invite_code: t.inviteCode || null, start_date: t.startDate || null,
-                  end_date: t.endDate || null, updated_at: now, purpose: t.purpose || 'tour'
+                  end_date: t.endDate || null, purpose: t.purpose || 'tour'
                 };
                 
                 // If invite_code is explicitly provided, force-update it
@@ -188,8 +186,8 @@ exports.syncData = async (req, res) => {
           if (toUpsert.length > 0) {
             await Expense.bulkCreate(toUpsert.map(e => ({
               id: e.id, tour_id: e.tourId, payer_id: e.payerId || null, amount: e.amount,
-              title: e.title, category: e.category, mess_cost_type: e.messCostType, date: e.createdAt, updated_at: now
-            })), { transaction, updateOnDuplicate: ['amount', 'title', 'category', 'date', 'payer_id', 'mess_cost_type', 'updated_at'], conflictAttributes: ['id'] });
+              title: e.title, category: e.category, mess_cost_type: e.messCostType, date: e.createdAt
+            })), { transaction, updateOnDuplicate: ['amount', 'title', 'category', 'date', 'payer_id', 'mess_cost_type'], conflictAttributes: ['id'] });
           }
         }
 
@@ -217,8 +215,8 @@ exports.syncData = async (req, res) => {
           if (toDelete.length > 0) await Settlement.destroy({ where: { id: toDelete }, transaction });
           if (toUpsert.length > 0) {
             await Settlement.bulkCreate(toUpsert.map(s => ({
-              id: s.id, tour_id: s.tourId, from_id: s.fromId, to_id: s.toId, amount: s.amount, date: s.date, updated_at: now
-            })), { transaction, updateOnDuplicate: ['amount', 'date', 'updated_at'], conflictAttributes: ['id'] });
+              id: s.id, tour_id: s.tourId, from_id: s.fromId, to_id: s.toId, amount: s.amount, date: s.date
+            })), { transaction, updateOnDuplicate: ['amount', 'date'], conflictAttributes: ['id'] });
           }
         }
         
@@ -229,8 +227,8 @@ exports.syncData = async (req, res) => {
           if (toUpsert.length > 0) {
             await ProgramIncome.bulkCreate(toUpsert.map(i => ({
               id: i.id, tour_id: i.tourId, amount: i.amount, source: i.source,
-              description: i.description, collected_by: i.collectedBy, date: i.date, updated_at: now
-            })), { transaction, updateOnDuplicate: ['amount', 'source', 'description', 'collected_by', 'date', 'updated_at'], conflictAttributes: ['id'] });
+              description: i.description, collected_by: i.collectedBy, date: i.date
+            })), { transaction, updateOnDuplicate: ['amount', 'source', 'description', 'collected_by', 'date'], conflictAttributes: ['id'] });
           }
         }
 
@@ -286,8 +284,8 @@ exports.syncData = async (req, res) => {
     console.log(`📡 Pulling data for User: ${userId}. Involved Tours: [${tourIds.join(', ')}]`);
 
     // Fetch only tours and their updated children
-    const pullCondition = { [Op.gt]: lastSyncDate };
-    const dateCondition = lastSync ? { updated_at: pullCondition } : {};
+    // Note: Updated_at column doesn't exist in DB, so we fetch all records for now
+    const dateCondition = {};  // Removed date filtering since timestamps are disabled
 
     // Parallel fetch for speed (Vercel has a 10s limit)
     const [

@@ -41,12 +41,9 @@ module.exports = (sequelize) => {
         allowNull: true
     }
   }, {
-    timestamps: true,
-    createdAt: false,
-    updatedAt: 'updated_at',
+    timestamps: false,
     indexes: [
-      { fields: ['tour_id'] },
-      { fields: ['updated_at'] }
+      { fields: ['tour_id'] }
     ]
   });
 };

@@ -41,8 +41,8 @@ exports.getAllUsers = async (req, res) => {
     const offset = (page - 1) * limit;
 
     const users = await User.findAll({
-      attributes: ['id', 'name', 'phone', 'email', 'avatar_url', 'purpose', 'is_registered', 'updated_at'],
-      order: [['updated_at', 'DESC']],
+      attributes: ['id', 'name', 'phone', 'email', 'avatar_url', 'purpose', 'is_registered'],
+      order: [['name', 'ASC']],
       limit,
       offset
     });

@@ -20,13 +20,10 @@ module.exports = (sequelize) => {
       allowNull: false
     }
   }, {
-    timestamps: true,
-    createdAt: false,
-    updatedAt: 'updated_at',
+    timestamps: false,
     indexes: [
       { fields: ['expense_id'] },
-      { fields: ['user_id'] },
-      { fields: ['updated_at'] }
+      { fields: ['user_id'] }
     ]
   });
 };
