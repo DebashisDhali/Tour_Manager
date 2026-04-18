@@ -172,13 +172,13 @@ class AppTourOverlayState extends State<AppTourOverlay>
                 children: [
                   // Step indicator
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 7),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                          color: Colors.white.withOpacity(0.2)),
+                          color: Colors.white.withValues(alpha: 0.2)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -204,7 +204,7 @@ class AppTourOverlayState extends State<AppTourOverlay>
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
+                        color: Colors.white.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Text(
@@ -238,7 +238,7 @@ class AppTourOverlayState extends State<AppTourOverlay>
                     decoration: BoxDecoration(
                       color: i == _currentStep
                           ? Colors.white
-                          : Colors.white.withOpacity(0.3),
+                          : Colors.white.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(3),
                     ),
                   ),
@@ -251,12 +251,11 @@ class AppTourOverlayState extends State<AppTourOverlay>
     );
   }
 
-  Widget _buildPositionedTooltip(
-      TourStep step, Rect target, Size screenSize) {
+  Widget _buildPositionedTooltip(TourStep step, Rect target, Size screenSize) {
     // Determine the best position for the tooltip
     final double tooltipMaxWidth = screenSize.width - 48;
     final bool showBelow = target.center.dy < screenSize.height * 0.5;
-    
+
     double top;
     if (showBelow) {
       top = target.bottom + 20;
@@ -289,7 +288,7 @@ class AppTourOverlayState extends State<AppTourOverlay>
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: step.accentColor.withOpacity(0.3),
+            color: step.accentColor.withValues(alpha: 0.3),
             blurRadius: 30,
             spreadRadius: 2,
             offset: const Offset(0, 8),
@@ -307,7 +306,7 @@ class AppTourOverlayState extends State<AppTourOverlay>
               gradient: LinearGradient(
                 colors: [
                   step.accentColor,
-                  step.accentColor.withOpacity(0.8),
+                  step.accentColor.withValues(alpha: 0.8),
                 ],
               ),
               borderRadius:
@@ -318,7 +317,7 @@ class AppTourOverlayState extends State<AppTourOverlay>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(step.icon, color: Colors.white, size: 22),
@@ -346,7 +345,7 @@ class AppTourOverlayState extends State<AppTourOverlay>
               step.description,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.black.withOpacity(0.65),
+                color: Colors.black.withValues(alpha: 0.65),
                 height: 1.5,
                 fontWeight: FontWeight.w500,
               ),
@@ -425,7 +424,8 @@ class _SpotlightPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     if (targetRect == null) {
       // Semi-transparent dark overlay for the whole screen
-      canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xCC0F172A));
+      canvas.drawRect(
+          Offset.zero & size, Paint()..color = const Color(0xCC0F172A));
       return;
     }
 
@@ -437,7 +437,8 @@ class _SpotlightPainter extends CustomPainter {
     canvas.saveLayer(Offset.zero & size, Paint());
 
     // 1. Draw the dark overlay on the entire screen
-    canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xCC0F172A));
+    canvas.drawRect(
+        Offset.zero & size, Paint()..color = const Color(0xCC0F172A));
 
     // 2. Cut out the hole for the spotlight using BlendMode.clear
     final holeRRect = RRect.fromRectAndRadius(expandedRect, radius);
@@ -445,15 +446,13 @@ class _SpotlightPainter extends CustomPainter {
 
     // 3. Draw a VERY slight tint inside the hole to make it feel special (optional premium touch)
     canvas.drawRRect(
-      holeRRect, 
-      Paint()..color = accentColor.withOpacity(0.05)
-    );
+        holeRRect, Paint()..color = accentColor.withValues(alpha: 0.05));
 
     canvas.restore();
 
     // 4. Glowing border around target
     final glowPaint = Paint()
-      ..color = accentColor.withOpacity(0.6 - pulse * 0.03)
+      ..color = accentColor.withValues(alpha: 0.6 - pulse * 0.03)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3.5
       ..maskFilter = const MaskFilter.blur(BlurStyle.outer, 12);
@@ -461,14 +460,14 @@ class _SpotlightPainter extends CustomPainter {
 
     // 5. Solid sharp border
     final borderPaint = Paint()
-      ..color = accentColor.withOpacity(0.9)
+      ..color = accentColor.withValues(alpha: 0.9)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
     canvas.drawRRect(holeRRect, borderPaint);
 
     // 6. Optional: Subtle inner glow to guide the eye
     final innerGlowPaint = Paint()
-      ..color = accentColor.withOpacity(0.1)
+      ..color = accentColor.withValues(alpha: 0.1)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
     canvas.drawRRect(holeRRect.deflate(2), innerGlowPaint);

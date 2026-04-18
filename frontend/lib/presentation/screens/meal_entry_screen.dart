@@ -51,7 +51,7 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
         _controllers[m.user.id]?.text = "0.0";
       }
     }
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   @override
@@ -193,24 +193,58 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
                                 decoration: BoxDecoration(
                                   color: config.color.withOpacity(0.05),
                                   borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: config.color.withOpacity(0.2),
+                                    width: 1.5,
+                                  ),
                                 ),
                                 child: Row(
                                   children: [
                                     _buildMealButton(
                                         m.user.id, -0.5, config.color),
-                                    SizedBox(
-                                      width: 45,
-                                      child: TextField(
-                                        controller: _controllers[m.user.id],
-                                        textAlign: TextAlign.center,
-                                        keyboardType: const TextInputType
-                                            .numberWithOptions(decimal: true),
-                                        decoration: const InputDecoration(
+                                    Expanded(
+                                      child: Container(
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color:
+                                                config.color.withOpacity(0.3),
+                                            width: 1,
+                                          ),
+                                        ),
+                                        child: TextField(
+                                          controller: _controllers[m.user.id],
+                                          textAlign: TextAlign.center,
+                                          keyboardType: const TextInputType
+                                              .numberWithOptions(decimal: true),
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w900,
+                                            color: config.color,
+                                            letterSpacing: 0.5,
+                                          ),
+                                          decoration: InputDecoration(
                                             isDense: true,
-                                            border: InputBorder.none),
-                                        style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w900),
+                                            border: InputBorder.none,
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                    horizontal: 8, vertical: 8),
+                                            hintText: "0.0",
+                                            hintStyle: TextStyle(
+                                              color:
+                                                  config.color.withOpacity(0.3),
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          inputFormatters: [
+                                            FilteringTextInputFormatter.allow(
+                                              RegExp(r'^\d+\.?\d{0,1}$'),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                     _buildMealButton(
@@ -226,26 +260,54 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
                   ),
                   Padding(
                     padding: const EdgeInsets.all(24),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 60,
-                      child: FilledButton(
-                        onPressed:
-                            _isLoading ? null : () => _saveMeals(members),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: config.color,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18)),
-                          elevation: 4,
-                          shadowColor: config.shadowColor,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(
+                          height: 60,
+                          child: FilledButton(
+                            onPressed:
+                                _isLoading ? null : () => _saveMeals(members),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: config.color,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18)),
+                              elevation: 4,
+                              shadowColor: config.shadowColor,
+                            ),
+                            child: _isLoading
+                                ? const CircularProgressIndicator(
+                                    color: Colors.white)
+                                : const Text("Save Daily Entry ✨",
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold)),
+                          ),
                         ),
-                        child: _isLoading
-                            ? const CircularProgressIndicator(
-                                color: Colors.white)
-                            : const Text("Save Daily Entry ✨",
-                                style: TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.bold)),
-                      ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: 50,
+                          child: OutlinedButton(
+                            onPressed: _isLoading
+                                ? null
+                                : () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(
+                                  color: config.color.withOpacity(0.3)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: Text(
+                              "Cancel",
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: config.color,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

@@ -58,9 +58,14 @@ class _SyncHandlerState extends ConsumerState<SyncHandler>
     // Auto-sync when network connectivity is regained
     _connectivitySubscription =
         Connectivity().onConnectivityChanged.listen((result) {
-      final currentResult = result is List
-          ? (result.isNotEmpty ? result.first : ConnectivityResult.none)
-          : result as ConnectivityResult;
+      final ConnectivityResult currentResult;
+      if (result is List<ConnectivityResult>) {
+        currentResult =
+            result.isNotEmpty ? result.first : ConnectivityResult.none;
+      } else {
+        currentResult = result as ConnectivityResult;
+      }
+
       if (currentResult != ConnectivityResult.none &&
           _lastConnectivity == ConnectivityResult.none) {
         _triggerSync('Connectivity Reconnected');
@@ -69,9 +74,13 @@ class _SyncHandlerState extends ConsumerState<SyncHandler>
     });
 
     Connectivity().checkConnectivity().then((result) {
-      final currentResult = result is List
-          ? (result.isNotEmpty ? result.first : ConnectivityResult.none)
-          : result as ConnectivityResult;
+      final ConnectivityResult currentResult;
+      if (result is List<ConnectivityResult>) {
+        currentResult =
+            result.isNotEmpty ? result.first : ConnectivityResult.none;
+      } else {
+        currentResult = result as ConnectivityResult;
+      }
       _lastConnectivity = currentResult;
     }).catchError((_) {});
 

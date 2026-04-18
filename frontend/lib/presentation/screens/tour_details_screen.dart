@@ -18,6 +18,7 @@ import '../../domain/logic/purpose_config.dart';
 import 'program_dashboard_screen.dart';
 import 'ai_coach_screen.dart';
 import '../widgets/premium_card.dart';
+import '../widgets/smooth_page_transition.dart';
 
 class TourDetailsScreen extends ConsumerStatefulWidget {
   final String tourId;
@@ -158,12 +159,9 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                     size: 22, color: Colors.amberAccent),
                 tooltip: 'AI Insights',
                 onPressed: () {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            AiCoachScreen(tourId: tour.id, tourName: tour.name),
-                      ));
+                  navigateWithTransition(context,
+                      builder: () =>
+                          AiCoachScreen(tourId: tour.id, tourName: tour.name));
                 },
               ),
               if (tour.inviteCode != null)
@@ -344,10 +342,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
         case 2: // Expenses
           icon = Icons.add;
           label = "Add Expense";
-          action = () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => AddExpenseScreen(tourId: widget.tourId)));
+          action = () => navigateWithTransition(context,
+              builder: () => AddExpenseScreen(tourId: widget.tourId));
           break;
         case 3: // Members
           icon = Icons.person_add;
@@ -369,10 +365,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
         case 0: // Expenses
           icon = Icons.add;
           label = config.addExpenseLabel;
-          action = () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => AddExpenseScreen(tourId: widget.tourId)));
+          action = () => navigateWithTransition(context,
+              builder: () => AddExpenseScreen(tourId: widget.tourId));
           break;
         case 1: // Members
           icon = Icons.person_add;
@@ -428,11 +422,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                   title: const Text("Add Expense"),
                   onTap: () {
                     Navigator.pop(context);
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) =>
-                                AddExpenseScreen(tourId: widget.tourId)));
+                    navigateWithTransition(context,
+                        builder: () => AddExpenseScreen(tourId: widget.tourId));
                   },
                 ),
                 ListTile(
@@ -461,6 +452,37 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
       return;
     }
 
+    final me = ref.read(currentUserProvider).value;
+    final membersAsync = ref.read(tourMembersProvider(widget.tourId));
+    final myMember =
+        membersAsync.value?.where((m) => m.user.id == me?.id).firstOrNull;
+    final myRole = myMember?.role ?? 'viewer';
+    final canRegenerateCode =
+        me?.id == tour.createdBy || myRole == 'admin' || myRole == 'editor';
+
+    // If code exists, show it to anyone (admin, editor, viewer)
+    if (tour.inviteCode != null) {
+      if (context.mounted) {
+        _showInviteCode(context, tour.inviteCode!, tour.purpose,
+            isPublishedToCloud: true, canRegenerate: canRegenerateCode);
+      }
+      return;
+    }
+
+    // If no code and user can regenerate, generate it
+    if (!canRegenerateCode) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Only ${myRole == 'viewer' ? 'admins and editors' : 'admins'} can generate invite codes.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
     String? code;
     try {
       code = await ref.read(syncServiceProvider).regenerateInviteCode(tour.id);
@@ -483,12 +505,13 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
     }
 
     if (context.mounted && code != null) {
-      _showInviteCode(context, code, tour.purpose, isPublishedToCloud: true);
+      _showInviteCode(context, code, tour.purpose,
+          isPublishedToCloud: true, canRegenerate: canRegenerateCode);
     }
   }
 
   void _showInviteCode(BuildContext context, String code, String? purpose,
-      {bool isPublishedToCloud = false}) {
+      {bool isPublishedToCloud = false, bool canRegenerate = false}) {
     final config = PurposeConfig.getConfig(purpose);
 
     showDialog(
@@ -519,13 +542,13 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 decoration: BoxDecoration(
                   color: isPublishedToCloud
-                      ? config.color.withOpacity(0.1)
-                      : Colors.grey.withOpacity(0.12),
+                      ? config.color.withValues(alpha: 0.1)
+                      : Colors.grey.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isPublishedToCloud
-                        ? config.color.withOpacity(0.2)
-                        : Colors.grey.withOpacity(0.25),
+                        ? config.color.withValues(alpha: 0.2)
+                        : Colors.grey.withValues(alpha: 0.25),
                   ),
                 ),
                 child: Row(
@@ -545,7 +568,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                       isPublishedToCloud ? Icons.copy : Icons.lock_outline,
                       size: 20,
                       color: isPublishedToCloud
-                          ? config.color.withOpacity(0.5)
+                          ? config.color.withValues(alpha: 0.5)
                           : Colors.grey,
                     ),
                   ],
@@ -804,12 +827,10 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                             iconSize: 20,
                             onSelected: (val) {
                               if (val == 'edit')
-                                Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) => AddExpenseScreen(
-                                            tourId: widget.tourId,
-                                            initialExpense: exp)));
+                                navigateWithTransition(context,
+                                    builder: () => AddExpenseScreen(
+                                        tourId: widget.tourId,
+                                        initialExpense: exp));
                               if (val == 'delete')
                                 _showDeleteDialog(context, exp);
                             },
@@ -1332,13 +1353,9 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                                         Icons.receipt_rounded,
                                         "Expense",
                                         Colors.orange,
-                                        () => Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                                builder: (_) =>
-                                                    AddExpenseScreen(
-                                                        tourId:
-                                                            widget.tourId))))),
+                                        () => navigateWithTransition(context,
+                                            builder: () => AddExpenseScreen(
+                                                tourId: widget.tourId)))),
                                 const SizedBox(width: 12),
                                 Expanded(
                                     child: _buildDashboardQuickButton(
@@ -2386,11 +2403,9 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                     const SizedBox(height: 24),
                     if (isEditor)
                       ElevatedButton.icon(
-                        onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) =>
-                                    MealEntryScreen(tourId: widget.tourId))),
+                        onPressed: () => navigateWithTransition(context,
+                            builder: () =>
+                                MealEntryScreen(tourId: widget.tourId)),
                         icon: const Icon(Icons.add),
                         label: const Text("Enter Daily Meals"),
                         style: ElevatedButton.styleFrom(
@@ -2435,12 +2450,10 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                         ? PopupMenuButton<String>(
                             onSelected: (v) {
                               if (v == 'edit') {
-                                Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) => MealEntryScreen(
-                                            tourId: widget.tourId,
-                                            initialDate: date)));
+                                navigateWithTransition(context,
+                                    builder: () => MealEntryScreen(
+                                        tourId: widget.tourId,
+                                        initialDate: date));
                               } else if (v == 'delete') {
                                 _showDeleteMealDayDialog(date, dailyRecords);
                               }

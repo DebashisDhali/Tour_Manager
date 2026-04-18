@@ -30,12 +30,12 @@ class PurposeConfig {
   });
 
   static List<PurposeConfig> get allConfigs => [
-    getConfig('project'),
-    getConfig('party'),
-    getConfig('tour'),
-    getConfig('mess'),
-    getConfig('event'),
-  ];
+        getConfig('project'),
+        getConfig('party'),
+        getConfig('tour'),
+        getConfig('mess'),
+        getConfig('event'),
+      ];
 
   static PurposeConfig getConfig(String? purpose) {
     switch (purpose?.toLowerCase()) {
@@ -56,7 +56,7 @@ class PurposeConfig {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          shadowColor: const Color(0xFFF59E0B).withOpacity(0.2),
+          shadowColor: const Color(0xFFF59E0B).withValues(alpha: 0.2),
         );
       case 'event':
         return PurposeConfig(
@@ -75,7 +75,7 @@ class PurposeConfig {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          shadowColor: const Color(0xFF8B5CF6).withOpacity(0.2),
+          shadowColor: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
         );
       case 'project':
       case 'office':
@@ -114,7 +114,7 @@ class PurposeConfig {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          shadowColor: const Color(0xFFEF4444).withOpacity(0.2),
+          shadowColor: const Color(0xFFEF4444).withValues(alpha: 0.2),
         );
       case 'tour':
         return PurposeConfig(
@@ -133,7 +133,7 @@ class PurposeConfig {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          shadowColor: const Color(0xFF10B981).withOpacity(0.2),
+          shadowColor: const Color(0xFF10B981).withValues(alpha: 0.2),
         );
       default:
         return PurposeConfig(
@@ -152,7 +152,7 @@ class PurposeConfig {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          shadowColor: const Color(0xFF3B82F6).withOpacity(0.2),
+          shadowColor: const Color(0xFF3B82F6).withValues(alpha: 0.2),
         );
     }
   }

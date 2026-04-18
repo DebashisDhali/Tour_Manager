@@ -1,77 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'presentation/screens/tour_list_screen.dart';
-import 'presentation/screens/welcome_screen.dart';
-import 'presentation/screens/onboarding_screen.dart';
 import 'presentation/screens/login_screen.dart';
-import 'data/providers/app_providers.dart';
-import 'presentation/widgets/sync_handler.dart';
-
-import 'data/providers/theme_provider.dart';
+import 'presentation/screens/onboarding_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final prefs = await SharedPreferences.getInstance();
-  
+
   runApp(
     ProviderScope(
-      overrides: [
-        sharedPreferencesProvider.overrideWithValue(prefs),
-      ],
-      child: const MyApp(),
+      child: MyApp(prefs: prefs),
     ),
   );
 }
 
-class MyApp extends ConsumerWidget {
-  const MyApp({super.key});
+class MyApp extends StatelessWidget {
+  final SharedPreferences prefs;
+
+  const MyApp({required this.prefs, super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final userAsync = ref.watch(currentUserProvider);
-    final themeMode = ref.watch(themeProvider);
-
-    return SyncHandler(
-      child: MaterialApp(
+  Widget build(BuildContext context) {
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Manager',
-      themeMode: themeMode,
+      title: 'Manager - Transparency First',
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6366F1), // Indigo
+          seedColor: const Color(0xFF818CF8),
           brightness: Brightness.light,
         ),
         scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-        appBarTheme: const AppBarTheme(
-          centerTitle: true,
-          elevation: 0,
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black87,
-          titleTextStyle: TextStyle(
-              fontWeight: FontWeight.w900, fontSize: 18, color: Colors.black87),
+        pageTransitionsTheme: PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: ZoomPageTransitionsBuilder(),
+            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+            TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          },
         ),
-        cardTheme: CardThemeData(
-          elevation: 0,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          color: Colors.white,
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.grey.shade50,
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide:
-                  const BorderSide(color: Color(0xFF6366F1), width: 2)),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        ),
-        fontFamily: 'Roboto',
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
@@ -81,55 +49,31 @@ class MyApp extends ConsumerWidget {
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF818CF8),
           brightness: Brightness.dark,
-          primary: const Color(0xFF818CF8),
-          secondary: const Color(0xFF38BDF8),
-          surface: const Color(0xFF1E293B),
         ),
-        appBarTheme: const AppBarTheme(
-          elevation: 0,
-          centerTitle: true,
-          backgroundColor: Color(0xFF1E293B),
-          foregroundColor: Colors.white,
+        pageTransitionsTheme: PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: ZoomPageTransitionsBuilder(),
+            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+            TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+          },
         ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: const Color(0xFF1E293B),
-          border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-          enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-          focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide:
-                  const BorderSide(color: Color(0xFF818CF8), width: 2)),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        ),
-        fontFamily: 'Roboto',
       ),
-      home: userAsync.when(
-        data: (user) {
-          if (user != null) return const TourListScreen();
-          return const _OnboardingOrWelcome();
-        },
-        loading: () =>
-            const Scaffold(body: Center(child: CircularProgressIndicator())),
-        error: (e, s) => Scaffold(body: Center(child: Text("Error: $e"))),
-      ),
-    ),
+      home: _HomeRouter(prefs: prefs),
     );
   }
 }
 
-/// Decides whether to show onboarding (first time) or welcome (returning user)
-class _OnboardingOrWelcome extends StatefulWidget {
-  const _OnboardingOrWelcome();
+class _HomeRouter extends StatefulWidget {
+  final SharedPreferences prefs;
+
+  const _HomeRouter({required this.prefs});
 
   @override
-  State<_OnboardingOrWelcome> createState() => _OnboardingOrWelcomeState();
+  State<_HomeRouter> createState() => _HomeRouterState();
 }
 
-class _OnboardingOrWelcomeState extends State<_OnboardingOrWelcome> {
+class _HomeRouterState extends State<_HomeRouter> {
   bool? _showOnboarding;
 
   @override
@@ -139,18 +83,37 @@ class _OnboardingOrWelcomeState extends State<_OnboardingOrWelcome> {
   }
 
   Future<void> _checkOnboarding() async {
-    final prefs = await SharedPreferences.getInstance();
-    final done = prefs.getBool('onboarding_done') ?? false;
-    if (mounted) setState(() => _showOnboarding = !done);
+    try {
+      final done = widget.prefs.getBool('onboarding_done') ?? false;
+      if (mounted) {
+        setState(() => _showOnboarding = !done);
+      }
+    } catch (e) {
+      debugPrint('Error checking onboarding: $e');
+      if (mounted) {
+        setState(
+            () => _showOnboarding = true); // Default to onboarding on error
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_showOnboarding == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Initializing...'),
+            ],
+          ),
+        ),
       );
     }
+
     return _showOnboarding! ? const OnboardingScreen() : const LoginScreen();
   }
 }

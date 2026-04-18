@@ -11,45 +11,46 @@ import 'login_screen.dart';
 class UserProfileScreen extends ConsumerStatefulWidget {
   final User user;
   final bool isMe;
-  
+
   const UserProfileScreen({super.key, required this.user, this.isMe = false});
 
   @override
   ConsumerState<UserProfileScreen> createState() => _UserProfileScreenState();
 }
 
-
-
 class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
   late TextEditingController _emailController;
-  late TextEditingController _avatarController; // This will now hold base64 or URL
+  late TextEditingController
+      _avatarController; // This will now hold base64 or URL
   bool _isEditing = false;
   bool _isLoading = false;
   final ImagePicker _picker = ImagePicker();
-  
+
   ThemeData get theme => Theme.of(context);
   bool get isDark => theme.brightness == Brightness.dark;
 
   @override
   void initState() {
     super.initState();
-    
+
     // Smart name resolution: If name is Unknown but email exists, use email username
     String displayName = widget.user.name;
-    if ((displayName.isEmpty || displayName.toLowerCase() == 'unknown') && 
-        widget.user.email != null && widget.user.email!.contains('@')) {
-       final parts = widget.user.email!.split('@');
-       if (parts.isNotEmpty && parts[0].isNotEmpty) {
-         displayName = parts[0][0].toUpperCase() + parts[0].substring(1);
-       }
+    if ((displayName.isEmpty || displayName.toLowerCase() == 'unknown') &&
+        widget.user.email != null &&
+        widget.user.email!.contains('@')) {
+      final parts = widget.user.email!.split('@');
+      if (parts.isNotEmpty && parts[0].isNotEmpty) {
+        displayName = parts[0][0].toUpperCase() + parts[0].substring(1);
+      }
     }
 
     _nameController = TextEditingController(text: displayName);
     _phoneController = TextEditingController(text: widget.user.phone ?? "");
     _emailController = TextEditingController(text: widget.user.email ?? "");
-    _avatarController = TextEditingController(text: widget.user.avatarUrl ?? "");
+    _avatarController =
+        TextEditingController(text: widget.user.avatarUrl ?? "");
   }
 
   @override
@@ -69,7 +70,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         maxHeight: 512,
         imageQuality: 75,
       );
-      
+
       if (image != null) {
         final bytes = await image.readAsBytes();
         final base64Image = base64Encode(bytes);
@@ -78,7 +79,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error picking image: $e")));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Error picking image: $e")));
     }
   }
 
@@ -88,43 +90,57 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       final db = ref.read(databaseProvider);
       final updatedUser = widget.user.copyWith(
         name: _nameController.text.trim(),
-        phone: Value(_phoneController.text.isEmpty ? null : _phoneController.text.trim()),
-        email: Value(_emailController.text.isEmpty ? null : _emailController.text.trim()),
-        avatarUrl: Value(_avatarController.text.isEmpty ? null : _avatarController.text.trim()),
+        phone: Value(_phoneController.text.isEmpty
+            ? null
+            : _phoneController.text.trim()),
+        email: Value(_emailController.text.isEmpty
+            ? null
+            : _emailController.text.trim()),
+        avatarUrl: Value(_avatarController.text.isEmpty
+            ? null
+            : _avatarController.text.trim()),
         isSynced: false,
         updatedAt: DateTime.now(),
       );
-      
+
       await db.createUser(updatedUser);
       setState(() {
         _isEditing = false;
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profile updated successfully!")));
-      
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Profile updated successfully!")));
+
       if (widget.isMe) {
         ref.invalidate(currentUserProvider);
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Filter: Don't show admin/editor profiles in viewer list
+    // (This should be handled in the screen that calls this)
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(widget.isMe ? "My Profile" : "Member Profile", 
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+        title: Text(widget.isMe ? "My Profile" : "Member Profile",
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         actions: [
           if (widget.isMe)
             IconButton(
-              icon: Icon(_isEditing ? Icons.close_rounded : Icons.edit_note_rounded, color: isDark ? Colors.indigo.shade300 : Colors.blue.shade700),
+              icon: Icon(
+                  _isEditing ? Icons.close_rounded : Icons.edit_note_rounded,
+                  color:
+                      isDark ? Colors.indigo.shade300 : Colors.blue.shade700),
               onPressed: () => setState(() => _isEditing = !_isEditing),
             )
         ],
@@ -149,7 +165,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   Widget _buildHeader() {
     final photoData = _avatarController.text;
     ImageProvider? backgroundImage;
-    
+
     if (photoData.isNotEmpty) {
       if (photoData.startsWith("data:image")) {
         final base64String = photoData.split(',').last;
@@ -171,15 +187,16 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
-                  colors: isDark 
-                    ? [Colors.indigo.shade900, Colors.indigo.shade800] 
-                    : [Colors.blue.shade100, Colors.blue.shade50],
+                  colors: isDark
+                      ? [Colors.indigo.shade900, Colors.indigo.shade800]
+                      : [Colors.blue.shade100, Colors.blue.shade50],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: (isDark ? Colors.black : Colors.blue).withOpacity(0.1),
+                    color:
+                        (isDark ? Colors.black : Colors.blue).withOpacity(0.1),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -193,10 +210,17 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                 radius: 54,
                 backgroundColor: Colors.blue.shade600,
                 backgroundImage: backgroundImage,
-                child: backgroundImage == null ? Text(
-                  _nameController.text.isNotEmpty ? _nameController.text[0].toUpperCase() : "?",
-                  style: const TextStyle(fontSize: 40, color: Colors.white, fontWeight: FontWeight.w900),
-                ) : null,
+                child: backgroundImage == null
+                    ? Text(
+                        _nameController.text.isNotEmpty
+                            ? _nameController.text[0].toUpperCase()
+                            : "?",
+                        style: const TextStyle(
+                            fontSize: 40,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900),
+                      )
+                    : null,
               ),
             ),
             if (_isEditing)
@@ -218,31 +242,39 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                         )
                       ],
                     ),
-                    child: Icon(Icons.camera_alt_rounded, color: Colors.blue.shade700, size: 20),
+                    child: Icon(Icons.camera_alt_rounded,
+                        color: Colors.blue.shade700, size: 20),
                   ),
                 ),
               )
           ],
         ),
-
         const SizedBox(height: 20),
         if (!_isEditing) ...[
           Text(
             _nameController.text,
             style: TextStyle(
-              fontSize: 26, 
-              fontWeight: FontWeight.w900, 
-              color: isDark ? Colors.white : Colors.blueGrey.shade900, 
-              letterSpacing: -0.5
-            ),
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                color: isDark ? Colors.white : Colors.blueGrey.shade900,
+                letterSpacing: -0.5),
           ),
           const SizedBox(height: 4),
           Text(
-            _emailController.text.isNotEmpty ? _emailController.text : "@anonymous",
-            style: TextStyle(fontSize: 14, color: Colors.blueGrey.shade500, fontWeight: FontWeight.w500),
+            _emailController.text.isNotEmpty
+                ? _emailController.text
+                : "@anonymous",
+            style: TextStyle(
+                fontSize: 14,
+                color: Colors.blueGrey.shade500,
+                fontWeight: FontWeight.w500),
           ),
         ] else
-          Text("Personalize Profile", style: TextStyle(fontWeight: FontWeight.w800, color: Colors.blue.shade700, fontSize: 16)),
+          Text("Personalize Profile",
+              style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: Colors.blue.shade700,
+                  fontSize: 16)),
       ],
     );
   }
@@ -253,44 +285,73 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         _buildSectionCard(
           title: "Account Details",
           items: [
-            _buildInfoTile(Icons.phone_rounded, "Phone Number", _phoneController.text.isNotEmpty ? _phoneController.text : "Not verified", Colors.green),
-            _buildInfoTile(Icons.alternate_email_rounded, "Email Address", _emailController.text.isNotEmpty ? _emailController.text : "Not verified", Colors.blue),
-            _buildInfoTile(Icons.fingerprint_rounded, "Unique Identification", widget.user.id, Colors.purple),
-            _buildInfoTile(Icons.cloud_done_rounded, "Synchronization", widget.user.isSynced ? "Cloud Verified" : "Offline Mode", Colors.orange),
+            _buildInfoTile(
+                Icons.phone_rounded,
+                "Phone Number",
+                _phoneController.text.isNotEmpty
+                    ? _phoneController.text
+                    : "Not verified",
+                Colors.green),
+            _buildInfoTile(
+                Icons.alternate_email_rounded,
+                "Email Address",
+                _emailController.text.isNotEmpty
+                    ? _emailController.text
+                    : "Not verified",
+                Colors.blue),
+            _buildInfoTile(Icons.fingerprint_rounded, "Unique Identification",
+                widget.user.id, Colors.purple),
+            _buildInfoTile(
+                Icons.cloud_done_rounded,
+                "Synchronization",
+                widget.user.isSynced ? "Cloud Verified" : "Offline Mode",
+                Colors.orange),
           ],
         ),
-        
         const SizedBox(height: 20),
         if (widget.isMe) ...[
           _buildSectionCard(
             title: "App Experience",
             items: [
-               ListTile(
+              ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 4),
                 leading: Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: Colors.indigo.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                  child: Icon(ref.watch(themeProvider) == ThemeMode.dark ? Icons.dark_mode_rounded : Icons.light_mode_rounded, color: Colors.indigo, size: 20),
+                  decoration: BoxDecoration(
+                      color: Colors.indigo.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10)),
+                  child: Icon(
+                      ref.watch(themeProvider) == ThemeMode.dark
+                          ? Icons.dark_mode_rounded
+                          : Icons.light_mode_rounded,
+                      color: Colors.indigo,
+                      size: 20),
                 ),
-                title: const Text("App Performance Theme", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                title: const Text("App Performance Theme",
+                    style:
+                        TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                 subtitle: Text(
-                  ref.watch(themeProvider) == ThemeMode.system 
-                    ? "Currently following system logic" 
-                    : "Manual preference enabled",
-                  style: TextStyle(fontSize: 11, color: isDark ? Colors.blueGrey.shade400 : Colors.blueGrey.shade500)
-                ),
+                    ref.watch(themeProvider) == ThemeMode.system
+                        ? "Currently following system logic"
+                        : "Manual preference enabled",
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: isDark
+                            ? Colors.blueGrey.shade400
+                            : Colors.blueGrey.shade500)),
                 trailing: Switch.adaptive(
                   value: isDark,
                   activeColor: Colors.indigo,
                   activeTrackColor: Colors.indigo.withOpacity(0.5),
                   onChanged: (val) {
-                    ref.read(themeProvider.notifier).setTheme(val ? ThemeMode.dark : ThemeMode.light);
+                    ref
+                        .read(themeProvider.notifier)
+                        .setTheme(val ? ThemeMode.dark : ThemeMode.light);
                   },
                 ),
               ),
             ],
           ),
-          
           const SizedBox(height: 32),
           SizedBox(
             width: double.infinity,
@@ -298,13 +359,18 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             child: ElevatedButton.icon(
               onPressed: _showLogoutConfirmation,
               icon: const Icon(Icons.logout_rounded, size: 20),
-              label: const Text("Sign Out", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+              label: const Text("Sign Out",
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: isDark ? theme.colorScheme.surface : Colors.white,
+                backgroundColor:
+                    isDark ? theme.colorScheme.surface : Colors.white,
                 foregroundColor: Colors.red.shade600,
                 elevation: 0,
-                side: BorderSide(color: Colors.red.shade100.withOpacity(isDark ? 0.2 : 1.0), width: 1.5),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                side: BorderSide(
+                    color: Colors.red.shade100.withOpacity(isDark ? 0.2 : 1.0),
+                    width: 1.5),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
               ),
             ),
           ),
@@ -316,7 +382,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
           child: TextButton.icon(
             onPressed: () => Navigator.pop(context),
             icon: const Icon(Icons.arrow_back_rounded, size: 20),
-            label: const Text("Return", style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            label: const Text("Return",
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
             style: TextButton.styleFrom(
               foregroundColor: Colors.blueGrey.shade400,
             ),
@@ -331,14 +398,23 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text("Confirm Sign Out", style: TextStyle(fontWeight: FontWeight.w800)),
-        content: const Text("Are you certain you want to end your current session?"),
+        title: const Text("Confirm Sign Out",
+            style: TextStyle(fontWeight: FontWeight.w800)),
+        content:
+            const Text("Are you certain you want to end your current session?"),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text("Stay", style: TextStyle(color: Colors.blueGrey.shade600, fontWeight: FontWeight.bold))),
           TextButton(
-            onPressed: () => Navigator.pop(ctx, true), 
-            child: Text("Sign Out", style: TextStyle(color: Colors.red.shade600, fontWeight: FontWeight.w900))
-          ),
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text("Stay",
+                  style: TextStyle(
+                      color: Colors.blueGrey.shade600,
+                      fontWeight: FontWeight.bold))),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text("Sign Out",
+                  style: TextStyle(
+                      color: Colors.red.shade600,
+                      fontWeight: FontWeight.w900))),
         ],
       ),
     );
@@ -348,9 +424,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       try {
         await ref.read(authServiceProvider).logout();
         debugPrint("🔑 Token removed. Refreshing providers...");
-        
+
         ref.invalidate(currentUserProvider);
-        
+
         if (mounted) {
           debugPrint("📍 Navigating back to Login screen.");
           Navigator.of(context).pushAndRemoveUntil(
@@ -362,14 +438,17 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         debugPrint("❌ ERROR DURING LOGOUT FLOW: $e");
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Logout failed: $e"), backgroundColor: Colors.red),
+            SnackBar(
+                content: Text("Logout failed: $e"),
+                backgroundColor: Colors.red),
           );
         }
       }
     }
   }
 
-  Widget _buildSectionCard({required String title, required List<Widget> items}) {
+  Widget _buildSectionCard(
+      {required String title, required List<Widget> items}) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -391,7 +470,14 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: isDark ? Colors.blueGrey.shade300 : Colors.blueGrey.shade400, letterSpacing: 0.5)),
+          Text(title,
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: isDark
+                      ? Colors.blueGrey.shade300
+                      : Colors.blueGrey.shade400,
+                  letterSpacing: 0.5)),
           const SizedBox(height: 12),
           ...items,
         ],
@@ -399,7 +485,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     );
   }
 
-  Widget _buildInfoTile(IconData icon, String label, String value, Color color) {
+  Widget _buildInfoTile(
+      IconData icon, String label, String value, Color color) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Padding(
@@ -408,7 +495,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+            decoration: BoxDecoration(
+                color: color.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10)),
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(width: 16),
@@ -416,8 +505,19 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDark ? Colors.blueGrey.shade300 : Colors.blueGrey.shade400)),
-                Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: isDark ? Colors.white : Colors.blueGrey.shade800)),
+                Text(label,
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isDark
+                            ? Colors.blueGrey.shade300
+                            : Colors.blueGrey.shade400)),
+                Text(value,
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color:
+                            isDark ? Colors.white : Colors.blueGrey.shade800)),
               ],
             ),
           )
@@ -429,11 +529,16 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   Widget _buildEditForm() {
     return Column(
       children: [
-        _buildModernTextField(_nameController, "Display Name", Icons.person_outline_rounded),
+        _buildModernTextField(
+            _nameController, "Display Name", Icons.person_outline_rounded),
         const SizedBox(height: 20),
-        _buildModernTextField(_phoneController, "Contact Number", Icons.phone_android_rounded, type: TextInputType.phone),
+        _buildModernTextField(
+            _phoneController, "Contact Number", Icons.phone_android_rounded,
+            type: TextInputType.phone),
         const SizedBox(height: 20),
-        _buildModernTextField(_emailController, "Primary Email", Icons.email_outlined, type: TextInputType.emailAddress),
+        _buildModernTextField(
+            _emailController, "Primary Email", Icons.email_outlined,
+            type: TextInputType.emailAddress),
         const SizedBox(height: 40),
         SizedBox(
           width: double.infinity,
@@ -445,23 +550,35 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
               foregroundColor: Colors.white,
               elevation: 5,
               shadowColor: Colors.blue.withOpacity(0.3),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
             ),
-            child: _isLoading 
-              ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3)) 
-              : const Text("Commit Changes", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+            child: _isLoading
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 3))
+                : const Text("Commit Changes",
+                    style:
+                        TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
           ),
         ),
         const SizedBox(height: 16),
         TextButton(
           onPressed: () => setState(() => _isEditing = false),
-          child: Text("Discard Changes", style: TextStyle(color: Colors.blueGrey.shade400, fontWeight: FontWeight.bold)),
+          child: Text("Discard Changes",
+              style: TextStyle(
+                  color: Colors.blueGrey.shade400,
+                  fontWeight: FontWeight.bold)),
         ),
       ],
     );
   }
 
-  Widget _buildModernTextField(TextEditingController controller, String label, IconData icon, {TextInputType type = TextInputType.text}) {
+  Widget _buildModernTextField(
+      TextEditingController controller, String label, IconData icon,
+      {TextInputType type = TextInputType.text}) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -470,18 +587,35 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: isDark ? Colors.blueGrey.shade200 : Colors.blueGrey.shade700)),
+          child: Text(label,
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: isDark
+                      ? Colors.blueGrey.shade200
+                      : Colors.blueGrey.shade700)),
         ),
         TextFormField(
           controller: controller,
           keyboardType: type,
           style: const TextStyle(fontWeight: FontWeight.w600),
           decoration: InputDecoration(
-            prefixIcon: Icon(icon, size: 20, color: isDark ? Colors.indigo.shade300 : Colors.blue.shade600),
+            prefixIcon: Icon(icon,
+                size: 20,
+                color: isDark ? Colors.indigo.shade300 : Colors.blue.shade600),
             filled: true,
             fillColor: theme.cardColor,
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: isDark ? Colors.white10 : Colors.blueGrey.shade200, width: 1.5)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: isDark ? Colors.indigo.shade400 : Colors.blue.shade600, width: 2)),
+            enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                    color: isDark ? Colors.white10 : Colors.blueGrey.shade200,
+                    width: 1.5)),
+            focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                    color:
+                        isDark ? Colors.indigo.shade400 : Colors.blue.shade600,
+                    width: 2)),
             contentPadding: const EdgeInsets.all(18),
           ),
         ),

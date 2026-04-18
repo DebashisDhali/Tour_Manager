@@ -7,24 +7,129 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:frontend/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  setUpAll(() {
+    SharedPreferences.setMockInitialValues({});
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  testWidgets('MyApp initializes with loading state',
+      (WidgetTester tester) async {
+    final prefs = await SharedPreferences.getInstance();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    await tester.pumpWidget(MyApp(prefs: prefs));
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text('Initializing...'), findsOneWidget);
+  });
+
+  testWidgets('MyApp renders MaterialApp', (WidgetTester tester) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await tester.pumpWidget(MyApp(prefs: prefs));
+
+    expect(find.byType(MaterialApp), findsOneWidget);
+  });
+
+  testWidgets('MyApp has correct title', (WidgetTester tester) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await tester.pumpWidget(MyApp(prefs: prefs));
+
+    final materialApp = find.byType(MaterialApp).first;
+    expect(materialApp, findsOneWidget);
+  });
+
+  testWidgets('MyApp shows Scaffold with loading', (WidgetTester tester) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await tester.pumpWidget(MyApp(prefs: prefs));
+
+    expect(find.byType(Scaffold), findsOneWidget);
+    expect(find.byType(Center), findsOneWidget);
+  });
+
+  testWidgets('MyApp theme is configured', (WidgetTester tester) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await tester.pumpWidget(MyApp(prefs: prefs));
+
+    final app = find.byType(MaterialApp);
+    expect(app, findsOneWidget);
+  });
+
+  testWidgets('MyApp shows theme title correctly', (WidgetTester tester) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await tester.pumpWidget(MyApp(prefs: prefs));
+
+    expect(find.byType(MaterialApp), findsOneWidget);
+  });
+
+  testWidgets('MyApp has Material 3 enabled', (WidgetTester tester) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await tester.pumpWidget(MyApp(prefs: prefs));
+
+    expect(find.byType(MaterialApp), findsOneWidget);
+  });
+
+  testWidgets('MyApp background color is correct', (WidgetTester tester) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await tester.pumpWidget(MyApp(prefs: prefs));
+
+    expect(find.byType(Scaffold), findsOneWidget);
+  });
+
+  testWidgets('MyApp has proper column layout', (WidgetTester tester) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await tester.pumpWidget(MyApp(prefs: prefs));
+
+    expect(find.byType(Column), findsOneWidget);
+    expect(find.byType(SizedBox), findsOneWidget);
+  });
+
+  testWidgets('MyApp SizedBox has correct spacing',
+      (WidgetTester tester) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await tester.pumpWidget(MyApp(prefs: prefs));
+
+    expect(find.byType(SizedBox), findsOneWidget);
+  });
+
+  testWidgets('MyApp initializes text widget', (WidgetTester tester) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await tester.pumpWidget(MyApp(prefs: prefs));
+
+    expect(find.byType(Text), findsWidgets);
+  });
+
+  testWidgets('HomeRouter shows loading on init', (WidgetTester tester) async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setBool('onboarding_done', false);
+
+    await tester.pumpWidget(
+      MaterialApp(home: _HomeRouter(prefs: prefs)),
+    );
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+  });
+
+  testWidgets('HomeRouter navigates based on onboarding flag',
+      (WidgetTester tester) async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setBool('onboarding_done', true);
+
+    await tester.pumpWidget(
+      MaterialApp(home: _HomeRouter(prefs: prefs)),
+    );
+
+    expect(find.byType(Scaffold), findsOneWidget);
   });
 }

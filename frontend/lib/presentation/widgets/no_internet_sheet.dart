@@ -26,7 +26,7 @@ class NoInternetSheet extends StatelessWidget {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, -5),
           ),
@@ -41,7 +41,7 @@ class NoInternetSheet extends StatelessWidget {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: theme.colorScheme.onSurface.withOpacity(0.1),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -51,7 +51,7 @@ class NoInternetSheet extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.orange.withOpacity(0.1),
+              color: Colors.orange.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -73,10 +73,11 @@ class NoInternetSheet extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            message ?? 'আপনার ইন্টারনেট কানেকশনটি চেক করুন এবং আবার চেষ্টা করুন।',
+            message ??
+                'আপনার ইন্টারনেট কানেকশনটি চেক করুন এবং আবার চেষ্টা করুন।',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: theme.colorScheme.onSurface.withOpacity(0.6),
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
               fontSize: 15,
               height: 1.5,
             ),
@@ -96,7 +97,8 @@ class NoInternetSheet extends StatelessWidget {
               icon: const Icon(Icons.refresh_rounded),
               label: Text(
                 buttonLabel ?? 'Try Again',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               style: FilledButton.styleFrom(
                 backgroundColor: Colors.orange.shade600,
@@ -117,7 +119,8 @@ class NoInternetSheet extends StatelessWidget {
             child: TextButton(
               onPressed: () => Navigator.of(context).pop(),
               style: TextButton.styleFrom(
-                foregroundColor: theme.colorScheme.onSurface.withOpacity(0.5),
+                foregroundColor:
+                    theme.colorScheme.onSurface.withValues(alpha: 0.5),
               ),
               child: Text(dismissLabel ?? 'Cancel'),
             ),
@@ -127,7 +130,8 @@ class NoInternetSheet extends StatelessWidget {
     );
   }
 
-  static void show(BuildContext context, {required VoidCallback onRetry, String? title, String? message}) {
+  static void show(BuildContext context,
+      {required VoidCallback onRetry, String? title, String? message}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

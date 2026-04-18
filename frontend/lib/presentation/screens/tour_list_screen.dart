@@ -13,6 +13,7 @@ import '../widgets/premium_card.dart';
 import '../widgets/app_tour_overlay.dart';
 import '../widgets/sync_handler.dart';
 import '../widgets/no_internet_sheet.dart';
+import '../widgets/smooth_page_transition.dart';
 
 class TourListScreen extends ConsumerStatefulWidget {
   const TourListScreen({super.key});
@@ -44,7 +45,10 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
       if (next.value == true) {
         final user = ref.read(currentUserProvider).value;
         if (user != null) {
-          ref.read(syncServiceProvider).startSync(user.id).catchError((e) => debugPrint("Aggressive Auto-sync failed: $e"));
+          ref
+              .read(syncServiceProvider)
+              .startSync(user.id)
+              .catchError((e) => debugPrint("Aggressive Auto-sync failed: $e"));
         }
       }
     });
@@ -70,14 +74,16 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
       TourStep(
         targetKey: _tabBarKey,
         title: 'আপনার ড্যাশবোর্ড',
-        description: 'Activity Feed-এ সাম্প্রতিক খরচ ও ইনকাম দেখুন। Tours ট্যাবে আপনার সব ট্যুর-এর তালিকা পাবেন।',
+        description:
+            'Activity Feed-এ সাম্প্রতিক খরচ ও ইনকাম দেখুন। Tours ট্যাবে আপনার সব ট্যুর-এর তালিকা পাবেন।',
         icon: Icons.dashboard_rounded,
         accentColor: const Color(0xFF6366F1),
       ),
       TourStep(
         targetKey: _syncKey,
         title: 'ডেটা সিঙ্ক করুন',
-        description: 'এই বাটনে ট্যাপ করলে আপনার সব ডেটা সার্ভারের সাথে আপডেট হবে। অন্য মেম্বাররাও তখন আপডেট পাবেন।',
+        description:
+            'এই বাটনে ট্যাপ করলে আপনার সব ডেটা সার্ভারের সাথে আপডেট হবে। অন্য মেম্বাররাও তখন আপডেট পাবেন।',
         icon: Icons.sync_rounded,
         accentColor: const Color(0xFF0EA5E9),
       ),
@@ -91,14 +97,16 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
       TourStep(
         targetKey: _fabKey,
         title: 'নতুন ট্যুর তৈরি করুন',
-        description: 'এই + বাটনে ক্লিক করে নতুন ট্যুর, ট্রিপ, ইভেন্ট বা মেস তৈরি করুন। সবার খরচ এক জায়গায় হিসাব হবে!',
+        description:
+            'এই + বাটনে ক্লিক করে নতুন ট্যুর, ট্রিপ, ইভেন্ট বা মেস তৈরি করুন। সবার খরচ এক জায়গায় হিসাব হবে!',
         icon: Icons.add_circle_rounded,
         accentColor: const Color(0xFF10B981),
       ),
       TourStep(
         targetKey: _joinCodeAppBarKey,
         title: 'কোড দিয়ে যোগ দিন',
-        description: 'অন্যের ট্যুরে যোগ দিতে 6-digit invite code ব্যবহার করুন। Home screen-এ "Join with Code" অপশনটি ব্যবহার করুন।',
+        description:
+            'অন্যের ট্যুরে যোগ দিতে 6-digit invite code ব্যবহার করুন। Home screen-এ "Join with Code" অপশনটি ব্যবহার করুন।',
         icon: Icons.qr_code_rounded,
         accentColor: const Color(0xFFF59E0B),
       ),
@@ -123,7 +131,8 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
     return currentUserAsync.when(
       data: (user) {
         final config = PurposeConfig.getConfig(user?.purpose);
-        final lastSync = user != null ? ref.watch(lastSyncProvider(user.id)).value : null;
+        final lastSync =
+            user != null ? ref.watch(lastSyncProvider(user.id)).value : null;
         String syncDisplay = 'Not synced';
         if (lastSync != null) {
           final parsed = DateTime.tryParse(lastSync);
@@ -142,8 +151,19 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
               appBar: AppBar(
                 title: Column(
                   children: [
-                     Text(config.pluralLabel, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, letterSpacing: -0.5)),
-                     Text(syncDisplay, style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), fontWeight: FontWeight.w600)),
+                    Text(config.pluralLabel,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 20,
+                            letterSpacing: -0.5)),
+                    Text(syncDisplay,
+                        style: TextStyle(
+                            fontSize: 10,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(0.6),
+                            fontWeight: FontWeight.w600)),
                   ],
                 ),
                 bottom: TabBar(
@@ -152,7 +172,10 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                   indicatorWeight: 3,
                   indicatorColor: config.color,
                   labelColor: config.color,
-                  unselectedLabelColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                  unselectedLabelColor: Theme.of(context)
+                      .colorScheme
+                      .onSurface
+                      .withValues(alpha: 0.5),
                   labelStyle: const TextStyle(fontWeight: FontWeight.bold),
                   tabs: [
                     Tab(text: 'Activity Feed'),
@@ -172,21 +195,35 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                     icon: const Icon(Icons.sync_rounded),
                     tooltip: 'Sync Now',
                   ),
-                  if (user != null) InkWell(
-                    key: _profileKey,
-                    onTap: () {
-                       Navigator.push(context, MaterialPageRoute(builder: (_) => UserProfileScreen(user: user, isMe: true)));
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 16, left: 8),
-                      child: CircleAvatar(
-                        radius: 16,
-                        backgroundColor: config.color.withOpacity(0.1),
-                        backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
-                        child: user.avatarUrl == null ? Text(user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U', style: TextStyle(fontSize: 12, color: config.color, fontWeight: FontWeight.bold)) : null,
+                  if (user != null)
+                    InkWell(
+                      key: _profileKey,
+                      onTap: () {
+                        navigateWithTransition(context,
+                            builder: () =>
+                                UserProfileScreen(user: user, isMe: true));
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 16, left: 8),
+                        child: CircleAvatar(
+                          radius: 16,
+                          backgroundColor: config.color.withValues(alpha: 0.1),
+                          backgroundImage: user.avatarUrl != null
+                              ? NetworkImage(user.avatarUrl!)
+                              : null,
+                          child: user.avatarUrl == null
+                              ? Text(
+                                  user.name.isNotEmpty
+                                      ? user.name[0].toUpperCase()
+                                      : 'U',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      color: config.color,
+                                      fontWeight: FontWeight.bold))
+                              : null,
+                        ),
                       ),
                     ),
-                  ),
                 ],
               ),
               body: TabBarView(
@@ -204,20 +241,24 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
               floatingActionButton: FloatingActionButton.extended(
                 key: _fabKey,
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateTourScreen()));
+                  navigateWithTransition(context,
+                      builder: () => const CreateTourScreen());
                 },
-                label: const Text('New', style: TextStyle(fontWeight: FontWeight.bold)),
+                label: const Text('New',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 icon: const Icon(Icons.add_rounded),
                 backgroundColor: config.color,
                 foregroundColor: Colors.white,
                 elevation: 4,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
               ),
             ),
           ),
         );
       },
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, s) => Scaffold(body: Center(child: Text("Error: $e"))),
     );
   }
@@ -232,21 +273,35 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.history_toggle_off_rounded, size: 80, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1)),
+                Icon(Icons.history_toggle_off_rounded,
+                    size: 80,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.1)),
                 const SizedBox(height: 16),
-                Text("No Recent Activity", style: TextStyle(fontSize: 18, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3), fontWeight: FontWeight.bold)),
+                Text("No Recent Activity",
+                    style: TextStyle(
+                        fontSize: 18,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withValues(alpha: 0.3),
+                        fontWeight: FontWeight.bold)),
                 if (items.isEmpty) ...[
-                const SizedBox(height: 24),
-                OutlinedButton.icon(
-                  onPressed: () => _showJoinDialog(context, config),
-                  icon: const Icon(Icons.qr_code_scanner_rounded),
-                  label: const Text("Join with Code"),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: config.color,
-                    side: BorderSide(color: config.color.withOpacity(0.2)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                )
+                  const SizedBox(height: 24),
+                  OutlinedButton.icon(
+                    onPressed: () => _showJoinDialog(context, config),
+                    icon: const Icon(Icons.qr_code_scanner_rounded),
+                    label: const Text("Join with Code"),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: config.color,
+                      side: BorderSide(
+                          color: config.color.withValues(alpha: 0.2)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  )
                 ],
               ],
             ),
@@ -262,14 +317,18 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               onTap: () {
-                 Navigator.push(context, MaterialPageRoute(builder: (_) => TourDetailsScreen(tourId: item.tour.id, tourName: item.tour.name)));
+                navigateWithTransition(context,
+                    builder: () => TourDetailsScreen(
+                        tourId: item.tour.id, tourName: item.tour.name));
               },
               child: Row(
                 children: [
                   CircleAvatar(
                     radius: 18,
                     backgroundColor: config.color.withOpacity(0.1),
-                    backgroundImage: item.user?.avatarUrl != null ? NetworkImage(item.user!.avatarUrl!) : null,
+                    backgroundImage: item.user?.avatarUrl != null
+                        ? NetworkImage(item.user!.avatarUrl!)
+                        : null,
                     child: (item.user?.avatarUrl == null)
                         ? Text(
                             item.user != null && item.user!.name.isNotEmpty
@@ -286,25 +345,43 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(item.type == 'expense' ? item.item.title : (item.type == 'income' ? item.item.source : 'Settlement'), 
-                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        Text(
+                            item.type == 'expense'
+                                ? item.item.title
+                                : (item.type == 'income'
+                                    ? item.item.source
+                                    : 'Settlement'),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 13)),
                         const SizedBox(height: 2),
                         Text(
-                          "${item.type == 'expense' ? 'Paid by' : 'By'} ${item.user?.name ?? 'Someone'} • ${item.tour.name}", 
-                          style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), fontSize: 10, fontWeight: FontWeight.w600)
-                        ),
+                            "${item.type == 'expense' ? 'Paid by' : 'By'} ${item.user?.name ?? 'Someone'} • ${item.tour.name}",
+                            style: TextStyle(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withOpacity(0.6),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600)),
                         const SizedBox(height: 2),
-                        Text(
-                          DateFormat('MMM dd, hh:mm a').format(item.date), 
-                          style: TextStyle(fontSize: 9, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4), fontWeight: FontWeight.w600)
-                        ),
+                        Text(DateFormat('MMM dd, hh:mm a').format(item.date),
+                            style: TextStyle(
+                                fontSize: 9,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withValues(alpha: 0.4),
+                                fontWeight: FontWeight.w600)),
                       ],
                     ),
                   ),
-                  Text(
-                    "৳${item.amount.toStringAsFixed(0)}", 
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: item.type == 'expense' ? Colors.redAccent : Colors.green)
-                  ),
+                  Text("৳${item.amount.toStringAsFixed(0)}",
+                      style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          color: item.type == 'expense'
+                              ? Colors.redAccent
+                              : Colors.green)),
                 ],
               ),
             );
@@ -316,7 +393,8 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
     );
   }
 
-  Widget _buildTourList(BuildContext context, PurposeConfig config, models.User? currentUser) {
+  Widget _buildTourList(
+      BuildContext context, PurposeConfig config, models.User? currentUser) {
     final toursAsync = ref.watch(tourListProvider);
 
     return toursAsync.when(
@@ -331,28 +409,44 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(color: config.color.withOpacity(0.05), shape: BoxShape.circle),
-                      child: Icon(config.icon, size: 60, color: config.color.withOpacity(0.3)),
+                      decoration: BoxDecoration(
+                          color: config.color.withValues(alpha: 0.05),
+                          shape: BoxShape.circle),
+                      child: Icon(config.icon,
+                          size: 60, color: config.color.withOpacity(0.3)),
                     ),
                     const SizedBox(height: 32),
-                    Text("No ${config.pluralLabel} yet!", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+                    Text("No ${config.pluralLabel} yet!",
+                        style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5)),
                     const SizedBox(height: 12),
-                    Text("Create a new ${config.label.toLowerCase()} or join an existing one with a code to start tracking expenses.", 
+                    Text(
+                        "Create a new ${config.label.toLowerCase()} or join an existing one with a code to start tracking expenses.",
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7), fontSize: 15, height: 1.5)),
+                        style: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(0.7),
+                            fontSize: 15,
+                            height: 1.5)),
                     const SizedBox(height: 40),
                     SizedBox(
                       width: double.infinity,
                       height: 56,
                       child: FilledButton.icon(
                         onPressed: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateTourScreen()));
+                          navigateWithTransition(context,
+                              builder: () => const CreateTourScreen());
                         },
                         icon: const Icon(Icons.add_rounded),
                         label: Text("Create New ${config.label}"),
                         style: FilledButton.styleFrom(
                           backgroundColor: config.color,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
                           elevation: 0,
                         ),
                       ),
@@ -368,7 +462,8 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                         style: OutlinedButton.styleFrom(
                           foregroundColor: config.color,
                           side: BorderSide(color: config.color, width: 2),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
                         ),
                       ),
                     ),
@@ -378,23 +473,28 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
             ),
           );
         }
-        
+
         return ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           itemCount: tours.length,
           itemBuilder: (context, index) {
             final tour = tours[index];
             final tourConfig = PurposeConfig.getConfig(tour.purpose);
-            
+
             return PremiumCard(
               onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => TourDetailsScreen(tourId: tour.id, tourName: tour.name)));
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => TourDetailsScreen(
+                            tourId: tour.id, tourName: tour.name)));
               },
               padding: EdgeInsets.zero,
               child: Column(
                 children: [
                   ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
                     leading: Container(
                       width: 44,
                       height: 44,
@@ -402,17 +502,24 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                         gradient: tourConfig.gradient,
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
-                          BoxShadow(color: tourConfig.color.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))
+                          BoxShadow(
+                              color: tourConfig.color.withOpacity(0.3),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4))
                         ],
                       ),
-                      child: Icon(tourConfig.icon, color: Colors.white, size: 22),
+                      child:
+                          Icon(tourConfig.icon, color: Colors.white, size: 22),
                     ),
                     title: Row(
                       children: [
                         Expanded(
                           child: Text(
-                            tour.name, 
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+                            tour.name,
+                            style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.5),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -421,18 +528,25 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                             onTap: () => _syncData(context),
                             child: Container(
                               margin: const EdgeInsets.only(left: 8),
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: Colors.orange.withOpacity(0.1), 
-                                borderRadius: BorderRadius.circular(8), 
-                                border: Border.all(color: Colors.orange.withOpacity(0.3))
-                              ),
+                                  color: Colors.orange.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                      color: Colors.orange.withOpacity(0.3))),
                               child: const Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.cloud_upload_outlined, color: Colors.orange, size: 10),
+                                  Icon(Icons.cloud_upload_outlined,
+                                      color: Colors.orange, size: 10),
                                   SizedBox(width: 4),
-                                  Text("LOCAL (সিঙ্ক করুন)", style: TextStyle(color: Colors.orange, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 0)),
+                                  Text("LOCAL (সিঙ্ক করুন)",
+                                      style: TextStyle(
+                                          color: Colors.orange,
+                                          fontSize: 8,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 0)),
                                 ],
                               ),
                             ),
@@ -440,18 +554,25 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                         else
                           Container(
                             margin: const EdgeInsets.only(left: 8),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: Colors.green.withOpacity(0.1), 
-                              borderRadius: BorderRadius.circular(8), 
-                              border: Border.all(color: Colors.green.withOpacity(0.3))
-                            ),
+                                color: Colors.green.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: Colors.green.withOpacity(0.3))),
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.cloud_done_rounded, color: Colors.green, size: 10),
+                                Icon(Icons.cloud_done_rounded,
+                                    color: Colors.green, size: 10),
                                 SizedBox(width: 4),
-                                Text("CLOUD PROTECTED", style: TextStyle(color: Colors.green, fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 0)),
+                                Text("CLOUD PROTECTED",
+                                    style: TextStyle(
+                                        color: Colors.green,
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 0)),
                               ],
                             ),
                           ),
@@ -461,23 +582,34 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                       padding: const EdgeInsets.only(top: 2),
                       child: Row(
                         children: [
-                          Icon(Icons.calendar_today_rounded, size: 11, color: tourConfig.color),
+                          Icon(Icons.calendar_today_rounded,
+                              size: 11, color: tourConfig.color),
                           const SizedBox(width: 4),
                           Text(
-                            tour.startDate == null 
-                              ? "Active ${tourConfig.label}" 
-                              : DateFormat('MMM dd, yyyy').format(tour.startDate!),
-                            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), fontSize: 11, fontWeight: FontWeight.w600),
+                            tour.startDate == null
+                                ? "Active ${tourConfig.label}"
+                                : DateFormat('MMM dd, yyyy')
+                                    .format(tour.startDate!),
+                            style: TextStyle(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withOpacity(0.6),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600),
                           ),
                         ],
                       ),
                     ),
                     trailing: PopupMenuButton<String>(
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
                       icon: const Icon(Icons.more_vert_rounded),
                       onSelected: (value) {
                         if (value == 'edit') {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => CreateTourScreen(initialTour: tour)));
+                          navigateWithTransition(context,
+                              builder: () =>
+                                  CreateTourScreen(initialTour: tour));
                         } else if (value == 'delete') {
                           _confirmDeleteTour(context, tour);
                         }
@@ -485,26 +617,39 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                       itemBuilder: (context) => [
                         const PopupMenuItem(
                           value: 'edit',
-                          child: Row(children: [Icon(Icons.edit_rounded, size: 18), SizedBox(width: 12), Text('Edit Details')]),
+                          child: Row(children: [
+                            Icon(Icons.edit_rounded, size: 18),
+                            SizedBox(width: 12),
+                            Text('Edit Details')
+                          ]),
                         ),
                         const PopupMenuItem(
                           value: 'delete',
-                          child: Row(children: [Icon(Icons.delete_outline_rounded, color: Colors.red, size: 18), SizedBox(width: 12), Text('Remove', style: TextStyle(color: Colors.red))]),
+                          child: Row(children: [
+                            Icon(Icons.delete_outline_rounded,
+                                color: Colors.red, size: 18),
+                            SizedBox(width: 12),
+                            Text('Remove', style: TextStyle(color: Colors.red))
+                          ]),
                         ),
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: tourConfig.color.withOpacity(0.05),
-                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                      borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.circular(24)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _buildStatIndicator(Icons.people_alt_rounded, tourConfig.memberLabel, tourConfig.color),
-                        _buildStatIndicator(Icons.payments_rounded, tourConfig.expenseListLabel, tourConfig.color),
+                        _buildStatIndicator(Icons.people_alt_rounded,
+                            tourConfig.memberLabel, tourConfig.color),
+                        _buildStatIndicator(Icons.payments_rounded,
+                            tourConfig.expenseListLabel, tourConfig.color),
                       ],
                     ),
                   )
@@ -524,7 +669,12 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
       children: [
         Icon(icon, size: 12, color: color),
         const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7))),
+        Text(label,
+            style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color:
+                    Theme.of(context).colorScheme.onSurface.withOpacity(0.7))),
       ],
     );
   }
@@ -536,20 +686,25 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: Text("Delete ${tourConfig.label}"),
-        content: Text("Are you sure you want to delete '${tour.name}'? This will delete all data associated with it."),
+        content: Text(
+            "Are you sure you want to delete '${tour.name}'? This will delete all data associated with it."),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
           TextButton(
-            onPressed: () async {
-              final db = ref.read(databaseProvider);
-              await db.deleteTourWithDetails(tour.id);
-              if (context.mounted) {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${tourConfig.label} deleted")));
-              }
-            }, 
-            child: const Text("Delete", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))
-          ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel")),
+          TextButton(
+              onPressed: () async {
+                final db = ref.read(databaseProvider);
+                await db.deleteTourWithDetails(tour.id);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("${tourConfig.label} deleted")));
+                }
+              },
+              child: const Text("Delete",
+                  style: TextStyle(
+                      color: Colors.red, fontWeight: FontWeight.bold))),
         ],
       ),
     );
@@ -565,7 +720,9 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
     // ── Connectivity check before sync ──────────────────────────────────────
     final isOnline = await SyncHandler.isConnected();
     if (!isOnline) {
-      if (mounted) _showNoInternetSheet(context); // ignore: use_build_context_synchronously
+      if (mounted)
+        _showNoInternetSheet(
+            context); // ignore: use_build_context_synchronously
       return;
     }
     // ────────────────────────────────────────────────────────────────────────
@@ -621,8 +778,8 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                 'সিঙ্ক ব্যর্থ: ${e.toString().replaceAll('Exception: ', '')}'),
             backgroundColor: Colors.red.shade600,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             duration: const Duration(seconds: 4),
             action: SnackBarAction(
               label: 'আবার চেষ্টা',
@@ -637,7 +794,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
 
   void _showNoInternetSheet(BuildContext context) {
     NoInternetSheet.show(
-      context, 
+      context,
       onRetry: () => _syncData(context),
       title: 'সিঙ্ক করা সম্ভব হচ্ছে না',
     );
@@ -661,7 +818,8 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
             child: Container(
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(32)),
               ),
               padding: const EdgeInsets.all(32),
               child: Column(
@@ -681,13 +839,21 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                   ),
                   Text(
                     'Join ${config.label}',
-                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900, letterSpacing: -0.5),
+                    style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Enter the 6-digit code shared by your host',
-                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), fontSize: 15),
+                    style: TextStyle(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.6),
+                        fontSize: 15),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 32),
@@ -695,12 +861,21 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                     controller: controller,
                     enabled: !isLoading,
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 32, letterSpacing: 12, fontWeight: FontWeight.bold, color: config.color),
+                    style: TextStyle(
+                        fontSize: 32,
+                        letterSpacing: 12,
+                        fontWeight: FontWeight.bold,
+                        color: config.color),
                     textCapitalization: TextCapitalization.characters,
                     maxLength: 6,
                     decoration: InputDecoration(
                       hintText: 'CODE',
-                      hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1), letterSpacing: 4),
+                      hintStyle: TextStyle(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withOpacity(0.1),
+                          letterSpacing: 4),
                       fillColor: config.color.withOpacity(0.05),
                       filled: true,
                       counterText: "",
@@ -716,25 +891,38 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                       suffixIcon: Padding(
                         padding: const EdgeInsets.only(right: 8.0),
                         child: CircleAvatar(
-                          backgroundColor: Theme.of(context).colorScheme.surface,
+                          backgroundColor:
+                              Theme.of(context).colorScheme.surface,
                           child: IconButton(
-                            icon: Icon(Icons.paste_rounded, color: config.color, size: 20),
-                            onPressed: isLoading ? null : () async {
-                              try {
-                                final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
-                                if (clipboardData != null && clipboardData.text != null) {
-                                  final pastedText = clipboardData.text!.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').trim().toUpperCase();
-                                  if (pastedText.length == 6) {
-                                    controller.text = pastedText;
-                                    setState(() => errorText = null);
-                                  } else {
-                                    setState(() => errorText = "Invalid format");
-                                  }
-                                }
-                              } catch (e) {
-                                setState(() => errorText = "Failed to paste");
-                              }
-                            },
+                            icon: Icon(Icons.paste_rounded,
+                                color: config.color, size: 20),
+                            onPressed: isLoading
+                                ? null
+                                : () async {
+                                    try {
+                                      final clipboardData =
+                                          await Clipboard.getData(
+                                              Clipboard.kTextPlain);
+                                      if (clipboardData != null &&
+                                          clipboardData.text != null) {
+                                        final pastedText = clipboardData.text!
+                                            .replaceAll(
+                                                RegExp(r'[^a-zA-Z0-9]'), '')
+                                            .trim()
+                                            .toUpperCase();
+                                        if (pastedText.length == 6) {
+                                          controller.text = pastedText;
+                                          setState(() => errorText = null);
+                                        } else {
+                                          setState(() =>
+                                              errorText = "Invalid format");
+                                        }
+                                      }
+                                    } catch (e) {
+                                      setState(
+                                          () => errorText = "Failed to paste");
+                                    }
+                                  },
                           ),
                         ),
                       ),
@@ -747,95 +935,139 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                   SizedBox(
                     height: 60,
                     child: FilledButton(
-                      onPressed: isLoading ? null : () async {
-                        final code = controller.text.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').trim().toUpperCase();
-                        if (code.length != 6) {
-                          setState(() => errorText = "6 digits required");
-                          return;
-                        }
+                      onPressed: isLoading
+                          ? null
+                          : () async {
+                              final code = controller.text
+                                  .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+                                  .trim()
+                                  .toUpperCase();
+                              if (code.length != 6) {
+                                setState(() => errorText = "6 digits required");
+                                return;
+                              }
 
-                        setState(() {
-                          isLoading = true;
-                          errorText = null;
-                        });
+                              setState(() {
+                                isLoading = true;
+                                errorText = null;
+                              });
 
-                        try {
-                          final user = await ref.read(currentUserProvider.future);
-                          if (user == null) return;
+                              try {
+                                final user =
+                                    await ref.read(currentUserProvider.future);
+                                if (user == null) return;
 
-                          final tourRes = await ref.read(syncServiceProvider).findTourByCode(code);
-                          if (tourRes == null) {
-                            setState(() => errorText = "Not found. Ask host to sync.");
-                            return;
-                          }
+                                final tourRes = await ref
+                                    .read(syncServiceProvider)
+                                    .findTourByCode(code);
+                                if (tourRes == null) {
+                                  setState(() => errorText =
+                                      "Not found. Ask host to sync.");
+                                  return;
+                                }
 
-                          if (context.mounted) {
-                            final proceed = await showDialog<bool>(
-                              context: context,
-                              builder: (c) => AlertDialog(
-                                title: Text("${config.label} Found!"),
-                                content: Text("Do you want to join '${tourRes['name']}'?"),
-                                actions: [
-                                  TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("Cancel")),
-                                  FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text("Join Now")),
-                                ],
-                              ),
-                            );
-
-                            if (proceed == true) {
-                              await ref.read(syncServiceProvider).joinByInvite(
-                                    code,
-                                    user.id,
-                                    user.name,
-                                    email: user.email,
-                                    avatarUrl: user.avatarUrl,
-                                    purpose: user.purpose,
+                                if (context.mounted) {
+                                  final proceed = await showDialog<bool>(
+                                    context: context,
+                                    builder: (c) => AlertDialog(
+                                      title: Text("${config.label} Found!"),
+                                      content: Text(
+                                          "Do you want to join '${tourRes['name']}'?"),
+                                      actions: [
+                                        TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(c, false),
+                                            child: const Text("Cancel")),
+                                        FilledButton(
+                                            onPressed: () =>
+                                                Navigator.pop(c, true),
+                                            child: const Text("Join Now")),
+                                      ],
+                                    ),
                                   );
-                              ref.invalidate(tourListProvider);
-                              if (context.mounted) Navigator.pop(context);
-                            }
-                          }
-                        } catch (e) {
-                          String msg = e.toString().contains("403") ? "Request Needed" : e.toString();
-                          if (msg.contains("Request Needed")) {
-                            if (context.mounted) {
-                              final tourRes = await ref.read(syncServiceProvider).findTourByCode(code);
-                              if (tourRes != null) {
-                                final req = await showDialog<bool>(
-                                  context: context,
-                                  builder: (c) => AlertDialog(
-                                    title: Text("Restricted ${config.label}"),
-                                    content: Text("'${tourRes['name']}' is private. Send a join request?"),
-                                    actions: [
-                                      TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("No")),
-                                      FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text("Send Request")),
-                                    ],
-                                  ),
-                                );
-                                if (req == true) {
-                                  await ref.read(syncServiceProvider).requestToJoin(tourRes['id']);
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Request sent to Admin")));
-                                    Navigator.pop(context);
+
+                                  if (proceed == true) {
+                                    await ref
+                                        .read(syncServiceProvider)
+                                        .joinByInvite(
+                                          code,
+                                          user.id,
+                                          user.name,
+                                          email: user.email,
+                                          avatarUrl: user.avatarUrl,
+                                          purpose: user.purpose,
+                                        );
+                                    ref.invalidate(tourListProvider);
+                                    if (context.mounted) Navigator.pop(context);
                                   }
                                 }
+                              } catch (e) {
+                                String msg = e.toString().contains("403")
+                                    ? "Request Needed"
+                                    : e.toString();
+                                if (msg.contains("Request Needed")) {
+                                  if (context.mounted) {
+                                    final tourRes = await ref
+                                        .read(syncServiceProvider)
+                                        .findTourByCode(code);
+                                    if (tourRes != null) {
+                                      final req = await showDialog<bool>(
+                                        context: context,
+                                        builder: (c) => AlertDialog(
+                                          title: Text(
+                                              "Restricted ${config.label}"),
+                                          content: Text(
+                                              "'${tourRes['name']}' is private. Send a join request?"),
+                                          actions: [
+                                            TextButton(
+                                                onPressed: () =>
+                                                    Navigator.pop(c, false),
+                                                child: const Text("No")),
+                                            FilledButton(
+                                                onPressed: () =>
+                                                    Navigator.pop(c, true),
+                                                child:
+                                                    const Text("Send Request")),
+                                          ],
+                                        ),
+                                      );
+                                      if (req == true) {
+                                        await ref
+                                            .read(syncServiceProvider)
+                                            .requestToJoin(tourRes['id']);
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(const SnackBar(
+                                                  content: Text(
+                                                      "Request sent to Admin")));
+                                          Navigator.pop(context);
+                                        }
+                                      }
+                                    }
+                                  }
+                                } else {
+                                  setState(() => errorText =
+                                      msg.replaceAll("Exception:", "").trim());
+                                }
+                              } finally {
+                                if (mounted) setState(() => isLoading = false);
                               }
-                            }
-                          } else {
-                            setState(() => errorText = msg.replaceAll("Exception:", "").trim());
-                          }
-                        } finally {
-                          if (mounted) setState(() => isLoading = false);
-                        }
-                      },
+                            },
                       style: FilledButton.styleFrom(
                         backgroundColor: config.color,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18)),
                         elevation: 0,
                       ),
                       child: isLoading
-                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
-                          : const Text('Join Team Now', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                  color: Colors.white, strokeWidth: 3))
+                          : const Text('Join Team Now',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
                   const SizedBox(height: 16),

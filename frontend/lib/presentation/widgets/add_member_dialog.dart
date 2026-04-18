@@ -289,7 +289,9 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                     color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                        color: Theme.of(context).dividerColor.withOpacity(0.1)),
+                        color: Theme.of(context)
+                            .dividerColor
+                            .withValues(alpha: 0.1)),
                   ),
                   child: Column(
                     children: _searchResults.map((item) {
@@ -316,7 +318,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                           leading: CircleAvatar(
                             backgroundColor: isSelected
                                 ? config.color
-                                : config.color.withOpacity(0.1),
+                                : config.color.withValues(alpha: 0.1),
                             child: isSelected
                                 ? const Icon(Icons.check,
                                     color: Colors.white, size: 16)
@@ -335,7 +337,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                                   color: Theme.of(context)
                                       .colorScheme
                                       .onSurface
-                                      .withOpacity(0.6))),
+                                      .withValues(alpha: 0.6))),
                           trailing: Checkbox(
                             value: isSelected,
                             activeColor: config.color,
@@ -357,7 +359,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
-                    color: config.color.withOpacity(0.1),
+                    color: config.color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(

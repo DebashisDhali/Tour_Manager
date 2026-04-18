@@ -4,6 +4,7 @@ import 'package:frontend/data/providers/app_providers.dart';
 import 'package:frontend/presentation/widgets/no_internet_sheet.dart';
 import 'package:frontend/presentation/widgets/sync_handler.dart';
 import 'tour_list_screen.dart';
+import 'login_screen.dart'; // ADD THIS LINE
 import 'dart:ui';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -13,7 +14,8 @@ class RegisterScreen extends ConsumerStatefulWidget {
   ConsumerState<RegisterScreen> createState() => RegisterScreenState();
 }
 
-class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTickerProviderStateMixin {
+class RegisterScreenState extends ConsumerState<RegisterScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -73,10 +75,11 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text("Registration Successful! Please login."), 
+            content: const Text("Registration Successful! Please login."),
             backgroundColor: Colors.green,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
         Navigator.pop(context); // Go back to Login Screen
@@ -84,15 +87,20 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
     } catch (e) {
       if (mounted) {
         final errorMsg = e.toString().toLowerCase();
-        if (errorMsg.contains('internet') || errorMsg.contains('network') || errorMsg.contains('server communication')) {
-           NoInternetSheet.show(context, onRetry: _register, message: e.toString().replaceAll("Exception: ", ""));
+        if (errorMsg.contains('internet') ||
+            errorMsg.contains('network') ||
+            errorMsg.contains('server communication')) {
+          NoInternetSheet.show(context,
+              onRetry: _register,
+              message: e.toString().replaceAll("Exception: ", ""));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(e.toString().replaceAll("Exception: ", "")), 
+              content: Text(e.toString().replaceAll("Exception: ", "")),
               backgroundColor: Colors.redAccent,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
           );
         }
@@ -126,12 +134,13 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
               ),
             ),
           ),
-          
+
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
                 child: FadeTransition(
                   opacity: _fadeAnimation,
                   child: Column(
@@ -152,15 +161,15 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
                             ),
                           ],
                         ),
-                        child: Icon(Icons.person_add_rounded, 
-                          size: 40, color: Colors.blue.shade600),
+                        child: Icon(Icons.person_add_rounded,
+                            size: 40, color: Colors.blue.shade600),
                       ),
                       const SizedBox(height: 24),
                       Text(
                         "Join Us",
                         style: TextStyle(
-                          fontSize: 34, 
-                          fontWeight: FontWeight.w800, 
+                          fontSize: 34,
+                          fontWeight: FontWeight.w800,
                           color: Colors.blueGrey.shade900,
                           letterSpacing: -1.2,
                         ),
@@ -170,13 +179,13 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
                         "Create an account to start managing your trips",
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 16, 
+                          fontSize: 16,
                           color: Colors.blueGrey.shade500,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                       const SizedBox(height: 48),
-                      
+
                       // Input Fields
                       Form(
                         key: _formKey,
@@ -187,7 +196,8 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
                               label: "Full Name",
                               hint: "Enter your full name",
                               icon: Icons.person_outline_rounded,
-                              validator: (v) => v == null || v.isEmpty ? "Required" : null,
+                              validator: (v) =>
+                                  v == null || v.isEmpty ? "Required" : null,
                             ),
                             const SizedBox(height: 20),
                             _buildModernTextField(
@@ -196,7 +206,8 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
                               hint: "example@mail.com",
                               icon: Icons.email_outlined,
                               keyboardType: TextInputType.emailAddress,
-                              validator: (v) => v == null || v.isEmpty ? "Required" : null,
+                              validator: (v) =>
+                                  v == null || v.isEmpty ? "Required" : null,
                             ),
                             const SizedBox(height: 20),
                             _buildModernTextField(
@@ -205,7 +216,8 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
                               hint: "+880 1XXX XXXXXX",
                               icon: Icons.phone_outlined,
                               keyboardType: TextInputType.phone,
-                              validator: (v) => v == null || v.isEmpty ? "Required" : null,
+                              validator: (v) =>
+                                  v == null || v.isEmpty ? "Required" : null,
                             ),
                             const SizedBox(height: 20),
                             _buildModernTextField(
@@ -217,13 +229,20 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
                               isPassword: true,
                               suffixIcon: IconButton(
                                 icon: Icon(
-                                  _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                                  _obscurePassword
+                                      ? Icons.visibility_off_rounded
+                                      : Icons.visibility_rounded,
                                   color: Colors.blueGrey.shade400,
                                   size: 22,
                                 ),
-                                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword),
                               ),
-                              validator: (v) => v != null && v.length < 6 ? "Min 6 chars" : (v == null || v.isEmpty ? "Required" : null),
+                              validator: (v) => v != null && v.length < 6
+                                  ? "Min 6 chars"
+                                  : (v == null || v.isEmpty
+                                      ? "Required"
+                                      : null),
                             ),
                             _buildModernTextField(
                               controller: _inviteCodeController,
@@ -233,7 +252,7 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
                               onChanged: (v) => setState(() {}),
                             ),
                             const SizedBox(height: 40),
-                            
+
                             // Signup Button
                             SizedBox(
                               width: double.infinity,
@@ -249,41 +268,65 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                 ),
-                                child: _isLoading 
-                                  ? const SizedBox(
-                                      width: 24, 
-                                      height: 24, 
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 3,
-                                        color: Colors.white,
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 3,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : Text(
+                                        _inviteCodeController.text.length == 6
+                                            ? "Join Team"
+                                            : "Create Account",
+                                        style: const TextStyle(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.5,
+                                        ),
                                       ),
-                                    )
-                                  : Text(
-                                      _inviteCodeController.text.length == 6 ? "Join Team" : "Create Account",
-                                      style: const TextStyle(
-                                        fontSize: 17, 
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      
+
                       const SizedBox(height: 32),
-                      
+
                       // Footer
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
                             "Already have an account? ",
-                            style: TextStyle(color: Colors.blueGrey.shade600, fontSize: 15),
+                            style: TextStyle(
+                                color: Colors.blueGrey.shade600, fontSize: 15),
                           ),
                           TextButton(
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: () {
+                              // Fix: Use pushReplacement instead of pop
+                              Navigator.of(context).pushReplacement(
+                                PageRouteBuilder(
+                                  pageBuilder: (context, animation,
+                                          secondaryAnimation) =>
+                                      const LoginScreen(),
+                                  transitionsBuilder: (context, animation,
+                                      secondaryAnimation, child) {
+                                    return FadeTransition(
+                                      opacity: CurvedAnimation(
+                                        parent: animation,
+                                        curve: Curves.easeInOut,
+                                      ),
+                                      child: child,
+                                    );
+                                  },
+                                  transitionDuration:
+                                      const Duration(milliseconds: 400),
+                                ),
+                              );
+                            },
                             style: TextButton.styleFrom(
                               foregroundColor: Colors.blue.shade700,
                             ),
@@ -341,7 +384,8 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
           validator: validator,
           keyboardType: keyboardType,
           onChanged: onChanged,
-          style: TextStyle(color: Colors.blueGrey.shade900, fontWeight: FontWeight.w500),
+          style: TextStyle(
+              color: Colors.blueGrey.shade900, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: Colors.blueGrey.shade400, fontSize: 14),
@@ -351,7 +395,8 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
             fillColor: Colors.white,
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: Colors.blueGrey.shade200, width: 1.5),
+              borderSide:
+                  BorderSide(color: Colors.blueGrey.shade200, width: 1.5),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
@@ -365,7 +410,8 @@ class RegisterScreenState extends ConsumerState<RegisterScreen> with SingleTicke
               borderRadius: BorderRadius.circular(16),
               borderSide: BorderSide(color: Colors.red.shade500, width: 2),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
           ),
         ),
       ],

@@ -41,21 +41,20 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     super.dispose();
   }
 
-
   Future<void> _createProfile() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     final enteredInviteCode = _inviteCodeController.text.trim().toUpperCase();
 
     setState(() => _isLoading = true);
-     try {
+    try {
       // 1. Register on Server
       await ref.read(authServiceProvider).register(
-        _nameController.text.trim(),
-        _emailController.text.trim(),
-        _phoneController.text.trim(),
-        _passwordController.text.trim(),
-      );
+            _nameController.text.trim(),
+            _emailController.text.trim(),
+            _phoneController.text.trim(),
+            _passwordController.text.trim(),
+          );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -72,7 +71,10 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: ${e.toString().replaceAll('Exception: ', '')}"), backgroundColor: Colors.red),
+          SnackBar(
+              content:
+                  Text("Error: ${e.toString().replaceAll('Exception: ', '')}"),
+              backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -97,11 +99,12 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
               ),
             ),
           ),
-          
+
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
                 child: Column(
                   children: [
                     // Header Section
@@ -122,25 +125,34 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                           Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white.withOpacity(0.3)),
+                              border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.3)),
                             ),
-                            child: const Icon(Icons.auto_awesome_rounded, size: 48, color: Colors.white),
+                            child: const Icon(Icons.auto_awesome_rounded,
+                                size: 48, color: Colors.white),
                           ),
                           const SizedBox(height: 16),
                           const Text(
-                            "Manager",
-                            style: TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -1),
+                            "Transparency First",
+                            style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white,
+                                letterSpacing: -1),
                           ),
                           Text(
                             "Professional expense tracking for teams",
-                            style: TextStyle(fontSize: 15, color: Colors.white.withOpacity(0.8), letterSpacing: 0.5),
+                            style: TextStyle(
+                                fontSize: 15,
+                                color: Colors.white.withValues(alpha: 0.8),
+                                letterSpacing: 0.5),
                           ),
                         ],
                       ),
                     ),
-                    
+
                     const SizedBox(height: 48),
 
                     // Main Form Card
@@ -153,22 +165,32 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                           children: [
                             const Text(
                               "Create Your Account",
-                              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.5),
+                              style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.5),
                             ),
                             const SizedBox(height: 6),
                             Text(
                               "All fields below are required",
-                              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5), fontWeight: FontWeight.w500),
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.5),
+                                  fontWeight: FontWeight.w500),
                             ),
                             const SizedBox(height: 24),
-                            
                             _buildTextField(
                               controller: _nameController,
                               label: "Full Name",
                               icon: Icons.person_rounded,
                               validator: (v) {
-                                if (v == null || v.trim().isEmpty) return "Name is required";
-                                if (v.trim().length < 2) return "Name must be at least 2 characters";
+                                if (v == null || v.trim().isEmpty)
+                                  return "Name is required";
+                                if (v.trim().length < 2)
+                                  return "Name must be at least 2 characters";
                                 return null;
                               },
                             ),
@@ -179,8 +201,10 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                               icon: Icons.email_rounded,
                               keyboardType: TextInputType.emailAddress,
                               validator: (v) {
-                                if (v == null || v.trim().isEmpty) return "Email is required";
-                                if (!RegExp(r'^[\w\.-]+@[\w\.-]+\.\w{2,}$').hasMatch(v.trim())) {
+                                if (v == null || v.trim().isEmpty)
+                                  return "Email is required";
+                                if (!RegExp(r'^[\w\.-]+@[\w\.-]+\.\w{2,}$')
+                                    .hasMatch(v.trim())) {
                                   return "Enter a valid email (e.g. name@gmail.com)";
                                 }
                                 return null;
@@ -193,8 +217,10 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                               icon: Icons.phone_rounded,
                               keyboardType: TextInputType.phone,
                               validator: (v) {
-                                if (v == null || v.trim().isEmpty) return "Phone number is required";
-                                if (v.trim().length < 10) return "Enter a valid phone number (min 10 digits)";
+                                if (v == null || v.trim().isEmpty)
+                                  return "Phone number is required";
+                                if (v.trim().length < 10)
+                                  return "Enter a valid phone number (min 10 digits)";
                                 return null;
                               },
                             ),
@@ -205,18 +231,21 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                               icon: Icons.lock_rounded,
                               obscureText: _obscurePassword,
                               suffixIcon: IconButton(
-                                icon: Icon(_obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded),
-                                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                icon: Icon(_obscurePassword
+                                    ? Icons.visibility_off_rounded
+                                    : Icons.visibility_rounded),
+                                onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword),
                               ),
                               validator: (v) {
-                                if (v == null || v.isEmpty) return "Password is required";
-                                if (v.length < 6) return "Password must be at least 6 characters";
+                                if (v == null || v.isEmpty)
+                                  return "Password is required";
+                                if (v.length < 6)
+                                  return "Password must be at least 6 characters";
                                 return null;
                               },
                             ),
-                            
                             const SizedBox(height: 32),
-                            
                             _buildTextField(
                               controller: _inviteCodeController,
                               label: "Invite Code (Optional)",
@@ -224,13 +253,13 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                               hint: "ABC123",
                               maxLength: 6,
                               filled: true,
-                              fillColor: const Color(0xFF6366F1).withOpacity(0.05),
-                              borderColor: const Color(0xFF6366F1).withOpacity(0.1),
+                              fillColor: const Color(0xFF6366F1)
+                                  .withValues(alpha: 0.05),
+                              borderColor: const Color(0xFF6366F1)
+                                  .withValues(alpha: 0.1),
                               onChanged: (v) => setState(() {}),
                             ),
-
                             const SizedBox(height: 32),
-                            
                             SizedBox(
                               width: double.infinity,
                               height: 60,
@@ -238,25 +267,39 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                                 onPressed: _isLoading ? null : _createProfile,
                                 style: FilledButton.styleFrom(
                                   backgroundColor: primaryColor,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(18)),
                                   elevation: 8,
                                 ),
-                                child: _isLoading 
-                                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                  : Text(
-                                      _inviteCodeController.text.length == 6 ? "Join Team" : "Create Profile",
-                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                                    ),
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2))
+                                    : Text(
+                                        _inviteCodeController.text.length == 6
+                                            ? "Join Team"
+                                            : "Create Profile",
+                                        style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold),
+                                      ),
                               ),
                             ),
-                            
                             const SizedBox(height: 20),
                             Center(
                               child: TextButton(
-                                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginScreen())),
+                                onPressed: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => const LoginScreen())),
                                 child: const Text(
                                   "Already have an account? Sign In",
-                                  style: TextStyle(color: primaryColor, fontWeight: FontWeight.w700),
+                                  style: TextStyle(
+                                      color: primaryColor,
+                                      fontWeight: FontWeight.w700),
                                 ),
                               ),
                             ),
@@ -305,13 +348,24 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
         filled: filled,
         fillColor: fillColor,
         counterText: "",
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).dividerColor)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 2)),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: Theme.of(context).dividerColor)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide:
+                BorderSide(color: Theme.of(context).primaryColor, width: 2)),
         floatingLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
       ),
-      textCapitalization: label == "Invite Code (Optional)" ? TextCapitalization.characters : TextCapitalization.none,
-      inputFormatters: label == "Invite Code (Optional)" ? [FilteringTextInputFormatter.allow(RegExp(r'[A-Z0-9]'))] : null,
+      textCapitalization: label == "Invite Code (Optional)"
+          ? TextCapitalization.characters
+          : TextCapitalization.none,
+      inputFormatters: label == "Invite Code (Optional)"
+          ? [FilteringTextInputFormatter.allow(RegExp(r'[A-Z0-9]'))]
+          : null,
     );
   }
 }

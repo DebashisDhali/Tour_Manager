@@ -32,15 +32,18 @@ class PremiumCard extends StatelessWidget {
         color: gradient == null ? (color ?? Theme.of(context).cardColor) : null,
         gradient: gradient,
         borderRadius: BorderRadius.circular(borderRadius),
-        boxShadow: elevation > 0 ? [
-          BoxShadow(
-            color: shadowColor ?? (Theme.of(context).brightness == Brightness.dark 
-                ? Colors.black.withOpacity(0.4) 
-                : Colors.black.withOpacity(0.04)),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ] : null,
+        boxShadow: elevation > 0
+            ? [
+                BoxShadow(
+                  color: shadowColor ??
+                      (Theme.of(context).brightness == Brightness.dark
+                          ? Colors.black.withValues(alpha: 0.4)
+                          : Colors.black.withValues(alpha: 0.04)),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ]
+            : null,
       ),
       child: Material(
         color: Colors.transparent,
