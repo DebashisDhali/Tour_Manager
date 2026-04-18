@@ -60,7 +60,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
 
   void _initTabController(Tour tour) {
     final String p = tour.purpose.toLowerCase();
-    final bool isProg = p == 'event' || p == 'business' || p == 'project';
+    // Event-like flows stay program-mode; project/tour/party use the same normal flow.
+    final bool isProg = p == 'event' || p == 'business';
     final bool isMess = p == 'mess';
     final int newLength = isProg ? 5 : (isMess ? 4 : 3);
 

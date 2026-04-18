@@ -689,12 +689,18 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   String _getDescHint(String? purpose) {
     switch (purpose?.toLowerCase()) {
+      case 'mess':
+        return 'e.g. Lunch Bazar';
       case 'event':
         return 'e.g. Venue Booking';
       case 'project':
         return 'e.g. Server Cost';
+      case 'party':
+        return 'e.g. Snacks & Drinks';
+      case 'tour':
+        return 'e.g. Bus Fare';
       default:
-        return 'e.g. Dinner';
+        return 'e.g. Expense Title';
     }
   }
 
