@@ -63,15 +63,35 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
   }
 
   void _addMember() {
-    final name = _memberController.text.trim();
-    if (name.isNotEmpty) {
-      if (!_additionalMembers.contains(name)) {
-        setState(() {
-          _additionalMembers.add(name);
-          _memberController.clear();
-        });
+    final raw = _memberController.text.trim();
+    if (raw.isEmpty) return;
+
+    // Supports: Rahim, Karim, Selim (single click add for multiple names)
+    final parsedNames =
+        raw.split(',').map((n) => n.trim()).where((n) => n.isNotEmpty).toList();
+
+    if (parsedNames.isEmpty) return;
+
+    final existingLower =
+        _additionalMembers.map((e) => e.toLowerCase()).toSet();
+    final namesToAdd = <String>[];
+    for (final name in parsedNames) {
+      final normalized = name.toLowerCase();
+      if (!existingLower.contains(normalized)) {
+        namesToAdd.add(name);
+        existingLower.add(normalized);
       }
     }
+
+    if (namesToAdd.isEmpty) {
+      _memberController.clear();
+      return;
+    }
+
+    setState(() {
+      _additionalMembers.addAll(namesToAdd);
+      _memberController.clear();
+    });
   }
 
   Future<void> _createTour() async {
@@ -247,8 +267,9 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                             value: p, child: Text(pConfig.label));
                       }).toList(),
                       onChanged: (value) {
-                        if (value != null)
+                        if (value != null) {
                           setState(() => _selectedPurpose = value);
+                        }
                       },
                     ),
                     const SizedBox(height: 24),
@@ -272,7 +293,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 16),
                         decoration: BoxDecoration(
-                            color: config.color.withOpacity(0.05),
+                            color: config.color.withValues(alpha: 0.05),
                             borderRadius: BorderRadius.circular(16)),
                         child: Row(
                           children: [
@@ -316,7 +337,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                           child: TextFormField(
                             controller: _memberController,
                             decoration: _getInputDecoration(
-                                hint: 'Name',
+                                hint: 'Names (comma separated)',
                                 icon: Icons.person_add_rounded,
                                 color: config.color,
                                 dense: true),
@@ -336,6 +357,11 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Example: Rahim, Karim, Selim',
+                      style: TextStyle(fontSize: 11, color: Colors.black54),
+                    ),
                     if (_additionalMembers.isNotEmpty) ...[
                       const SizedBox(height: 16),
                       Wrap(
@@ -349,9 +375,10 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                                     fontSize: 12, fontWeight: FontWeight.bold)),
                             onDeleted: () => setState(
                                 () => _additionalMembers.removeAt(entry.key)),
-                            backgroundColor: config.color.withOpacity(0.1),
+                            backgroundColor:
+                                config.color.withValues(alpha: 0.1),
                             side: BorderSide(
-                                color: config.color.withOpacity(0.1)),
+                                color: config.color.withValues(alpha: 0.1)),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
                           );
@@ -371,7 +398,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16)),
                         elevation: 4,
-                        shadowColor: config.color.withOpacity(0.5)),
+                        shadowColor: config.color.withValues(alpha: 0.5)),
                     child: _isLoading
                         ? const CircularProgressIndicator(color: Colors.white)
                         : Text(
@@ -409,7 +436,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
       hintText: hint,
       prefixIcon: Icon(icon, color: color, size: 20),
       filled: true,
-      fillColor: color.withOpacity(0.05),
+      fillColor: color.withValues(alpha: 0.05),
       contentPadding: dense
           ? const EdgeInsets.symmetric(horizontal: 16, vertical: 12)
           : const EdgeInsets.all(20),

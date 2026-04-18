@@ -64,10 +64,10 @@ class PurposeConfig {
           name: 'Event',
           label: 'Event',
           pluralLabel: 'Events',
-          memberLabel: 'Members',
-          addExpenseLabel: 'Add Tour Expense',
-          expenseListLabel: 'Tour Expenses',
-          setupLabel: 'Tour Setup',
+          memberLabel: 'Participants',
+          addExpenseLabel: 'Add Event Cost',
+          expenseListLabel: 'Event Expenses',
+          setupLabel: 'Event Setup',
           icon: Icons.auto_awesome_rounded,
           color: const Color(0xFF8B5CF6), // Violet 500
           gradient: const LinearGradient(
@@ -84,10 +84,10 @@ class PurposeConfig {
           name: 'Project',
           label: 'Project',
           pluralLabel: 'Projects',
-          memberLabel: 'Members',
-          addExpenseLabel: 'Add Tour Expense',
-          expenseListLabel: 'Tour Expenses',
-          setupLabel: 'Tour Setup',
+          memberLabel: 'Team Members',
+          addExpenseLabel: 'Add Project Expense',
+          expenseListLabel: 'Project Expenses',
+          setupLabel: 'Project Setup',
           icon: Icons.layers_rounded,
           color: const Color(0xFF3B82F6), // Blue 500
           gradient: const LinearGradient(
@@ -103,10 +103,10 @@ class PurposeConfig {
           name: 'Party',
           label: 'Party',
           pluralLabel: 'Parties',
-          memberLabel: 'Members',
-          addExpenseLabel: 'Add Tour Expense',
-          expenseListLabel: 'Tour Expenses',
-          setupLabel: 'Tour Setup',
+          memberLabel: 'Guests',
+          addExpenseLabel: 'Add Contribution',
+          expenseListLabel: 'Party Expenses',
+          setupLabel: 'Party Setup',
           icon: Icons.nightlife_rounded,
           color: const Color(0xFFEF4444), // Red 500
           gradient: const LinearGradient(
@@ -141,10 +141,10 @@ class PurposeConfig {
           name: 'Project',
           label: 'Project',
           pluralLabel: 'Projects',
-          memberLabel: 'Members',
-          addExpenseLabel: 'Add Tour Expense',
-          expenseListLabel: 'Tour Expenses',
-          setupLabel: 'Tour Setup',
+          memberLabel: 'Team Members',
+          addExpenseLabel: 'Add Project Expense',
+          expenseListLabel: 'Project Expenses',
+          setupLabel: 'Project Setup',
           icon: Icons.layers_rounded,
           color: const Color(0xFF3B82F6), // Blue 500
           gradient: const LinearGradient(
