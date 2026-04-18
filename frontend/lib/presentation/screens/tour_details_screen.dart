@@ -1132,20 +1132,24 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                                             ? Colors.grey
                                             : config.color.withOpacity(0.7)),
                                     const SizedBox(width: 4),
-                                    Text(
-                                      "Meal Count: ${m.mealCount.toStringAsFixed(1)}",
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                          color: isRemoved
-                                              ? Colors.grey
-                                              : Theme.of(context)
-                                                  .colorScheme
-                                                  .onSurface
-                                                  .withOpacity(0.8)),
+                                    Expanded(
+                                      child: Text(
+                                        "Meal Count: ${m.mealCount.toStringAsFixed(1)}",
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: isRemoved
+                                                ? Colors.grey
+                                                : Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurface
+                                                    .withOpacity(0.8)),
+                                      ),
                                     ),
                                     if (isRemoved) ...[
-                                      const SizedBox(width: 8),
+                                      const SizedBox(width: 6),
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 4, vertical: 2),
