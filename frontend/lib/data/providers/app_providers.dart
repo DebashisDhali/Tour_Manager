@@ -37,6 +37,22 @@ final dioProvider = Provider<Dio>((ref) {
       }
       return handler.next(options);
     },
+    onError: (error, handler) {
+      final status = error.response?.statusCode;
+      final path = error.requestOptions.path;
+      final method = error.requestOptions.method;
+      final data = error.response?.data;
+      final serverMsg = data is Map
+          ? (data['message'] ?? data['error'] ?? '').toString()
+          : '';
+
+      final statusPart = status != null ? ' [HTTP $status]' : '';
+      final serverPart = serverMsg.isNotEmpty ? ' | server: $serverMsg' : '';
+      print(
+          '❌ Dio Error$statusPart $method $path (type: ${error.type})$serverPart');
+
+      return handler.next(error);
+    },
   ));
 
   return dio;

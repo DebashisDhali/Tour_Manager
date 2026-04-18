@@ -536,16 +536,32 @@ class SyncService {
         throw Exception("Server Error: ${response.statusCode}");
       }
     } on DioException catch (e) {
-      String errorMsg = "Sync failed. ";
+      final statusCode = e.response?.statusCode;
+      String errorMsg = 'Sync failed';
+
       if (e.response?.data != null && e.response?.data is Map) {
         final data = e.response!.data as Map;
-        errorMsg =
-            data['error'] ?? data['message'] ?? e.message ?? "Server Error";
-        if (data['details'] != null) errorMsg += ": ${data['details']}";
-      } else {
-        errorMsg += e.message ?? "Unknown network error";
+        final serverMessage =
+            (data['message'] ?? data['error'] ?? '').toString().trim();
+        final details = (data['details'] ?? '').toString().trim();
+
+        if (serverMessage.isNotEmpty) {
+          errorMsg = serverMessage;
+        } else if ((data['error'] ?? '').toString().trim().isNotEmpty) {
+          errorMsg = data['error'].toString().trim();
+        }
+
+        if (details.isNotEmpty) {
+          errorMsg = '$errorMsg: $details';
+        }
+      } else if ((e.message ?? '').trim().isNotEmpty) {
+        errorMsg = e.message!.trim();
       }
-      print("❌ Sync Engine DioError: $errorMsg");
+
+      final endpoint = e.requestOptions.path;
+      final statusText = statusCode != null ? ' [HTTP $statusCode]' : '';
+      print(
+          '❌ Sync Engine DioError$statusText on $endpoint (type: ${e.type}): $errorMsg');
       throw Exception(errorMsg);
     } catch (e) {
       print("❌ Sync Engine Generic Error: $e");
