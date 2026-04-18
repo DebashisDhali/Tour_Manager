@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:drift/drift.dart' as drift;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/local/app_database.dart';
 import '../../data/providers/app_providers.dart';
 import '../../domain/logic/purpose_config.dart';
-import '../../main.dart';
+import '../widgets/action_help_text.dart';
 import 'package:uuid/uuid.dart';
 
 class AddIncomeDialog extends ConsumerStatefulWidget {
@@ -66,22 +65,32 @@ class _AddIncomeDialogState extends ConsumerState<AddIncomeDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              const ActionHelpText(
+                  'Enter the source, amount and collector for this income. Add a short description if needed, then save.'),
               TextFormField(
                 controller: _sourceController,
-                decoration: const InputDecoration(labelText: "Source", hintText: "e.g. Dept, Ticket Sales, Senior"),
-                validator: (value) => value == null || value.isEmpty ? 'Please enter a source' : null,
+                decoration: const InputDecoration(
+                    labelText: "Source",
+                    hintText: "e.g. Dept, Ticket Sales, Senior"),
+                validator: (value) => value == null || value.isEmpty
+                    ? 'Please enter a source'
+                    : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _amountController,
-                decoration: const InputDecoration(labelText: "Amount", prefixText: "৳"),
+                decoration:
+                    const InputDecoration(labelText: "Amount", prefixText: "৳"),
                 keyboardType: TextInputType.number,
-                validator: (value) => value == null || value.isEmpty ? 'Please enter an amount' : null,
+                validator: (value) => value == null || value.isEmpty
+                    ? 'Please enter an amount'
+                    : null,
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _selectedCollectorId,
-                decoration: const InputDecoration(labelText: "Collected By (Who holds the money?)"),
+                decoration: const InputDecoration(
+                    labelText: "Collected By (Who holds the money?)"),
                 items: _members.map((user) {
                   return DropdownMenuItem(
                     value: user.id,
@@ -89,12 +98,14 @@ class _AddIncomeDialogState extends ConsumerState<AddIncomeDialog> {
                   );
                 }).toList(),
                 onChanged: (val) => setState(() => _selectedCollectorId = val),
-                 validator: (value) => value == null ? 'Please select a collector' : null,
+                validator: (value) =>
+                    value == null ? 'Please select a collector' : null,
               ),
               const SizedBox(height: 16),
-               TextFormField(
+              TextFormField(
                 controller: _descController,
-                decoration: const InputDecoration(labelText: "Description (Optional)"),
+                decoration:
+                    const InputDecoration(labelText: "Description (Optional)"),
                 maxLines: 2,
               ),
             ],
@@ -118,7 +129,7 @@ class _AddIncomeDialogState extends ConsumerState<AddIncomeDialog> {
   Future<void> _saveIncome() async {
     if (_formKey.currentState!.validate()) {
       final amount = double.tryParse(_amountController.text) ?? 0.0;
-      
+
       final income = ProgramIncome(
         id: const Uuid().v4(),
         tourId: widget.tourId,
@@ -133,7 +144,7 @@ class _AddIncomeDialogState extends ConsumerState<AddIncomeDialog> {
 
       final db = ref.read(databaseProvider);
       await db.createProgramIncome(income);
-      
+
       if (mounted) Navigator.pop(context);
     }
   }

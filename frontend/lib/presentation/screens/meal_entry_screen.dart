@@ -6,6 +6,7 @@ import 'package:frontend/data/providers/app_providers.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../domain/logic/purpose_config.dart';
+import '../widgets/action_help_text.dart';
 import '../widgets/premium_card.dart';
 
 class MealEntryScreen extends ConsumerStatefulWidget {
@@ -39,8 +40,9 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
 
   Future<void> _loadExistingRecords(List<MemberWithStatus> members) async {
     final db = ref.read(databaseProvider);
-    final existing = await db.getMealRecordsForDate(widget.tourId, _selectedDate);
-    
+    final existing =
+        await db.getMealRecordsForDate(widget.tourId, _selectedDate);
+
     for (var m in members) {
       final record = existing.where((r) => r.userId == m.user.id).firstOrNull;
       if (record != null) {
@@ -56,22 +58,25 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
   Widget build(BuildContext context) {
     final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
     final tourAsync = ref.watch(singleTourProvider(widget.tourId));
-    
+
     return tourAsync.when(
       data: (tour) {
         final config = PurposeConfig.getConfig(tour?.purpose);
-        
+
         return Scaffold(
           appBar: AppBar(
-            title: const Text("Daily Meal Entry", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
-            flexibleSpace: Container(decoration: BoxDecoration(gradient: config.gradient)),
+            title: const Text("Daily Meal Entry",
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+            flexibleSpace:
+                Container(decoration: BoxDecoration(gradient: config.gradient)),
             foregroundColor: Colors.white,
             elevation: 0,
           ),
           body: membersAsync.when(
             data: (members) {
               for (var m in members) {
-                _controllers.putIfAbsent(m.user.id, () => TextEditingController(text: "0.0"));
+                _controllers.putIfAbsent(
+                    m.user.id, () => TextEditingController(text: "0.0"));
               }
 
               if (_isFirstLoad) {
@@ -82,10 +87,13 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
               return Column(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 20),
                     decoration: BoxDecoration(
                       color: config.color.withOpacity(0.05),
-                      border: Border(bottom: BorderSide(color: config.color.withOpacity(0.1))),
+                      border: Border(
+                          bottom:
+                              BorderSide(color: config.color.withOpacity(0.1))),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -95,11 +103,16 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
                           children: [
                             Text(
                               DateFormat('EEEE').format(_selectedDate),
-                              style: TextStyle(color: config.color, fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 1.2),
+                              style: TextStyle(
+                                  color: config.color,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  letterSpacing: 1.2),
                             ),
                             Text(
                               DateFormat('MMMM dd, yyyy').format(_selectedDate),
-                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w900, fontSize: 18),
                             ),
                           ],
                         ),
@@ -108,10 +121,14 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
                             final date = await showDatePicker(
                               context: context,
                               initialDate: _selectedDate,
-                              firstDate: DateTime.now().subtract(const Duration(days: 365)),
-                              lastDate: DateTime.now().add(const Duration(days: 30)),
+                              firstDate: DateTime.now()
+                                  .subtract(const Duration(days: 365)),
+                              lastDate:
+                                  DateTime.now().add(const Duration(days: 30)),
                               builder: (context, child) => Theme(
-                                data: Theme.of(context).copyWith(colorScheme: ColorScheme.fromSeed(seedColor: config.color)),
+                                data: Theme.of(context).copyWith(
+                                    colorScheme: ColorScheme.fromSeed(
+                                        seedColor: config.color)),
                                 child: child!,
                               ),
                             );
@@ -120,7 +137,8 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
                               _loadExistingRecords(members);
                             }
                           },
-                          icon: const Icon(Icons.calendar_today_rounded, size: 20),
+                          icon: const Icon(Icons.calendar_today_rounded,
+                              size: 20),
                           style: IconButton.styleFrom(
                             backgroundColor: config.color.withOpacity(0.1),
                             foregroundColor: config.color,
@@ -128,6 +146,11 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
                         ),
                       ],
                     ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    child: ActionHelpText(
+                        'Enter daily meal counts for each member using the + and - buttons, then save the daily entry.'),
                   ),
                   Expanded(
                     child: ListView.builder(
@@ -137,21 +160,32 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
                         final m = members[index];
                         return PremiumCard(
                           margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
                           child: Row(
                             children: [
                               CircleAvatar(
                                 radius: 22,
                                 backgroundColor: config.color.withOpacity(0.1),
-                                child: Text(m.user.name[0].toUpperCase(), style: TextStyle(color: config.color, fontWeight: FontWeight.bold)),
+                                child: Text(m.user.name[0].toUpperCase(),
+                                    style: TextStyle(
+                                        color: config.color,
+                                        fontWeight: FontWeight.bold)),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(m.user.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-                                    const Text("Daily Meal Count", style: TextStyle(fontSize: 11, color: Colors.black38, fontWeight: FontWeight.w600)),
+                                    Text(m.user.name,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 15)),
+                                    const Text("Daily Meal Count",
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.black38,
+                                            fontWeight: FontWeight.w600)),
                                   ],
                                 ),
                               ),
@@ -162,18 +196,25 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
                                 ),
                                 child: Row(
                                   children: [
-                                    _buildMealButton(m.user.id, -0.5, config.color),
+                                    _buildMealButton(
+                                        m.user.id, -0.5, config.color),
                                     SizedBox(
                                       width: 45,
                                       child: TextField(
                                         controller: _controllers[m.user.id],
                                         textAlign: TextAlign.center,
-                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                        decoration: const InputDecoration(isDense: true, border: InputBorder.none),
-                                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                                        keyboardType: const TextInputType
+                                            .numberWithOptions(decimal: true),
+                                        decoration: const InputDecoration(
+                                            isDense: true,
+                                            border: InputBorder.none),
+                                        style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w900),
                                       ),
                                     ),
-                                    _buildMealButton(m.user.id, 0.5, config.color),
+                                    _buildMealButton(
+                                        m.user.id, 0.5, config.color),
                                   ],
                                 ),
                               ),
@@ -189,16 +230,21 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
                       width: double.infinity,
                       height: 60,
                       child: FilledButton(
-                        onPressed: _isLoading ? null : () => _saveMeals(members),
+                        onPressed:
+                            _isLoading ? null : () => _saveMeals(members),
                         style: FilledButton.styleFrom(
                           backgroundColor: config.color,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18)),
                           elevation: 4,
                           shadowColor: config.shadowColor,
                         ),
-                        child: _isLoading 
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text("Save Daily Entry ✨", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        child: _isLoading
+                            ? const CircularProgressIndicator(
+                                color: Colors.white)
+                            : const Text("Save Daily Entry ✨",
+                                style: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ),
@@ -210,14 +256,16 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
           ),
         );
       },
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, s) => Scaffold(body: Center(child: Text("Error: $e"))),
     );
   }
 
   Widget _buildMealButton(String userId, double delta, Color color) {
     return IconButton(
-      icon: Icon(delta > 0 ? Icons.add_rounded : Icons.remove_rounded, size: 20),
+      icon:
+          Icon(delta > 0 ? Icons.add_rounded : Icons.remove_rounded, size: 20),
       color: color,
       visualDensity: VisualDensity.compact,
       onPressed: () {
@@ -233,32 +281,39 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
     setState(() => _isLoading = true);
     try {
       final db = ref.read(databaseProvider);
-      final existing = await db.getMealRecordsForDate(widget.tourId, _selectedDate);
+      final existing =
+          await db.getMealRecordsForDate(widget.tourId, _selectedDate);
 
       for (var m in members) {
-        final count = double.tryParse(_controllers[m.user.id]?.text ?? "0.0") ?? 0.0;
-        final existingRecord = existing.where((r) => r.userId == m.user.id).firstOrNull;
-        
+        final count =
+            double.tryParse(_controllers[m.user.id]?.text ?? "0.0") ?? 0.0;
+        final existingRecord =
+            existing.where((r) => r.userId == m.user.id).firstOrNull;
+
         final record = models.MealRecord(
           id: existingRecord?.id ?? const Uuid().v4(),
           tourId: widget.tourId,
           userId: m.user.id,
-          date: DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, 12, 0),
+          date: DateTime(_selectedDate.year, _selectedDate.month,
+              _selectedDate.day, 12, 0),
           count: count,
           isSynced: false,
           isDeleted: false,
         );
-        
+
         await db.upsertMealRecord(record);
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Entry saved! ✨"), behavior: SnackBarBehavior.floating));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text("Entry saved! ✨"),
+            behavior: SnackBarBehavior.floating));
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);

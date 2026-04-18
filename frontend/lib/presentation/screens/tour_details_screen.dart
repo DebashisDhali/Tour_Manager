@@ -350,7 +350,6 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                   builder: (_) => AddExpenseScreen(tourId: widget.tourId)));
           break;
         case 3: // Members
-          if (!isAdmin) return null;
           icon = Icons.person_add;
           label = "Add ${config.memberLabel}";
           action = () => showDialog(
@@ -376,7 +375,6 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                   builder: (_) => AddExpenseScreen(tourId: widget.tourId)));
           break;
         case 1: // Members
-          if (!isAdmin) return null;
           icon = Icons.person_add;
           label = "Add ${config.memberLabel}";
           action = () => showDialog(
@@ -844,12 +842,13 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
   Widget _buildJoinRequests(Tour tour) {
     final me = ref.watch(currentUserProvider).value;
     final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
-    final isAdmin = me?.id == tour.createdBy ||
-        (membersAsync.value
-                ?.any((m) => m.user.id == me?.id && m.role == 'admin') ??
+    final isEditor = me?.id == tour.createdBy ||
+        (membersAsync.value?.any((m) =>
+                m.user.id == me?.id &&
+                (m.role == 'admin' || m.role == 'editor')) ??
             false);
 
-    if (!isAdmin) return const SizedBox.shrink();
+    if (!isEditor) return const SizedBox.shrink();
 
     final db = ref.read(databaseProvider);
     return StreamBuilder<List<JoinRequest>>(
@@ -986,12 +985,16 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                 final isMe = me?.id == m.user.id;
                 final isRemoved = m.status.toLowerCase().trim() == 'removed';
 
+                final isEditor = me?.id == tour.createdBy ||
+                    members.any((x) =>
+                        x.user.id == me?.id &&
+                        (x.role == 'admin' || x.role == 'editor'));
                 final isAdmin = me?.id == tour.createdBy ||
                     members
                         .any((x) => x.user.id == me?.id && x.role == 'admin');
 
                 Widget? trailingWidget;
-                if (isAdmin && !isMe) {
+                if (isEditor && !isMe) {
                   trailingWidget = Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -1002,34 +1005,36 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                           tooltip: "Include in Past Expenses",
                           onPressed: () => _confirmRetroactiveSplit(m.user),
                         ),
-                        DropdownButton<String>(
-                          value: m.role,
-                          icon: const Icon(Icons.arrow_drop_down, size: 16),
-                          style: TextStyle(
-                              fontSize: 11,
-                              color: Theme.of(context).colorScheme.onSurface,
-                              fontWeight: FontWeight.bold),
-                          items: const [
-                            DropdownMenuItem(
-                                value: 'viewer', child: Text('Viewer')),
-                            DropdownMenuItem(
-                                value: 'editor', child: Text('Editor')),
-                            DropdownMenuItem(
-                                value: 'admin', child: Text('Admin')),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) {
-                              ref.read(databaseProvider).updateMemberRole(
-                                  widget.tourId, m.user.id, val);
-                              ref
-                                  .read(syncServiceProvider)
-                                  .updateMemberRole(
-                                      widget.tourId, m.user.id, val)
-                                  .catchError((e) => debugPrint(e.toString()));
-                            }
-                          },
-                          underline: const SizedBox(),
-                        ),
+                        if (isAdmin)
+                          DropdownButton<String>(
+                            value: m.role,
+                            icon: const Icon(Icons.arrow_drop_down, size: 16),
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: Theme.of(context).colorScheme.onSurface,
+                                fontWeight: FontWeight.bold),
+                            items: const [
+                              DropdownMenuItem(
+                                  value: 'viewer', child: Text('Viewer')),
+                              DropdownMenuItem(
+                                  value: 'editor', child: Text('Editor')),
+                              DropdownMenuItem(
+                                  value: 'admin', child: Text('Admin')),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) {
+                                ref.read(databaseProvider).updateMemberRole(
+                                    widget.tourId, m.user.id, val);
+                                ref
+                                    .read(syncServiceProvider)
+                                    .updateMemberRole(
+                                        widget.tourId, m.user.id, val)
+                                    .catchError(
+                                        (e) => debugPrint(e.toString()));
+                              }
+                            },
+                            underline: const SizedBox(),
+                          ),
                       ],
                       isRemoved
                           ? IconButton(

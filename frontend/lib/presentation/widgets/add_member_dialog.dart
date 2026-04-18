@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
-import '../../main.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:drift/drift.dart' hide Column;
 import '../../data/local/app_database.dart';
 import '../../data/providers/app_providers.dart';
@@ -150,42 +147,51 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
         final config = PurposeConfig.getConfig(tour?.purpose);
         final db = ref.read(databaseProvider);
         final syncService = ref.read(syncServiceProvider);
-        final userId = const Uuid().v4();
+        final rawNames = _nameController.text
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+        final phoneValue = _phoneController.text.trim();
+        int addedCount = 0;
 
-        await db.createUser(User(
-          id: userId,
-          name: _nameController.text.trim(),
-          phone: _phoneController.text.isEmpty
-              ? null
-              : _phoneController.text.trim(),
-          isMe: false,
-          isSynced: false,
-          isDeleted: false,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ));
+        for (final name in rawNames) {
+          final userId = const Uuid().v4();
+          await db.createUser(User(
+            id: userId,
+            name: name,
+            phone: rawNames.length == 1 && phoneValue.isNotEmpty
+                ? phoneValue
+                : null,
+            isMe: false,
+            isSynced: false,
+            isDeleted: false,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          ));
 
-        await db.into(db.tourMembers).insert(TourMember(
-              tourId: widget.tourId,
-              userId: userId,
-              status: 'active',
-              role: 'viewer',
-              mealCount: 0.0,
-              isSynced: false,
-              isDeleted: false,
-            ));
+          await db.into(db.tourMembers).insert(TourMember(
+                tourId: widget.tourId,
+                userId: userId,
+                status: 'active',
+                role: 'viewer',
+                mealCount: 0.0,
+                isSynced: false,
+                isDeleted: false,
+              ));
 
-        // Apply retroactive split locally before navigating away
-        if (_retroactiveSplit) {
-          await syncService.applyRetroactiveSplitLocally(widget.tourId, userId);
-          // Server sync will push redistributed splits on next connectivity
-          final currentUserId = ref.read(currentUserProvider).value?.id;
-          if (currentUserId != null) {
-            syncService
-                .retroactiveSplit(widget.tourId, userId, currentUserId)
-                .catchError(
-                    (e) => debugPrint('Retroactive server sync failed: $e'));
+          if (_retroactiveSplit) {
+            await syncService.applyRetroactiveSplitLocally(
+                widget.tourId, userId);
+            final currentUserId = ref.read(currentUserProvider).value?.id;
+            if (currentUserId != null) {
+              syncService
+                  .retroactiveSplit(widget.tourId, userId, currentUserId)
+                  .catchError(
+                      (e) => debugPrint('Retroactive server sync failed: $e'));
+            }
           }
+          addedCount++;
         }
 
         if (mounted) {
@@ -193,7 +199,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
                 content: Text(
-                    '${config.memberLabel} added!${_retroactiveSplit ? ' Included in all past expenses.' : ''}')),
+                    '$addedCount ${config.memberLabel}${addedCount == 1 ? '' : 's'} added!${_retroactiveSplit ? ' Included in all past expenses.' : ''}')),
           );
         }
       } catch (e) {
@@ -242,6 +248,12 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                       fontSize: 11,
                       color: Colors.grey,
                       letterSpacing: 1)),
+              const SizedBox(height: 8),
+              Text(
+                'Search existing profiles or type phone/name and tap search. Select profiles and then press Add selected members.',
+                style: TextStyle(
+                    fontSize: 11, color: Colors.grey, letterSpacing: 0.2),
+              ),
               const SizedBox(height: 12),
               TextField(
                 controller: _searchController,
@@ -400,84 +412,6 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                 ),
               ),
 
-              // Invite Code Section
-              tourAsync.maybeWhen(
-                data: (tour) {
-                  if (tour == null || tour.inviteCode == null)
-                    return const SizedBox.shrink();
-                  final hasServerCode = tour.isSynced;
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text("SHARE INVITE CODE",
-                          style: TextStyle(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 11,
-                              color: Colors.grey,
-                              letterSpacing: 1)),
-                      const SizedBox(height: 12),
-                      InkWell(
-                        onTap: hasServerCode
-                            ? () {
-                                Clipboard.setData(
-                                    ClipboardData(text: tour.inviteCode!));
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text('Code copied!')));
-                              }
-                            : null,
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: hasServerCode
-                                ? config.color.withOpacity(0.05)
-                                : Colors.grey.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                                color: hasServerCode
-                                    ? config.color.withOpacity(0.1)
-                                    : Colors.grey.withOpacity(0.2)),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(tour.inviteCode!,
-                                  style: TextStyle(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 4,
-                                      color: hasServerCode
-                                          ? Colors.black
-                                          : Colors.grey)),
-                              Icon(
-                                  hasServerCode
-                                      ? Icons.copy_all_rounded
-                                      : Icons.lock_outline,
-                                  color: hasServerCode
-                                      ? config.color
-                                      : Colors.grey,
-                                  size: 20),
-                            ],
-                          ),
-                        ),
-                      ),
-                      if (!hasServerCode) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          'এই ট্যুরটি এখনো সার্ভারে সিঙ্ক হয়নি। শেয়ার করার আগে অনলাইনে সিঙ্ক করুন।',
-                          style: TextStyle(
-                              fontSize: 12, color: Colors.red.shade700),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                      const SizedBox(height: 24),
-                    ],
-                  );
-                },
-                orElse: () => const SizedBox.shrink(),
-              ),
-
               // Retroactive Split Toggle
               Container(
                 margin: const EdgeInsets.only(bottom: 16),
@@ -555,6 +489,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                       controller: _nameController,
                       decoration: InputDecoration(
                         labelText: 'Name',
+                        hintText: 'Type names separated by commas',
                         isDense: true,
                         filled: true,
                         fillColor: Colors.grey.withOpacity(0.05),
@@ -563,8 +498,29 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                             borderSide: BorderSide.none),
                         prefixIcon: const Icon(Icons.person_outline, size: 20),
                       ),
-                      validator: (v) =>
-                          v == null || v.isEmpty ? 'Required' : null,
+                      validator: (v) {
+                        final names = v
+                                ?.split(',')
+                                .map((e) => e.trim())
+                                .where((e) => e.isNotEmpty)
+                                .toList() ??
+                            [];
+                        if (names.isEmpty) return 'Required';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Enter multiple names separated by commas, then tap Add Member(s). If you add only one name, you can fill phone optionally.',
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(0.6)),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -596,7 +552,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text('Add Manually',
+                  child: const Text('Add Member(s)',
                       style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),

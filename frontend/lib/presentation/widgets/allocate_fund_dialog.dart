@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../domain/logic/purpose_config.dart';
 import '../../data/providers/app_providers.dart';
 import '../../data/local/app_database.dart';
-import '../../main.dart';
+import '../widgets/action_help_text.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -62,6 +62,8 @@ class _AllocateFundDialogState extends ConsumerState<AllocateFundDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              const ActionHelpText(
+                  'Choose who is giving money, who is receiving, enter the amount, and then tap Transfer.'),
               DropdownButtonFormField<String>(
                 value: _selectedGiverId,
                 decoration: const InputDecoration(labelText: "From (Giver)"),
@@ -72,36 +74,41 @@ class _AllocateFundDialogState extends ConsumerState<AllocateFundDialog> {
                   );
                 }).toList(),
                 onChanged: (val) => setState(() => _selectedGiverId = val),
-                 validator: (value) => value == null ? 'Required' : null,
+                validator: (value) => value == null ? 'Required' : null,
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _selectedReceiverId,
                 decoration: const InputDecoration(labelText: "To (Receiver)"),
-                items: _members.where((u) => u.id != _selectedGiverId).map((user) {
+                items:
+                    _members.where((u) => u.id != _selectedGiverId).map((user) {
                   return DropdownMenuItem(
                     value: user.id,
                     child: Text(user.name, overflow: TextOverflow.ellipsis),
                   );
                 }).toList(),
                 onChanged: (val) => setState(() => _selectedReceiverId = val),
-                 validator: (value) => value == null ? 'Required' : null,
+                validator: (value) => value == null ? 'Required' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _amountController,
-                decoration: const InputDecoration(labelText: "Amount", prefixText: "৳"),
+                decoration:
+                    const InputDecoration(labelText: "Amount", prefixText: "৳"),
                 keyboardType: TextInputType.number,
-                validator: (value) => value == null || value.isEmpty ? 'Required' : null,
+                validator: (value) =>
+                    value == null || value.isEmpty ? 'Required' : null,
               ),
             ],
           ),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel")),
         FilledButton(
-          onPressed: _saveAllocation, 
+          onPressed: _saveAllocation,
           style: FilledButton.styleFrom(backgroundColor: config.color),
           child: const Text("Transfer"),
         ),
@@ -110,9 +117,9 @@ class _AllocateFundDialogState extends ConsumerState<AllocateFundDialog> {
   }
 
   Future<void> _saveAllocation() async {
-     if (_formKey.currentState!.validate()) {
+    if (_formKey.currentState!.validate()) {
       final amount = double.tryParse(_amountController.text) ?? 0.0;
-      
+
       final settlement = Settlement(
         id: const Uuid().v4(),
         tourId: widget.tourId,
