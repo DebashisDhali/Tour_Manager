@@ -21,7 +21,7 @@ class _AddIncomeDialogState extends ConsumerState<AddIncomeDialog> {
   final _sourceController = TextEditingController();
   final _descController = TextEditingController();
   String? _selectedCollectorId;
-  DateTime _date = DateTime.now();
+  final DateTime _date = DateTime.now();
   List<User> _members = [];
   bool _isLoading = true;
 

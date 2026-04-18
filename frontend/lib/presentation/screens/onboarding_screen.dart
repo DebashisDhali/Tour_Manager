@@ -21,7 +21,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   late Animation<Offset> _slideAnim;
 
   final List<_OnboardingData> _pages = [
-    _OnboardingData(
+    const _OnboardingData(
       image: 'assets/images/onboarding_1.png',
       badge: '🗺️  Start Exploring',
       title: 'Plan Every\nAdventure',
@@ -30,7 +30,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       gradientColors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
       indicatorColor: Color(0xFF6366F1),
     ),
-    _OnboardingData(
+    const _OnboardingData(
       image: 'assets/images/onboarding_2.png',
       badge: '💰  Smart Splits',
       title: 'Split Costs\nInstantly',
@@ -39,7 +39,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       gradientColors: [Color(0xFF0EA5E9), Color(0xFF6366F1)],
       indicatorColor: Color(0xFF0EA5E9),
     ),
-    _OnboardingData(
+    const _OnboardingData(
       image: 'assets/images/onboarding_3.png',
       badge: '🤝  Stay In Sync',
       title: 'Collaborate With\nYour Team',
@@ -138,7 +138,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     Text(
                       '${_currentPage + 1} / ${_pages.length}',
                       style: TextStyle(
-                          color: Colors.white.withOpacity(0.6),
+                          color: Colors.white.withValues(alpha: 0.6),
                           fontWeight: FontWeight.w700,
                           fontSize: 13),
                     ),
@@ -149,7 +149,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 8),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
+                            color: Colors.white.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: const Text(
@@ -211,7 +211,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 14, vertical: 6),
                                       decoration: BoxDecoration(
-                                        color: page.indicatorColor.withOpacity(0.1),
+                                        color: page.indicatorColor.withValues(alpha: 0.1),
                                         borderRadius: BorderRadius.circular(20),
                                       ),
                                       child: Text(
@@ -252,7 +252,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                     page.subtitle,
                                     style: TextStyle(
                                       fontSize: 15,
-                                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.55),
+                                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.55),
                                       height: 1.6,
                                       fontWeight: FontWeight.w500,
                                     ),
@@ -285,7 +285,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                       color: i == _currentPage
                                           ? page.indicatorColor
                                           : page.indicatorColor
-                                              .withOpacity(0.2),
+                                              .withValues(alpha: 0.2),
                                       borderRadius:
                                           BorderRadius.circular(4),
                                     ),
@@ -312,7 +312,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                                     boxShadow: [
                                       BoxShadow(
                                         color: page.indicatorColor
-                                            .withOpacity(0.4),
+                                            .withValues(alpha: 0.4),
                                         blurRadius: 16,
                                         offset: const Offset(0, 6),
                                       )
@@ -373,12 +373,12 @@ class _IllustrationCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.18),
+          color: Colors.white.withValues(alpha: 0.18),
           borderRadius: BorderRadius.circular(36),
-          border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.12),
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
               blurRadius: 32,
               offset: const Offset(0, 16),
             ),
@@ -415,3 +415,4 @@ class _OnboardingData {
     required this.indicatorColor,
   });
 }
+

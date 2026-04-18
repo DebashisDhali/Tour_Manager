@@ -11,13 +11,11 @@ import '../widgets/add_income_dialog.dart';
 import '../widgets/allocate_fund_dialog.dart';
 import 'add_expense_screen.dart';
 import 'settlement_screen.dart';
-import 'final_receipt_screen.dart';
 import 'meal_entry_screen.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../data/local/app_database.dart';
 import '../../domain/logic/purpose_config.dart';
-import 'program_dashboard_screen.dart';
 import 'ai_coach_screen.dart';
 import '../widgets/premium_card.dart';
 import '../widgets/smooth_page_transition.dart';
@@ -239,7 +237,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                       : '${DateFormat('MMM dd').format(tour.startDate!)} - ${DateFormat('MMM dd, yyyy').format(tour.endDate ?? tour.startDate!)}',
                   style: TextStyle(
                       fontSize: 10,
-                      color: Colors.white.withOpacity(0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.5),
                 ),
@@ -351,7 +349,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                         color: Theme.of(context)
                             .colorScheme
                             .onSurface
-                            .withOpacity(0.1)),
+                            .withValues(alpha: 0.1)),
                     child: TabBar(
                       controller: _tabController,
                       isScrollable:
@@ -453,7 +451,6 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
     final myRole = myMember?.role ?? 'viewer';
     final isEditor =
         me?.id == tour.createdBy || myRole == 'admin' || myRole == 'editor';
-    final isAdmin = me?.id == tour.createdBy || myRole == 'admin';
 
     if (!isEditor) return null;
 
@@ -641,7 +638,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
       return;
     }
 
-    if (context.mounted && code != null) {
+    if (context.mounted) {
       _showInviteCode(context, code, tour.purpose,
           isPublishedToCloud: true, canRegenerate: canRegenerateCode);
     }
@@ -727,8 +724,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                     Navigator.pop(context);
                   }
                 : null,
-            child: Text(isPublishedToCloud ? 'Share' : 'Sync First'),
             style: FilledButton.styleFrom(backgroundColor: config.color),
+            child: Text(isPublishedToCloud ? 'Share' : 'Sync First'),
           ),
         ],
       ),
@@ -767,7 +764,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.receipt_long_outlined,
-                    size: 60, color: config.color.withOpacity(0.3)),
+                    size: 60, color: config.color.withValues(alpha: 0.3)),
                 const SizedBox(height: 16),
                 const Text('No expenses yet.'),
               ],
@@ -837,7 +834,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
             ),
             Container(
               padding: const EdgeInsets.all(16),
-              color: config.color.withOpacity(0.1),
+              color: config.color.withValues(alpha: 0.1),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -899,8 +896,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                       children: [
                         CircleAvatar(
                           radius: 18,
-                          backgroundColor:
-                              _getCategoryColor(exp.category).withOpacity(0.1),
+                          backgroundColor: _getCategoryColor(exp.category)
+                              .withValues(alpha: 0.1),
                           child: Icon(_getCategoryIcon(exp.category),
                               color: _getCategoryColor(exp.category), size: 18),
                         ),
@@ -922,7 +919,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                                       color: Theme.of(context)
                                           .colorScheme
                                           .onSurface
-                                          .withOpacity(0.7),
+                                          .withValues(alpha: 0.7),
                                       fontWeight: FontWeight.w600)),
                             ],
                           ),
@@ -933,14 +930,16 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                           children: [
                             Text(
                                 "৳${(() {
-                                  if (_selectedFilterMemberId == null)
+                                  if (_selectedFilterMemberId == null) {
                                     return exp.amount;
+                                  }
                                   final userPaid = allPayers.where((p) =>
                                       p.expenseId == exp.id &&
                                       p.userId == _selectedFilterMemberId);
-                                  if (userPaid.isNotEmpty)
+                                  if (userPaid.isNotEmpty) {
                                     return userPaid.fold(
                                         0.0, (sum, p) => sum + p.amount);
+                                  }
                                   return exp.payerId == _selectedFilterMemberId
                                       ? exp.amount
                                       : 0.0;
@@ -956,7 +955,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                                       color: Theme.of(context)
                                           .colorScheme
                                           .onSurface
-                                          .withOpacity(0.3))),
+                                          .withValues(alpha: 0.3))),
                           ],
                         ),
                         const SizedBox(width: 4),
@@ -965,13 +964,15 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                             padding: EdgeInsets.zero,
                             iconSize: 20,
                             onSelected: (val) {
-                              if (val == 'edit')
+                              if (val == 'edit') {
                                 navigateWithTransition(context,
                                     builder: () => AddExpenseScreen(
                                         tourId: widget.tourId,
                                         initialExpense: exp));
-                              if (val == 'delete')
+                              }
+                              if (val == 'delete') {
                                 _showDeleteDialog(context, exp);
+                              }
                             },
                             itemBuilder: (context) => [
                               const PopupMenuItem(
@@ -1017,8 +1018,9 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                 t.tourId.equals(widget.tourId) & t.status.equals('pending')))
           .watch(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.isEmpty)
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
           return const SizedBox.shrink();
+        }
         final dedupedByUser = <String, JoinRequest>{};
         for (final req in snapshot.data!) {
           final key = '${req.tourId}_${req.userId}'.toLowerCase();
@@ -1048,60 +1050,59 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                 ],
               ),
               const SizedBox(height: 12),
-              ...requests
-                  .map((r) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: CircleAvatar(child: Text(r.userName[0])),
-                        title: Text(r.userName,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold)),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.check_circle,
-                                  color: Colors.green),
-                              onPressed: () async {
-                                try {
-                                  await ref
-                                      .read(syncServiceProvider)
-                                      .handleJoinRequest(r.id, 'approved');
-                                  await (db.update(db.joinRequests)
-                                        ..where((t) => t.id.equals(r.id)))
-                                      .write(const JoinRequestsCompanion(
-                                          status: drift.Value('approved')));
-                                  await ref
-                                      .read(syncServiceProvider)
-                                      .startSync(me!.id);
-                                } catch (e) {
-                                  if (context.mounted)
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text(e.toString())));
-                                }
-                              },
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.cancel, color: Colors.red),
-                              onPressed: () async {
-                                try {
-                                  await ref
-                                      .read(syncServiceProvider)
-                                      .handleJoinRequest(r.id, 'rejected');
-                                  await (db.update(db.joinRequests)
-                                        ..where((t) => t.id.equals(r.id)))
-                                      .write(const JoinRequestsCompanion(
-                                          status: drift.Value('rejected')));
-                                } catch (e) {
-                                  if (context.mounted)
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text(e.toString())));
-                                }
-                              },
-                            ),
-                          ],
+              ...requests.map((r) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(child: Text(r.userName[0])),
+                    title: Text(r.userName,
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.check_circle,
+                              color: Colors.green),
+                          onPressed: () async {
+                            try {
+                              await ref
+                                  .read(syncServiceProvider)
+                                  .handleJoinRequest(r.id, 'approved');
+                              await (db.update(db.joinRequests)
+                                    ..where((t) => t.id.equals(r.id)))
+                                  .write(const JoinRequestsCompanion(
+                                      status: drift.Value('approved')));
+                              await ref
+                                  .read(syncServiceProvider)
+                                  .startSync(me!.id);
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(e.toString())));
+                              }
+                            }
+                          },
                         ),
-                      ))
-                  .toList(),
+                        IconButton(
+                          icon: const Icon(Icons.cancel, color: Colors.red),
+                          onPressed: () async {
+                            try {
+                              await ref
+                                  .read(syncServiceProvider)
+                                  .handleJoinRequest(r.id, 'rejected');
+                              await (db.update(db.joinRequests)
+                                    ..where((t) => t.id.equals(r.id)))
+                                  .write(const JoinRequestsCompanion(
+                                      status: drift.Value('rejected')));
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(e.toString())));
+                              }
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  )),
             ],
           ),
         );
@@ -1121,9 +1122,9 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
             padding: const EdgeInsets.all(12),
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: config.color.withOpacity(0.05),
+              color: config.color.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: config.color.withOpacity(0.1)),
+              border: Border.all(color: config.color.withValues(alpha: 0.1)),
             ),
             child: Row(
               children: [
@@ -1225,7 +1226,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.1),
+                            color: Colors.grey.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8)),
                         child: Text(effectiveRole.toUpperCase(),
                             style: const TextStyle(
@@ -1244,7 +1245,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                       leading: CircleAvatar(
                         backgroundColor: isRemoved
                             ? Colors.grey.shade200
-                            : config.color.withOpacity(0.1),
+                            : config.color.withValues(alpha: 0.1),
                         child: Text(m.user.name[0],
                             style: TextStyle(
                                 color: isRemoved ? Colors.grey : config.color,
@@ -1271,7 +1272,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                                         size: 14,
                                         color: isRemoved
                                             ? Colors.grey
-                                            : config.color.withOpacity(0.7)),
+                                            : config.color
+                                                .withValues(alpha: 0.7)),
                                     const SizedBox(width: 4),
                                     Expanded(
                                       child: Text(
@@ -1286,7 +1288,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                                                 : Theme.of(context)
                                                     .colorScheme
                                                     .onSurface
-                                                    .withOpacity(0.8)),
+                                                    .withValues(alpha: 0.8)),
                                       ),
                                     ),
                                     if (isRemoved) ...[
@@ -1388,8 +1390,9 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                 return StreamBuilder<List<User>>(
                   stream: usersStream,
                   builder: (context, userSnap) {
-                    if (!userSnap.hasData)
+                    if (!userSnap.hasData) {
                       return const Center(child: CircularProgressIndicator());
+                    }
                     final users = userSnap.data!;
                     final userBalances = <User, double>{};
 
@@ -1442,7 +1445,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                                   icon: const Icon(Icons.add_rounded, size: 20),
                                   style: IconButton.styleFrom(
                                     backgroundColor:
-                                        config.color.withOpacity(0.05),
+                                        config.color.withValues(alpha: 0.05),
                                     foregroundColor: config.color,
                                   ),
                                 ),
@@ -1469,7 +1472,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                               return Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                    color: Colors.amber.withOpacity(0.1),
+                                    color: Colors.amber.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(12)),
                                 child: const Row(
                                   children: [
@@ -1642,7 +1645,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                     minHeight: 8,
                     backgroundColor: Colors.white24,
                     valueColor: AlwaysStoppedAnimation<Color>(
-                        Colors.white.withOpacity(0.8)),
+                        Colors.white.withValues(alpha: 0.8)),
                   ),
                 ),
               ],
@@ -1701,7 +1704,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                     ),
                     CircleAvatar(
                       radius: 20,
-                      backgroundColor: config.color.withOpacity(0.1),
+                      backgroundColor: config.color.withValues(alpha: 0.1),
                       child: Text(u.name[0].toUpperCase(),
                           style: TextStyle(
                               color: config.color,
@@ -1745,7 +1748,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                  color: color.withOpacity(0.1), shape: BoxShape.circle),
+                  color: color.withValues(alpha: 0.1), shape: BoxShape.circle),
               child: Icon(icon, color: color, size: 20),
             ),
             const SizedBox(height: 8),
@@ -1767,7 +1770,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-              color: color.withOpacity(0.05),
+              color: color.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4)),
         ],
@@ -1781,7 +1784,10 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
               child: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [color.withOpacity(0.12), color.withOpacity(0.05)],
+                    colors: [
+                      color.withValues(alpha: 0.12),
+                      color.withValues(alpha: 0.05)
+                    ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -1805,18 +1811,19 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                             children: [
                               Text(title,
                                   style: TextStyle(
-                                      color: color.withOpacity(0.8),
+                                      color: color.withValues(alpha: 0.8),
                                       fontSize: 13,
                                       fontWeight: FontWeight.w600,
                                       letterSpacing: 0.2)),
                               const SizedBox(width: 4),
                               Icon(Icons.info_outline,
-                                  size: 12, color: color.withOpacity(0.4)),
+                                  size: 12,
+                                  color: color.withValues(alpha: 0.4)),
                             ],
                           ),
                           if (actionIcon != null)
                             Material(
-                              color: color.withOpacity(0.1),
+                              color: color.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(10),
                               child: InkWell(
                                 onTap: onAction,
@@ -1893,7 +1900,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                             color: Theme.of(context)
                                 .colorScheme
                                 .onSurface
-                                .withOpacity(0.5))),
+                                .withValues(alpha: 0.5))),
                     const SizedBox(height: 8),
                     ...users.map((u) {
                       final amount = incomes
@@ -1903,7 +1910,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: CircleAvatar(
-                            backgroundColor: Colors.green.withOpacity(0.1),
+                            backgroundColor:
+                                Colors.green.withValues(alpha: 0.1),
                             child: Text(u.name[0],
                                 style: const TextStyle(color: Colors.green))),
                         title: Text(u.name),
@@ -1912,7 +1920,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                                 fontWeight: FontWeight.bold,
                                 color: Colors.green)),
                       );
-                    }).toList(),
+                    }),
                     const SizedBox(height: 20),
                     Text("Transaction History",
                         style: TextStyle(
@@ -1921,7 +1929,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                             color: Theme.of(context)
                                 .colorScheme
                                 .onSurface
-                                .withOpacity(0.5))),
+                                .withValues(alpha: 0.5))),
                     const SizedBox(height: 8),
                     if (incomes.isEmpty)
                       const Text("No income recorded yet.")
@@ -1946,7 +1954,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                             color: Theme.of(context)
                                 .colorScheme
                                 .onSurface
-                                .withOpacity(0.5))),
+                                .withValues(alpha: 0.5))),
                     const SizedBox(height: 8),
                     ...users.map((u) {
                       final amount = expenses
@@ -1956,7 +1964,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: CircleAvatar(
-                            backgroundColor: Colors.orange.withOpacity(0.1),
+                            backgroundColor:
+                                Colors.orange.withValues(alpha: 0.1),
                             child: Text(u.name[0],
                                 style: const TextStyle(color: Colors.orange))),
                         title: Text(u.name),
@@ -1965,7 +1974,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                                 fontWeight: FontWeight.bold,
                                 color: Colors.orange)),
                       );
-                    }).toList(),
+                    }),
                     const SizedBox(height: 20),
                     Text("Category Breakdown",
                         style: TextStyle(
@@ -1974,7 +1983,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                             color: Theme.of(context)
                                 .colorScheme
                                 .onSurface
-                                .withOpacity(0.5))),
+                                .withValues(alpha: 0.5))),
                     const SizedBox(height: 8),
                     if (expenses.isEmpty)
                       const Text("No expenses recorded yet.")
@@ -1989,7 +1998,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                               contentPadding: EdgeInsets.zero,
                               leading: CircleAvatar(
                                 backgroundColor: _getCategoryColor(entry.key)
-                                    .withOpacity(0.1),
+                                    .withValues(alpha: 0.1),
                                 child: Icon(_getCategoryIcon(entry.key),
                                     color: _getCategoryColor(entry.key),
                                     size: 16),
@@ -2011,7 +2020,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                             color: Theme.of(context)
                                 .colorScheme
                                 .onSurface
-                                .withOpacity(0.5))),
+                                .withValues(alpha: 0.5))),
                     const SizedBox(height: 8),
                     ...users.map((u) {
                       final col = incomes
@@ -2031,7 +2040,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
                         leading: CircleAvatar(
-                            backgroundColor: Colors.blue.withOpacity(0.1),
+                            backgroundColor: Colors.blue.withValues(alpha: 0.1),
                             child: Text(u.name[0],
                                 style: const TextStyle(color: Colors.blue))),
                         title: Text(u.name),
@@ -2041,7 +2050,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                                 fontWeight: FontWeight.bold,
                                 color: bal >= 0 ? Colors.green : Colors.red)),
                       );
-                    }).toList(),
+                    }),
                     const Divider(height: 32),
                     Text("Overall Summary",
                         style: TextStyle(
@@ -2050,7 +2059,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                             color: Theme.of(context)
                                 .colorScheme
                                 .onSurface
-                                .withOpacity(0.5))),
+                                .withValues(alpha: 0.5))),
                     const SizedBox(height: 8),
                     _buildDetailRow(
                         "Total Funds Collected",
@@ -2148,11 +2157,11 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
     }
 
     return Card(
-      color: config.color.withOpacity(0.05),
+      color: config.color.withValues(alpha: 0.05),
       elevation: 0,
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: config.color.withOpacity(0.2))),
+          side: BorderSide(color: config.color.withValues(alpha: 0.2))),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Column(children: items),
@@ -2168,11 +2177,13 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                 t.tourId.equals(widget.tourId) & t.isDeleted.equals(false)))
           .watch(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData)
+        if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
+        }
         final incomes = snapshot.data!;
-        if (incomes.isEmpty)
+        if (incomes.isEmpty) {
           return const Center(child: Text("No funds collected."));
+        }
         return ListView.builder(
           padding: const EdgeInsets.all(16),
           itemCount: incomes.length,
@@ -2203,11 +2214,13 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                 t.tourId.equals(widget.tourId) & t.isDeleted.equals(false)))
           .watch(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData)
+        if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
+        }
         final settlements = snapshot.data!;
-        if (settlements.isEmpty)
+        if (settlements.isEmpty) {
           return const Center(child: Text("No allocations."));
+        }
         return ListView.builder(
           padding: const EdgeInsets.all(16),
           itemCount: settlements.length,
@@ -2240,9 +2253,9 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
           children: [
@@ -2315,8 +2328,10 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                 ? "No personal transactions yet."
                 : "No transactions yet.",
             style: TextStyle(
-                color:
-                    Theme.of(context).colorScheme.onSurface.withOpacity(0.3))),
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.3))),
       );
     }
 
@@ -2590,7 +2605,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                   margin: const EdgeInsets.only(bottom: 12),
                   child: ExpansionTile(
                     leading: CircleAvatar(
-                        backgroundColor: Colors.orange.withOpacity(0.1),
+                        backgroundColor: Colors.orange.withValues(alpha: 0.1),
                         child: const Icon(Icons.calendar_today,
                             size: 18, color: Colors.orange)),
                     title: Text(DateFormat('EEEE, MMM dd').format(date),
@@ -2759,14 +2774,16 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                       .retroactiveSplit(widget.tourId, user.id, currentUserId)
                       .catchError((e) => debugPrint('Server sync failed: $e'));
                 }
-                if (mounted)
+                if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                       content: Text(
                           'Member included in past expenses successfully!')));
+                }
               } catch (e) {
-                if (mounted)
+                if (mounted) {
                   ScaffoldMessenger.of(context)
                       .showSnackBar(SnackBar(content: Text('Error: $e')));
+                }
               }
             },
             child: const Text("Yes"),
@@ -2783,7 +2800,7 @@ class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = color.withOpacity(0.05)
+      ..color = color.withValues(alpha: 0.05)
       ..strokeWidth = 0.5;
     for (double i = 0; i < size.width; i += 30) {
       canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);

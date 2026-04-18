@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:intl/intl.dart';
-import 'package:uuid/uuid.dart';
 import '../../data/local/app_database.dart';
 import 'package:frontend/data/providers/app_providers.dart';
 import '../widgets/add_income_dialog.dart';
@@ -191,12 +190,12 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
                                 elevation: 2,
                                 margin: const EdgeInsets.only(bottom: 8),
                                 shape: RoundedRectangleBorder(
-                                  side: BorderSide(color: isPositive ? Colors.green.withOpacity(0.5) : Colors.orange.withOpacity(0.5)),
+                                  side: BorderSide(color: isPositive ? Colors.green.withValues(alpha: 0.5) : Colors.orange.withValues(alpha: 0.5)),
                                   borderRadius: BorderRadius.circular(12)
                                 ),
                                 child: ListTile(
                                   leading: CircleAvatar(
-                                    backgroundColor: isPositive ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                                    backgroundColor: isPositive ? Colors.green.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
                                     child: Text(
                                       user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
                                       style: TextStyle(color: isPositive ? Colors.green : Colors.orange, fontWeight: FontWeight.bold),
@@ -243,14 +242,14 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(color: color.withOpacity(0.8), fontSize: 14)),
+          Text(title, style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 14)),
           const SizedBox(height: 4),
           Text(
             NumberFormat.currency(symbol: '৳', decimalDigits: 0).format(amount),
@@ -340,3 +339,4 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
     );
   }
 }
+

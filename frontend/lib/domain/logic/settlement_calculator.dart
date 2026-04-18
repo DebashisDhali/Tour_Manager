@@ -152,7 +152,7 @@ class SettlementCalculator {
     }
 
     // Debits (Share)
-    bool hasMealData = purpose?.toLowerCase() == 'mess' && mealCounts != null && mealCounts!.values.any((v) => v > 0);
+    bool hasMealData = purpose?.toLowerCase() == 'mess' && mealCounts != null && mealCounts.values.any((v) => v > 0);
     bool hasMealExpenses = purpose?.toLowerCase() == 'mess' && expenses.any((e) => e.messCostType == 'meal');
     
     if (hasMealData || hasMealExpenses) {

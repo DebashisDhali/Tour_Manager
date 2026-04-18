@@ -30,7 +30,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   Map<String, double> _payerAmounts = {};
 
   bool _isCustomSplit = false;
-  Map<String, double> _splitAmounts = {};
+  final Map<String, double> _splitAmounts = {};
   Set<String> _involvedMemberIds = {};
 
   @override
@@ -100,9 +100,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     return tourAsync.when(
       data: (tour) {
-        if (tour == null)
+        if (tour == null) {
           return const Scaffold(
               body: Center(child: Text("Tour no longer exists")));
+        }
         // Local variable to ensure promotion works across the whole block
         final models.Tour activeTour = tour;
 
@@ -132,8 +133,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
             if (_involvedMemberIds.isEmpty && widget.initialExpense == null) {
               _involvedMemberIds = activeMembers.map((m) => m.user.id).toSet();
-              if (_involvedMemberIds.isEmpty)
+              if (_involvedMemberIds.isEmpty) {
                 _involvedMemberIds = {members.first.user.id};
+              }
             }
 
             if (!_isMultiPayer &&
@@ -233,8 +235,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                 ],
                                 selected: <String?>{_messCostType},
                                 onSelectionChanged: (Set<String?> n) {
-                                  if (n.isNotEmpty)
+                                  if (n.isNotEmpty) {
                                     setState(() => _messCostType = n.first);
+                                  }
                                 },
                                 style: SegmentedButton.styleFrom(
                                   backgroundColor:
@@ -242,7 +245,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                   selectedBackgroundColor: config.color,
                                   selectedForegroundColor: Colors.white,
                                   side: BorderSide(
-                                      color: config.color.withOpacity(0.2)),
+                                      color: config.color.withValues(alpha: 0.2)),
                                   visualDensity: VisualDensity.compact,
                                 ),
                               ),
@@ -257,10 +260,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                           final amount =
                               double.tryParse(_amountController.text) ?? 0.0;
                           if (v) {
-                            for (var m in members)
+                            for (var m in members) {
                               _payerAmounts[m.user.id] = 0.0;
-                            if (_selectedPayerId != null)
+                            }
+                            if (_selectedPayerId != null) {
                               _payerAmounts[_selectedPayerId!] = amount;
+                            }
                           } else {
                             _payerAmounts = {_selectedPayerId!: amount};
                           }
@@ -356,8 +361,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                 (_involvedMemberIds.isEmpty
                                     ? 1
                                     : _involvedMemberIds.length);
-                            for (var mId in _involvedMemberIds)
+                            for (var mId in _involvedMemberIds) {
                               _splitAmounts[mId] = equal;
+                            }
                           }
                         });
                       }, config.color, "Custom Split"),
@@ -390,16 +396,17 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                   selected: isSelected,
                                   onSelected: (v) {
                                     setState(() {
-                                      if (v)
+                                      if (v) {
                                         _involvedMemberIds.add(m.user.id);
-                                      else if (_involvedMemberIds.length > 1)
+                                      } else if (_involvedMemberIds.length > 1)
                                         _involvedMemberIds.remove(m.user.id);
 
                                       if (_isCustomSplit) {
-                                        if (v)
+                                        if (v) {
                                           _splitAmounts[m.user.id] = 0.0;
-                                        else
+                                        } else {
                                           _splitAmounts.remove(m.user.id);
+                                        }
                                       }
                                     });
                                   },
@@ -501,7 +508,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16)),
                               elevation: 4,
-                              shadowColor: config.color.withOpacity(0.5)),
+                              shadowColor: config.color.withValues(alpha: 0.5)),
                         ),
                       ),
                       const SizedBox(height: 40),
@@ -554,7 +561,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       color: Theme.of(context)
                           .colorScheme
                           .onSurface
-                          .withOpacity(0.3))),
+                          .withValues(alpha: 0.3))),
               const SizedBox(width: 8),
               SizedBox(
                 height: 24,
@@ -586,7 +593,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       prefixIcon:
           iconSize > 0 ? Icon(icon, color: color, size: iconSize) : null,
       filled: true,
-      fillColor: color.withOpacity(0.05),
+      fillColor: color.withValues(alpha: 0.05),
       contentPadding: dense
           ? const EdgeInsets.symmetric(horizontal: 16, vertical: 12)
           : const EdgeInsets.all(20),
@@ -670,18 +677,20 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           isDeleted: false,
           createdAt: widget.initialExpense?.createdAt ?? DateTime.now());
 
-      if (widget.initialExpense == null)
+      if (widget.initialExpense == null) {
         await database.addExpenseWithDetails(expense, splits, payers);
-      else
+      } else {
         await database.updateExpenseWithDetails(expense, splits, payers);
+      }
 
       if (mounted) {
         final currentUserId = ref.read(currentUserProvider).value?.id;
-        if (currentUserId != null)
+        if (currentUserId != null) {
           ref
               .read(syncServiceProvider)
               .startSync(currentUserId)
               .catchError((e) => debugPrint(e.toString()));
+        }
         Navigator.pop(context);
       }
     }
@@ -717,3 +726,4 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     }
   }
 }
+

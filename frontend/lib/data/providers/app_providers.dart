@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart';
 import 'package:dio/dio.dart';
@@ -28,12 +29,12 @@ final dioProvider = Provider<Dio>((ref) {
 
         if (token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
-          print("🔑 Auth Interceptor: Token attached to ${options.path}");
+          debugPrint("🔑 Auth Interceptor: Token attached to ${options.path}");
         } else {
-          print("⚠️ Auth Interceptor: No token found for ${options.path}");
+          debugPrint("⚠️ Auth Interceptor: No token found for ${options.path}");
         }
       } catch (e) {
-        print("❌ Auth Interceptor Error: $e");
+        debugPrint("❌ Auth Interceptor Error: $e");
       }
       return handler.next(options);
     },
@@ -48,7 +49,7 @@ final dioProvider = Provider<Dio>((ref) {
 
       final statusPart = status != null ? ' [HTTP $status]' : '';
       final serverPart = serverMsg.isNotEmpty ? ' | server: $serverMsg' : '';
-      print(
+      debugPrint(
           '❌ Dio Error$statusPart $method $path (type: ${error.type})$serverPart');
 
       return handler.next(error);
@@ -165,8 +166,9 @@ class ExpenseWithPayer {
 
   String get payerNames {
     if (otherPayers.isEmpty) return payer?.name ?? 'Unknown';
-    if (otherPayers.length == 1)
+    if (otherPayers.length == 1) {
       return otherPayers.first; // Should not happen if it's the same as payer
+    }
 
     // Check if payer is in otherPayers
     final uniqueNames = <String>{};
@@ -201,7 +203,7 @@ final expensesProvider = StreamProvider.family
         );
         uniqueByExpenseId[expenseWithPayer.expense.id] = expenseWithPayer;
       } catch (e) {
-        print(
+        debugPrint(
             "\n\n🧨 FATAL ERROR MAPPING EXPENSES PROVIDER ROW: ${row.rawData.data}\n\n");
         rethrow;
       }
@@ -223,15 +225,6 @@ final expensesProvider = StreamProvider.family
 
 final tourExpensesWithPayersProvider = StreamProvider.family
     .autoDispose<List<ExpenseWithPayer>, String>((ref, tourId) {
-  final db = ref.watch(databaseProvider);
-
-  // We'll watch three things: Expenses, ExpensePayers, and Users
-  final expenses = db.select(db.expenses)
-    ..where((t) => t.tourId.equals(tourId));
-  final payers = db.select(db.expensePayers).join([
-    innerJoin(db.users, db.users.id.equalsExp(db.expensePayers.userId)),
-  ]);
-
   // This is still hard without CombineLatest.
   // Let's just update the UI to use the existing tourPayersProvider.
   return ref.watch(expensesProvider(tourId).stream);
@@ -285,7 +278,7 @@ final globalActivityProvider =
             amount: e.amount,
           );
         } catch (mapErr) {
-          print(
+          debugPrint(
               "\n\n🧨 FATAL ERROR MAPPING GLOBAL ACTIVITY ROW: ${row.rawData.data}\n\n");
           rethrow;
         }
@@ -293,7 +286,8 @@ final globalActivityProvider =
       items.sort((a, b) => b.date.compareTo(a.date));
       return items;
     } catch (e) {
-      print("\n\n🧨 FATAL ERROR IN GLOBAL ACTIVITY PROVIDER LISTENER: $e\n\n");
+      debugPrint(
+          "\n\n🧨 FATAL ERROR IN GLOBAL ACTIVITY PROVIDER LISTENER: $e\n\n");
       rethrow;
     }
   });
@@ -305,7 +299,7 @@ final singleTourProvider =
   return (db.select(db.tours)..where((t) => t.id.equals(tourId)))
       .watchSingleOrNull()
       .handleError((e) {
-    print("\n\n🧨 FATAL ERROR MAPPING SINGLE TOUR [$tourId]: $e\n\n");
+    debugPrint("\n\n🧨 FATAL ERROR MAPPING SINGLE TOUR [$tourId]: $e\n\n");
   });
 });
 
@@ -327,7 +321,7 @@ final tourUsersProvider =
         try {
           return row.readTable(db.users);
         } catch (e) {
-          print(
+          debugPrint(
               "\n\n🧨 FATAL ERROR MAPPING TOUR USER: ${row.rawData.data}\n\n");
           rethrow;
         }
@@ -341,7 +335,7 @@ final tourExpensesProvider =
         ..where((t) => t.tourId.equals(tourId) & t.isDeleted.equals(false)))
       .watch()
       .handleError((e) {
-    print("\n\n🧨 FATAL ERROR MAPPING TOUR EXPENSES: $e\n\n");
+    debugPrint("\n\n🧨 FATAL ERROR MAPPING TOUR EXPENSES: $e\n\n");
   });
 });
 

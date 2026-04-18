@@ -12,10 +12,11 @@ class ActionHelpText extends StatelessWidget {
         message,
         style: TextStyle(
           fontSize: 12,
-          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
           height: 1.4,
         ),
       ),
     );
   }
 }
+

@@ -20,7 +20,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
   final Set<Map<String, dynamic>> _selectedUsers = {};
   bool _isLoading = false;
   bool _isSearching = false;
-  bool _retroactiveSplit =
+  final bool _retroactiveSplit =
       false; // Whether to include new member in past expenses
 
   @override
@@ -146,7 +146,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                       color: Colors.grey,
                       letterSpacing: 1)),
               const SizedBox(height: 8),
-              Text(
+              const Text(
                 'Search existing profiles and send invitation requests. Users will join only after accepting from their profile.',
                 style: TextStyle(
                     fontSize: 11, color: Colors.grey, letterSpacing: 0.2),
@@ -193,8 +193,9 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                   child: Column(
                     children: _searchResults.map((item) {
                       try {
-                        if (item == null || item is! Map)
+                        if (item == null || item is! Map) {
                           return const SizedBox.shrink();
+                        }
 
                         final u = Map<String, dynamic>.from(item);
                         final uId = u['id']?.toString() ?? '';

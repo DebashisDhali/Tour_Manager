@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import '../local/app_database.dart';
@@ -10,7 +11,7 @@ class SyncService {
   final String baseUrl;
 
   SyncService(this.db, this.dio, this.baseUrl) {
-    print("📡 SyncService initialized with BaseURL: $baseUrl");
+    debugPrint("📡 SyncService initialized with BaseURL: $baseUrl");
   }
 
   Map<String, dynamic>? _memberMeta(dynamic user) {
@@ -36,14 +37,14 @@ class SyncService {
     try {
       return await db.getLocalOnlyTourIds();
     } catch (e) {
-      print('⚠️ Failed to load local-only tour preferences: $e');
+      debugPrint('⚠️ Failed to load local-only tour preferences: $e');
       return <String>{};
     }
   }
 
   Future<void> startSync(String userId) async {
     try {
-      print("Sync started for user: $userId");
+      debugPrint("Sync started for user: $userId");
 
       final lastSync = await db.getSyncMetadata('last_sync_$userId');
 
@@ -224,12 +225,12 @@ class SyncService {
         final pushSuccess = response.data['pushSuccess'] ?? true;
         if (pushSuccess == false) {
           final pushError = response.data['pushError'] ?? 'Unknown push error';
-          print("⚠️ Push failed on server: $pushError");
+          debugPrint("⚠️ Push failed on server: $pushError");
           throw Exception(
               "Sync partial failure: $pushError. Server prevented local changes from being saved.");
         }
 
-        print("✅ Server returned 200. Marking pushed items as synced.");
+        debugPrint("✅ Server returned 200. Marking pushed items as synced.");
         // 2. Mark Pushed data as synced
         await Future.wait([
           for (final u in unsyncedUsers)
@@ -266,7 +267,7 @@ class SyncService {
             db.markJoinRequestSynced(jr.id),
         ]);
 
-        print("🔄 Running batch update for server data...");
+        debugPrint("🔄 Running batch update for server data...");
         // Mark as synced locally & Pulled data within a batch for efficiency
         await db.batch((batch) {
           final serverTours = (response.data['tours'] as List?) ?? [];
@@ -514,14 +515,13 @@ class SyncService {
             final hasStaleServerMembership = lt.isSynced &&
                 !serverIdsLower.contains(localIdLower) &&
                 lastSyncDate != null &&
-                lt.updatedAt != null &&
-                lt.updatedAt!.isBefore(lastSyncDate);
+                lt.updatedAt.isBefore(lastSyncDate);
             if (hasStaleServerMembership) {
-              print(
+              debugPrint(
                   "🗑️ Removing tour ${lt.name} - no longer a member on server");
               await db.deleteTourWithDetails(lt.id);
             } else if (lt.isSynced && !serverIdsLower.contains(localIdLower)) {
-              print(
+              debugPrint(
                   "⚠️ Keeping recent tour ${lt.name} because it was updated after last sync and may still be pending on server.");
             }
           }
@@ -531,7 +531,7 @@ class SyncService {
           await db.setSyncMetadata(
               'last_sync_$userId', response.data['timestamp'].toString());
         }
-        print("✅ Sync completed successfully.");
+        debugPrint("✅ Sync completed successfully.");
       } else {
         throw Exception("Server Error: ${response.statusCode}");
       }
@@ -560,11 +560,11 @@ class SyncService {
 
       final endpoint = e.requestOptions.path;
       final statusText = statusCode != null ? ' [HTTP $statusCode]' : '';
-      print(
+      debugPrint(
           '❌ Sync Engine DioError$statusText on $endpoint (type: ${e.type}): $errorMsg');
       throw Exception(errorMsg);
     } catch (e) {
-      print("❌ Sync Engine Generic Error: $e");
+      debugPrint("❌ Sync Engine Generic Error: $e");
       rethrow;
     }
   }
@@ -572,10 +572,10 @@ class SyncService {
   Future<void> joinByInvite(String inviteCode, String userId, String userName,
       {String? email, String? avatarUrl, String? purpose}) async {
     try {
-      print("=== JOIN REQUEST START ===");
-      print("Invite Code: $inviteCode");
-      print("User ID: $userId");
-      print("User Name: $userName");
+      debugPrint("=== JOIN REQUEST START ===");
+      debugPrint("Invite Code: $inviteCode");
+      debugPrint("User ID: $userId");
+      debugPrint("User Name: $userName");
 
       final response = await dio.post('$baseUrl/tours/join', data: {
         'invite_code': inviteCode,
@@ -586,17 +586,18 @@ class SyncService {
         'purpose': purpose
       });
 
-      print("Response Status: ${response.statusCode}");
-      print("Response Data: ${response.data}");
+      debugPrint("Response Status: ${response.statusCode}");
+      debugPrint("Response Data: ${response.data}");
 
       if (response.statusCode == 200) {
-        print("✅ Joined successfully on server");
+        debugPrint("✅ Joined successfully on server");
 
         // Immediately save the tour data if returned
         if (response.data != null && response.data['tour'] != null) {
           try {
             final tourData = response.data['tour'];
-            print("📦 Saving joined tour to local DB: ${tourData['name']}");
+            debugPrint(
+                "📦 Saving joined tour to local DB: ${tourData['name']}");
 
             // Save the tour
             await db.createTour(Tour(
@@ -617,7 +618,7 @@ class SyncService {
               isDeleted: false,
               updatedAt: DateTime.now(),
             ));
-            print("✅ Tour saved to local DB");
+            debugPrint("✅ Tour saved to local DB");
 
             // Save all members
             final usersList = tourData['Users'] ??
@@ -683,7 +684,7 @@ class SyncService {
                       ),
                       mode: InsertMode.insertOrReplace);
                 } catch (e) {
-                  print("Error saving member: $e");
+                  debugPrint("Error saving member: $e");
                 }
               }
             }
@@ -770,7 +771,7 @@ class SyncService {
                     }
                   }
                 } catch (e) {
-                  print("Error saving expense: $e");
+                  debugPrint("Error saving expense: $e");
                 }
               }
             }
@@ -805,7 +806,7 @@ class SyncService {
                       ),
                       mode: InsertMode.insertOrReplace);
                 } catch (e) {
-                  print("Error saving settlement: $e");
+                  debugPrint("Error saving settlement: $e");
                 }
               }
             }
@@ -838,44 +839,44 @@ class SyncService {
                       ),
                       mode: InsertMode.insertOrReplace);
                 } catch (e) {
-                  print("Error saving income: $e");
+                  debugPrint("Error saving income: $e");
                 }
               }
             }
 
-            print(
+            debugPrint(
                 "✅ Tour, members, and expenses saved successfully to local DB");
           } catch (saveError) {
-            print("❌ Error saving tour locally: $saveError");
-            print("Stack trace: ${saveError.toString()}");
+            debugPrint("❌ Error saving tour locally: $saveError");
+            debugPrint("Stack trace: ${saveError.toString()}");
             // Continue with sync anyway
           }
         } else {
-          print("⚠️ No tour data in response, will rely on sync");
+          debugPrint("⚠️ No tour data in response, will rely on sync");
         }
 
         // Trigger full sync to get any additional data
         try {
-          print("🔄 Starting post-join sync...");
+          debugPrint("🔄 Starting post-join sync...");
           await startSync(userId);
-          print("✅ Post-join sync completed successfully");
+          debugPrint("✅ Post-join sync completed successfully");
         } catch (syncError) {
-          print("⚠️ Post-join sync failed: $syncError");
+          debugPrint("⚠️ Post-join sync failed: $syncError");
           // Don't throw here since we already saved the tour locally
           // The user can manually sync later if needed
         }
 
-        print("=== JOIN REQUEST COMPLETE ===");
+        debugPrint("=== JOIN REQUEST COMPLETE ===");
       } else {
         throw Exception(
             "Server returned ${response.statusCode}: ${response.data}");
       }
     } on DioException catch (e) {
-      print("❌ DioException during join:");
-      print("  Type: ${e.type}");
-      print("  Message: ${e.message}");
-      print("  Status Code: ${e.response?.statusCode}");
-      print("  Response Data: ${e.response?.data}");
+      debugPrint("❌ DioException during join:");
+      debugPrint("  Type: ${e.type}");
+      debugPrint("  Message: ${e.message}");
+      debugPrint("  Status Code: ${e.response?.statusCode}");
+      debugPrint("  Response Data: ${e.response?.data}");
 
       String errorMsg = "Connection failed. ";
       if (e.type == DioExceptionType.connectionError) {
@@ -889,8 +890,8 @@ class SyncService {
       }
       throw Exception(errorMsg);
     } catch (e, stackTrace) {
-      print("❌ Generic error during join: $e");
-      print("Stack trace: $stackTrace");
+      debugPrint("❌ Generic error during join: $e");
+      debugPrint("Stack trace: $stackTrace");
       throw Exception("Unexpected error: $e");
     }
   }
@@ -904,7 +905,7 @@ class SyncService {
       }
       return [];
     } catch (e) {
-      print("Search failed: $e");
+      debugPrint("Search failed: $e");
       return [];
     }
   }
@@ -917,7 +918,7 @@ class SyncService {
         throw Exception(response.data['error'] ?? 'Failed to send invitation');
       }
     } catch (e) {
-      print("Add member failed: $e");
+      debugPrint("Add member failed: $e");
       throw Exception(e.toString());
     }
   }
@@ -932,7 +933,7 @@ class SyncService {
       }
       return [];
     } catch (e) {
-      print("Get my invitations failed: $e");
+      debugPrint("Get my invitations failed: $e");
       return [];
     }
   }
@@ -948,7 +949,7 @@ class SyncService {
             response.data['error'] ?? 'Failed to respond invitation');
       }
     } catch (e) {
-      print("Respond invitation failed: $e");
+      debugPrint("Respond invitation failed: $e");
       throw Exception(e.toString());
     }
   }
@@ -963,7 +964,7 @@ class SyncService {
         throw Exception(response.data['error'] ?? 'Failed to update role');
       }
     } catch (e) {
-      print("Update role failed: $e");
+      debugPrint("Update role failed: $e");
       throw Exception(e.toString());
     }
   }
@@ -983,12 +984,12 @@ class SyncService {
         throw Exception(response.data['error'] ?? 'Retroactive split failed');
       }
 
-      print("✅ Server retroactive split succeeded. Pulling fresh data...");
+      debugPrint("✅ Server retroactive split succeeded. Pulling fresh data...");
 
       // 2. Full sync so the local DB gets the server's redistributed splits
       await startSync(currentUserId);
     } catch (e) {
-      print("Retroactive split failed: $e");
+      debugPrint("Retroactive split failed: $e");
       throw Exception(e.toString());
     }
   }
@@ -1036,7 +1037,7 @@ class SyncService {
             mode: InsertMode.insertOrReplace,
           );
     }
-    print(
+    debugPrint(
         "✅ Local retroactive split applied for user $newUserId in tour $tourId");
   }
 
@@ -1049,7 +1050,7 @@ class SyncService {
       }
       return null;
     } on DioException catch (e) {
-      print("Find tour failed: ${e.message}");
+      debugPrint("Find tour failed: ${e.message}");
       if (e.response?.statusCode == 401) {
         throw Exception("Authentication required. Please log in again.");
       } else if (e.response?.statusCode == 404) {
@@ -1061,7 +1062,7 @@ class SyncService {
       }
       throw Exception("Find failed: ${e.message}");
     } catch (e) {
-      print("Unexpected error in findTourByCode: $e");
+      debugPrint("Unexpected error in findTourByCode: $e");
       return null;
     }
   }
@@ -1087,7 +1088,7 @@ class SyncService {
           ),
           mode: InsertMode.insertOrReplace);
     } catch (e) {
-      print("Join request failed: $e");
+      debugPrint("Join request failed: $e");
       throw Exception(e.toString());
     }
   }
@@ -1130,7 +1131,7 @@ class SyncService {
       }
       return [];
     } catch (e) {
-      print("Get requests failed: $e");
+      debugPrint("Get requests failed: $e");
       return [];
     }
   }
@@ -1144,7 +1145,7 @@ class SyncService {
         throw Exception(response.data['error'] ?? 'Failed to handle request');
       }
     } catch (e) {
-      print("Handle request failed: $e");
+      debugPrint("Handle request failed: $e");
       throw Exception(e.toString());
     }
   }

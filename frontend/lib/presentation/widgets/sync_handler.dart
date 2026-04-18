@@ -59,13 +59,9 @@ class _SyncHandlerState extends ConsumerState<SyncHandler>
     _connectivitySubscription =
         Connectivity().onConnectivityChanged.listen((result) {
       final ConnectivityResult currentResult;
-      if (result is List<ConnectivityResult>) {
-        currentResult =
-            result.isNotEmpty ? result.first : ConnectivityResult.none;
-      } else {
-        currentResult = result as ConnectivityResult;
-      }
-
+      currentResult =
+          result.isNotEmpty ? result.first : ConnectivityResult.none;
+    
       if (currentResult != ConnectivityResult.none &&
           _lastConnectivity == ConnectivityResult.none) {
         _triggerSync('Connectivity Reconnected');
@@ -75,13 +71,9 @@ class _SyncHandlerState extends ConsumerState<SyncHandler>
 
     Connectivity().checkConnectivity().then((result) {
       final ConnectivityResult currentResult;
-      if (result is List<ConnectivityResult>) {
-        currentResult =
-            result.isNotEmpty ? result.first : ConnectivityResult.none;
-      } else {
-        currentResult = result as ConnectivityResult;
-      }
-      _lastConnectivity = currentResult;
+      currentResult =
+          result.isNotEmpty ? result.first : ConnectivityResult.none;
+          _lastConnectivity = currentResult;
     }).catchError((_) {});
 
     _startPeriodicSync();

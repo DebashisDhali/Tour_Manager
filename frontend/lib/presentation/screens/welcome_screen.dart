@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/data/providers/app_providers.dart';
 import '../widgets/premium_card.dart';
-import 'tour_list_screen.dart';
 import 'login_screen.dart';
 
 class WelcomeScreen extends ConsumerStatefulWidget {
@@ -43,8 +42,6 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
 
   Future<void> _createProfile() async {
     if (!_formKey.currentState!.validate()) return;
-
-    final enteredInviteCode = _inviteCodeController.text.trim().toUpperCase();
 
     setState(() => _isLoading = true);
     try {
@@ -187,10 +184,12 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                               label: "Full Name",
                               icon: Icons.person_rounded,
                               validator: (v) {
-                                if (v == null || v.trim().isEmpty)
+                                if (v == null || v.trim().isEmpty) {
                                   return "Name is required";
-                                if (v.trim().length < 2)
+                                }
+                                if (v.trim().length < 2) {
                                   return "Name must be at least 2 characters";
+                                }
                                 return null;
                               },
                             ),
@@ -201,8 +200,9 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                               icon: Icons.email_rounded,
                               keyboardType: TextInputType.emailAddress,
                               validator: (v) {
-                                if (v == null || v.trim().isEmpty)
+                                if (v == null || v.trim().isEmpty) {
                                   return "Email is required";
+                                }
                                 if (!RegExp(r'^[\w\.-]+@[\w\.-]+\.\w{2,}$')
                                     .hasMatch(v.trim())) {
                                   return "Enter a valid email (e.g. name@gmail.com)";
@@ -217,10 +217,12 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                               icon: Icons.phone_rounded,
                               keyboardType: TextInputType.phone,
                               validator: (v) {
-                                if (v == null || v.trim().isEmpty)
+                                if (v == null || v.trim().isEmpty) {
                                   return "Phone number is required";
-                                if (v.trim().length < 10)
+                                }
+                                if (v.trim().length < 10) {
                                   return "Enter a valid phone number (min 10 digits)";
+                                }
                                 return null;
                               },
                             ),
@@ -238,10 +240,12 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                                     () => _obscurePassword = !_obscurePassword),
                               ),
                               validator: (v) {
-                                if (v == null || v.isEmpty)
+                                if (v == null || v.isEmpty) {
                                   return "Password is required";
-                                if (v.length < 6)
+                                }
+                                if (v.length < 6) {
                                   return "Password must be at least 6 characters";
+                                }
                                 return null;
                               },
                             ),

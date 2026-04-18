@@ -437,7 +437,7 @@ class _SpotlightPainter extends CustomPainter {
 
     final pulse = pulseAnimation.value;
     final expandedRect = targetRect!.inflate(8 + pulse);
-    final radius = Radius.circular(16);
+    const radius = Radius.circular(16);
 
     // Create a new layer to handle blending correctly
     canvas.saveLayer(Offset.zero & size, Paint());

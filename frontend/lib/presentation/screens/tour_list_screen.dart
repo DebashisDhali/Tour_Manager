@@ -642,7 +642,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                 children: [
                   CircleAvatar(
                     radius: 18,
-                    backgroundColor: config.color.withOpacity(0.1),
+                    backgroundColor: config.color.withValues(alpha: 0.1),
                     backgroundImage: item.user?.avatarUrl != null
                         ? NetworkImage(item.user!.avatarUrl!)
                         : null,
@@ -677,7 +677,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                                 color: Theme.of(context)
                                     .colorScheme
                                     .onSurface
-                                    .withOpacity(0.6),
+                                    .withValues(alpha: 0.6),
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600)),
                         const SizedBox(height: 2),
@@ -730,7 +730,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                           color: config.color.withValues(alpha: 0.05),
                           shape: BoxShape.circle),
                       child: Icon(config.icon,
-                          size: 60, color: config.color.withOpacity(0.3)),
+                          size: 60, color: config.color.withValues(alpha: 0.3)),
                     ),
                     const SizedBox(height: 32),
                     Text("No ${config.pluralLabel} yet!",
@@ -746,7 +746,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                             color: Theme.of(context)
                                 .colorScheme
                                 .onSurface
-                                .withOpacity(0.7),
+                                .withValues(alpha: 0.7),
                             fontSize: 15,
                             height: 1.5)),
                     const SizedBox(height: 40),
@@ -820,7 +820,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                              color: tourConfig.color.withOpacity(0.3),
+                              color: tourConfig.color.withValues(alpha: 0.3),
                               blurRadius: 10,
                               offset: const Offset(0, 4))
                         ],
@@ -848,10 +848,10 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                  color: Colors.orange.withOpacity(0.1),
+                                  color: Colors.orange.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                      color: Colors.orange.withOpacity(0.3))),
+                                      color: Colors.orange.withValues(alpha: 0.3))),
                               child: const Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -874,10 +874,10 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                                color: Colors.green.withOpacity(0.1),
+                                color: Colors.green.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                    color: Colors.green.withOpacity(0.3))),
+                                    color: Colors.green.withValues(alpha: 0.3))),
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -911,7 +911,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                                 color: Theme.of(context)
                                     .colorScheme
                                     .onSurface
-                                    .withOpacity(0.6),
+                                    .withValues(alpha: 0.6),
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600),
                           ),
@@ -956,7 +956,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: tourConfig.color.withOpacity(0.05),
+                      color: tourConfig.color.withValues(alpha: 0.05),
                       borderRadius: const BorderRadius.vertical(
                           bottom: Radius.circular(24)),
                     ),
@@ -991,7 +991,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
                 color:
-                    Theme.of(context).colorScheme.onSurface.withOpacity(0.7))),
+                    Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7))),
       ],
     );
   }
@@ -1037,9 +1037,10 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
     // ── Connectivity check before sync ──────────────────────────────────────
     final isOnline = await SyncHandler.isConnected();
     if (!isOnline) {
-      if (mounted)
+      if (mounted) {
         _showNoInternetSheet(
             context); // ignore: use_build_context_synchronously
+      }
       return;
     }
     // ────────────────────────────────────────────────────────────────────────
@@ -1150,7 +1151,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                       height: 5,
                       margin: const EdgeInsets.only(bottom: 24),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).dividerColor.withOpacity(0.1),
+                        color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
@@ -1170,7 +1171,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                         color: Theme.of(context)
                             .colorScheme
                             .onSurface
-                            .withOpacity(0.6),
+                            .withValues(alpha: 0.6),
                         fontSize: 15),
                     textAlign: TextAlign.center,
                   ),
@@ -1192,9 +1193,9 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                           color: Theme.of(context)
                               .colorScheme
                               .onSurface
-                              .withOpacity(0.1),
+                              .withValues(alpha: 0.1),
                           letterSpacing: 4),
-                      fillColor: config.color.withOpacity(0.05),
+                      fillColor: config.color.withValues(alpha: 0.05),
                       filled: true,
                       counterText: "",
                       border: OutlineInputBorder(
@@ -1398,3 +1399,4 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
     );
   }
 }
+

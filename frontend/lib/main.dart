@@ -76,11 +76,11 @@ class _HomeRouterState extends State<_HomeRouter> {
   @override
   Widget build(BuildContext context) {
     if (_showOnboarding == null) {
-      return Scaffold(
+      return const Scaffold(
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
+            children: [
               CircularProgressIndicator(),
               SizedBox(height: 16),
               Text('Initializing...'),

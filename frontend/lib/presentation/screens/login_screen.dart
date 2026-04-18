@@ -170,8 +170,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    const Color(0xFFEFF6FF).withOpacity(0.6), // Lightest blue
-                    const Color(0xFFF8FAFC).withOpacity(0.0),
+                    const Color(0xFFEFF6FF).withValues(alpha: 0.6), // Lightest blue
+                    const Color(0xFFF8FAFC).withValues(alpha: 0.0),
                   ],
                 ),
               ),
@@ -197,7 +197,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.blue.withOpacity(0.12),
+                              color: Colors.blue.withValues(alpha: 0.12),
                               blurRadius: 25,
                               offset: const Offset(0, 12),
                             ),
@@ -349,7 +349,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                                   backgroundColor: Colors.blue.shade600,
                                   foregroundColor: Colors.white,
                                   elevation: 8,
-                                  shadowColor: Colors.blue.withOpacity(0.4),
+                                  shadowColor: Colors.blue.withValues(alpha: 0.4),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(20),
                                   ),
@@ -475,3 +475,4 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
     );
   }
 }
+

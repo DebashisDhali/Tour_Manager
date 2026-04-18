@@ -589,32 +589,32 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> markUserSynced(String id) =>
       (update(users)..where((t) => t.id.equals(id)))
-          .write(UsersCompanion(isSynced: Value(true)));
+          .write(const UsersCompanion(isSynced: Value(true)));
   Future<void> markTourSynced(String id) =>
       (update(tours)..where((t) => t.id.equals(id)))
-          .write(ToursCompanion(isSynced: Value(true)));
+          .write(const ToursCompanion(isSynced: Value(true)));
   Future<void> markTourMemberSynced(String tourId, String userId) =>
       (update(tourMembers)
             ..where((t) => t.tourId.equals(tourId) & t.userId.equals(userId)))
-          .write(TourMembersCompanion(isSynced: const Value(true)));
+          .write(const TourMembersCompanion(isSynced: Value(true)));
   Future<void> markExpenseSynced(String id) =>
       (update(expenses)..where((t) => t.id.equals(id)))
-          .write(ExpensesCompanion(isSynced: Value(true)));
+          .write(const ExpensesCompanion(isSynced: Value(true)));
   Future<void> markSplitSynced(String id) =>
       (update(expenseSplits)..where((t) => t.id.equals(id)))
-          .write(ExpenseSplitsCompanion(isSynced: Value(true)));
+          .write(const ExpenseSplitsCompanion(isSynced: Value(true)));
   Future<void> markExpensePayerSynced(String id) =>
       (update(expensePayers)..where((t) => t.id.equals(id)))
-          .write(ExpensePayersCompanion(isSynced: Value(true)));
+          .write(const ExpensePayersCompanion(isSynced: Value(true)));
   Future<void> markSettlementSynced(String id) =>
       (update(settlements)..where((t) => t.id.equals(id)))
-          .write(SettlementsCompanion(isSynced: Value(true)));
+          .write(const SettlementsCompanion(isSynced: Value(true)));
   Future<void> markProgramIncomeSynced(String id) =>
       (update(programIncomes)..where((t) => t.id.equals(id)))
-          .write(ProgramIncomesCompanion(isSynced: Value(true)));
+          .write(const ProgramIncomesCompanion(isSynced: Value(true)));
   Future<void> markJoinRequestSynced(String id) =>
       (update(joinRequests)..where((t) => t.id.equals(id)))
-          .write(JoinRequestsCompanion(isSynced: const Value(true)));
+          .write(const JoinRequestsCompanion(isSynced: Value(true)));
 
   Future<List<JoinRequest>> getUnsyncedJoinRequests() =>
       (select(joinRequests)..where((t) => t.isSynced.equals(false))).get();

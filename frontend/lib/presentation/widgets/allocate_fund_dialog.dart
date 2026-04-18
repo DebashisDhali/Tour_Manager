@@ -19,7 +19,7 @@ class _AllocateFundDialogState extends ConsumerState<AllocateFundDialog> {
   final _amountController = TextEditingController();
   String? _selectedGiverId;
   String? _selectedReceiverId;
-  DateTime _date = DateTime.now();
+  final DateTime _date = DateTime.now();
   List<User> _members = [];
   bool _isLoading = true;
 

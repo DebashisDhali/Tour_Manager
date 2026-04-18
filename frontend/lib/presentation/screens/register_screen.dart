@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/data/providers/app_providers.dart';
 import 'package:frontend/presentation/widgets/no_internet_sheet.dart';
 import 'package:frontend/presentation/widgets/sync_handler.dart';
-import 'tour_list_screen.dart';
 import 'login_screen.dart'; // ADD THIS LINE
-import 'dart:ui';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -127,8 +125,8 @@ class RegisterScreenState extends ConsumerState<RegisterScreen>
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    const Color(0xFFE0F2FE).withOpacity(0.5), // Soft sky blue
-                    const Color(0xFFF8FAFC).withOpacity(0.0),
+                    const Color(0xFFE0F2FE).withValues(alpha: 0.5), // Soft sky blue
+                    const Color(0xFFF8FAFC).withValues(alpha: 0.0),
                   ],
                 ),
               ),
@@ -155,7 +153,7 @@ class RegisterScreenState extends ConsumerState<RegisterScreen>
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.blue.withOpacity(0.1),
+                              color: Colors.blue.withValues(alpha: 0.1),
                               blurRadius: 20,
                               offset: const Offset(0, 10),
                             ),
@@ -263,7 +261,7 @@ class RegisterScreenState extends ConsumerState<RegisterScreen>
                                   backgroundColor: Colors.blue.shade600,
                                   foregroundColor: Colors.white,
                                   elevation: 8,
-                                  shadowColor: Colors.blue.withOpacity(0.4),
+                                  shadowColor: Colors.blue.withValues(alpha: 0.4),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(20),
                                   ),
@@ -418,3 +416,4 @@ class RegisterScreenState extends ConsumerState<RegisterScreen>
     );
   }
 }
+

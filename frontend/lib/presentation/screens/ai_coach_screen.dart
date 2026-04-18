@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../data/providers/app_providers.dart';
-import '../../domain/logic/purpose_config.dart';
 
 class AiCoachScreen extends ConsumerStatefulWidget {
   final String tourId;
@@ -86,7 +85,7 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
             Text(
               "Analyzing expenses for ${widget.tourName}...\nFinding optimizations & wasteful costs",
               textAlign: TextAlign.center,
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6), fontWeight: FontWeight.bold),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6), fontWeight: FontWeight.bold),
             )
           ],
         ),
@@ -125,9 +124,9 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.amberAccent.withOpacity(0.1),
+              color: Colors.amberAccent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.amberAccent.withOpacity(0.3)),
+              border: Border.all(color: Colors.amberAccent.withValues(alpha: 0.3)),
             ),
             child: Row(
               children: [
@@ -153,12 +152,12 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
                 h2: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.amber),
                 h3: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 listBullet: TextStyle(color: Theme.of(context).colorScheme.primary),
-                code: TextStyle(backgroundColor: Colors.grey.withOpacity(0.1), fontFamily: 'monospace'),
+                code: TextStyle(backgroundColor: Colors.grey.withValues(alpha: 0.1), fontFamily: 'monospace'),
                 blockquoteDecoration: BoxDecoration(
-                  border: Border(left: BorderSide(color: Colors.amber.withOpacity(0.5), width: 4)),
-                  color: Colors.amber.withOpacity(0.05),
+                  border: Border(left: BorderSide(color: Colors.amber.withValues(alpha: 0.5), width: 4)),
+                  color: Colors.amber.withValues(alpha: 0.05),
                 ),
-                tableBorder: TableBorder.all(color: Theme.of(context).dividerColor.withOpacity(0.2)),
+                tableBorder: TableBorder.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.2)),
                 tableHead: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
@@ -167,3 +166,4 @@ class _AiCoachScreenState extends ConsumerState<AiCoachScreen> {
     );
   }
 }
+
