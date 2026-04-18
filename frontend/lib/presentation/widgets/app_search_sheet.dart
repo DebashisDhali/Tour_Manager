@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
@@ -339,6 +340,7 @@ class _AppSearchSheetState extends ConsumerState<AppSearchSheet> {
 
   Widget _buildUserCard(models.User user) {
     final isMe = user.id == ref.read(currentUserProvider).value?.id;
+    final avatarImage = _resolveAvatarImage(user.avatarUrl);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -353,9 +355,8 @@ class _AppSearchSheetState extends ConsumerState<AppSearchSheet> {
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           leading: CircleAvatar(
-            backgroundImage:
-                user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
-            child: user.avatarUrl == null
+            backgroundImage: avatarImage,
+            child: avatarImage == null
                 ? Text(
                     user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
                     style: const TextStyle(fontWeight: FontWeight.w800),
@@ -373,5 +374,29 @@ class _AppSearchSheetState extends ConsumerState<AppSearchSheet> {
         ),
       ),
     );
+  }
+
+  ImageProvider? _resolveAvatarImage(String? rawValue) {
+    if (rawValue == null) return null;
+    final value = rawValue.trim();
+    if (value.isEmpty) return null;
+
+    try {
+      if (value.startsWith('data:image')) {
+        final parts = value.split(',');
+        if (parts.length > 1 && parts.last.isNotEmpty) {
+          return MemoryImage(base64Decode(parts.last));
+        }
+        return null;
+      }
+
+      final uri = Uri.tryParse(value);
+      if (uri == null) return null;
+      final isHttp = uri.scheme == 'http' || uri.scheme == 'https';
+      if (!isHttp) return null;
+      return NetworkImage(value);
+    } catch (_) {
+      return null;
+    }
   }
 }

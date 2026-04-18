@@ -295,112 +295,121 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
               length: 2,
               child: Scaffold(
                 appBar: AppBar(
+                  toolbarHeight: 72,
+                  titleSpacing: 18,
                   title: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(config.pluralLabel,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 20,
-                              letterSpacing: -0.5)),
-                      Text(syncDisplay,
-                          style: TextStyle(
-                              fontSize: 10,
+                      Text(
+                        config.pluralLabel,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 21,
+                          letterSpacing: -0.6,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.sync_rounded,
+                            size: 11,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.55),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            syncDisplay,
+                            style: TextStyle(
+                              fontSize: 11,
                               color: Theme.of(context)
                                   .colorScheme
                                   .onSurface
-                                  .withOpacity(0.6),
-                              fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 8),
-                      GestureDetector(
-                        onTap: () => showAppSearchSheet(context),
-                        child: Container(
-                          constraints: const BoxConstraints(maxWidth: 320),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                                color: Colors.white.withOpacity(0.18)),
+                                  .withValues(alpha: 0.6),
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.search_rounded,
-                                  size: 18, color: Colors.white),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  'Search tours, events or profiles',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.white.withOpacity(0.92),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
-                  bottom: TabBar(
-                    key: _tabBarKey,
-                    indicatorSize: TabBarIndicatorSize.label,
-                    indicatorWeight: 3,
-                    indicatorColor: config.color,
-                    labelColor: config.color,
-                    unselectedLabelColor: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.5),
-                    labelStyle: const TextStyle(fontWeight: FontWeight.bold),
-                    tabs: [
-                      Tab(text: 'Activity Feed'),
-                      Tab(text: config.pluralLabel),
-                    ],
-                  ),
                   actions: [
-                    IconButton(
-                      key: _joinCodeAppBarKey,
-                      onPressed: () => _showJoinDialog(context, config),
-                      icon: const Icon(Icons.add_circle_outline_rounded),
-                      tooltip: 'Join with Code',
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: IconButton.filledTonal(
+                        key: _joinCodeAppBarKey,
+                        onPressed: () => _showJoinDialog(context, config),
+                        icon: const Icon(Icons.add_rounded, size: 20),
+                        tooltip: 'Join with Code',
+                        style: IconButton.styleFrom(
+                          minimumSize: const Size(38, 38),
+                          backgroundColor: config.color.withValues(alpha: 0.14),
+                          foregroundColor: config.color,
+                        ),
+                      ),
                     ),
-                    IconButton(
-                      key: _syncKey,
-                      onPressed: () => _syncData(context),
-                      icon: const Icon(Icons.sync_rounded),
-                      tooltip: 'Sync Now',
+                    Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: IconButton.filledTonal(
+                        key: _syncKey,
+                        onPressed: () => _syncData(context),
+                        icon: const Icon(Icons.sync_rounded, size: 20),
+                        tooltip: 'Sync Now',
+                        style: IconButton.styleFrom(
+                          minimumSize: const Size(38, 38),
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest
+                              .withValues(alpha: 0.75),
+                          foregroundColor:
+                              Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
                     ),
                     if (user != null)
                       InkWell(
                         key: _profileKey,
                         onTap: () => _openProfileAndMarkSeen(user),
                         child: Padding(
-                          padding: const EdgeInsets.only(right: 16, left: 8),
+                          padding: const EdgeInsets.only(right: 16, left: 2),
                           child: Stack(
                             clipBehavior: Clip.none,
                             children: [
-                              CircleAvatar(
-                                radius: 16,
-                                backgroundColor:
-                                    config.color.withValues(alpha: 0.1),
-                                backgroundImage: user.avatarUrl != null
-                                    ? NetworkImage(user.avatarUrl!)
-                                    : null,
-                                child: user.avatarUrl == null
-                                    ? Text(
-                                        user.name.isNotEmpty
-                                            ? user.name[0].toUpperCase()
-                                            : 'U',
-                                        style: TextStyle(
+                              Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary
+                                        .withValues(alpha: 0.25),
+                                    width: 1.2,
+                                  ),
+                                ),
+                                child: CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor:
+                                      config.color.withValues(alpha: 0.1),
+                                  backgroundImage: user.avatarUrl != null
+                                      ? NetworkImage(user.avatarUrl!)
+                                      : null,
+                                  child: user.avatarUrl == null
+                                      ? Text(
+                                          user.name.isNotEmpty
+                                              ? user.name[0].toUpperCase()
+                                              : 'U',
+                                          style: TextStyle(
                                             fontSize: 12,
                                             color: config.color,
-                                            fontWeight: FontWeight.bold))
-                                    : null,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        )
+                                      : null,
+                                ),
                               ),
                               if (_unreadNotificationCount > 0)
                                 Positioned(
@@ -440,6 +449,77 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                         ),
                       ),
                   ],
+                  bottom: PreferredSize(
+                    preferredSize: const Size.fromHeight(96),
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+                          child: Material(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest
+                                .withValues(alpha: 0.72),
+                            borderRadius: BorderRadius.circular(14),
+                            child: InkWell(
+                              onTap: () => showAppSearchSheet(context),
+                              borderRadius: BorderRadius.circular(14),
+                              child: Container(
+                                height: 44,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 12),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.search_rounded,
+                                      size: 20,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.62),
+                                    ),
+                                    const SizedBox(width: 9),
+                                    Expanded(
+                                      child: Text(
+                                        'Search tours, events or profiles',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface
+                                              .withValues(alpha: 0.7),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        TabBar(
+                          key: _tabBarKey,
+                          indicatorSize: TabBarIndicatorSize.label,
+                          indicatorWeight: 3,
+                          indicatorColor: config.color,
+                          labelColor: config.color,
+                          unselectedLabelColor: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.5),
+                          labelStyle:
+                              const TextStyle(fontWeight: FontWeight.bold),
+                          tabs: [
+                            const Tab(text: 'Activity Feed'),
+                            Tab(text: config.pluralLabel),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
                 body: TabBarView(
                   children: [
