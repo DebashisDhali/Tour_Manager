@@ -288,7 +288,8 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
         if (lastSync != null) {
           final parsed = DateTime.tryParse(lastSync);
           if (parsed != null) {
-            syncDisplay = 'Synced ${DateFormat('hh:mm a').format(parsed)}';
+            syncDisplay =
+                'Synced ${DateFormat('hh:mm a').format(parsed.toLocal())}';
           }
         }
 
@@ -851,7 +852,8 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                                   color: Colors.orange.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                      color: Colors.orange.withValues(alpha: 0.3))),
+                                      color: Colors.orange
+                                          .withValues(alpha: 0.3))),
                               child: const Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -877,7 +879,8 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                                 color: Colors.green.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                    color: Colors.green.withValues(alpha: 0.3))),
+                                    color:
+                                        Colors.green.withValues(alpha: 0.3))),
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -990,8 +993,10 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
             style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
-                color:
-                    Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7))),
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.7))),
       ],
     );
   }
@@ -1151,7 +1156,9 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                       height: 5,
                       margin: const EdgeInsets.only(bottom: 24),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
+                        color: Theme.of(context)
+                            .dividerColor
+                            .withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
@@ -1399,4 +1406,3 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
     );
   }
 }
-
