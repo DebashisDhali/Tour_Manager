@@ -128,10 +128,12 @@ final tourMembersProvider = StreamProvider.family
 
   return query.watch().map((rows) => rows.map((row) {
         final m = row.readTable(db.tourMembers);
+        final normalizedRole = m.role.toLowerCase().trim();
+        final normalizedStatus = m.status.toLowerCase().trim();
         return MemberWithStatus(
           row.readTable(db.users),
-          m.status,
-          m.role,
+          normalizedStatus,
+          normalizedRole,
           m.leftAt,
           mealCount: m.mealCount,
           addedBy: null, // Initialize from DB when you have addedBy field

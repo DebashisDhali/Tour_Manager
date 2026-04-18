@@ -13,6 +13,25 @@ class SyncService {
     print("📡 SyncService initialized with BaseURL: $baseUrl");
   }
 
+  Map<String, dynamic>? _memberMeta(dynamic user) {
+    if (user is! Map) return null;
+    final meta =
+        user['TourMember'] ?? user['tourMember'] ?? user['tour_member'];
+    return meta is Map<String, dynamic> ? meta : null;
+  }
+
+  String _normalizeRole(dynamic role) {
+    final r = role?.toString().toLowerCase().trim() ?? 'viewer';
+    if (r == 'admin' || r == 'editor' || r == 'viewer') return r;
+    return 'viewer';
+  }
+
+  String _normalizeStatus(dynamic status, dynamic removedAt) {
+    final s = status?.toString().toLowerCase().trim() ?? '';
+    if (s == 'active' || s == 'pending' || s == 'removed') return s;
+    return removedAt != null ? 'removed' : 'active';
+  }
+
   Future<void> startSync(String userId) async {
     try {
       print("Sync started for user: $userId");
@@ -279,26 +298,13 @@ class SyncService {
                     mode: InsertMode.insertOrReplace);
 
                 // Add member connection
-                String suStatus = 'active';
-                if (su['TourMember'] != null &&
-                    su['TourMember']['status'] != null) {
-                  suStatus = su['TourMember']['status']
-                      .toString()
-                      .toLowerCase()
-                      .trim();
-                } else if (su['TourMember'] != null &&
-                    su['TourMember']['removed_at'] != null) {
-                  suStatus = 'removed';
-                }
-                final suLeftAt = (su['TourMember'] != null &&
-                        su['TourMember']['removed_at'] != null)
-                    ? DateTime.tryParse(
-                        su['TourMember']['removed_at'].toString())
+                final suMeta = _memberMeta(su);
+                final suStatus =
+                    _normalizeStatus(suMeta?['status'], suMeta?['removed_at']);
+                final suLeftAt = (suMeta?['removed_at'] != null)
+                    ? DateTime.tryParse(suMeta?['removed_at'].toString() ?? '')
                     : null;
-                final suRole = (su['TourMember'] != null &&
-                        su['TourMember']['role'] != null)
-                    ? su['TourMember']['role'].toString()
-                    : 'viewer'; // default to viewer if undefined
+                final suRole = _normalizeRole(suMeta?['role']);
 
                 batch.insert(
                     db.tourMembers,
@@ -582,16 +588,13 @@ class SyncService {
                     updatedAt: DateTime.now(),
                   ));
 
-                  final mStatus = (member['TourMember'] != null)
-                      ? (member['TourMember']['status'] ?? 'active')
-                      : 'active';
-                  final mRole = (member['TourMember'] != null)
-                      ? (member['TourMember']['role'] ?? 'viewer')
-                      : 'viewer';
-                  final mLeftAt = (member['TourMember'] != null &&
-                          member['TourMember']['removed_at'] != null)
-                      ? DateTime.parse(
-                          member['TourMember']['removed_at'].toString())
+                  final memberMeta = _memberMeta(member);
+                  final mStatus = _normalizeStatus(
+                      memberMeta?['status'], memberMeta?['removed_at']);
+                  final mRole = _normalizeRole(memberMeta?['role']);
+                  final mLeftAt = (memberMeta?['removed_at'] != null)
+                      ? DateTime.tryParse(
+                          memberMeta?['removed_at'].toString() ?? '')
                       : null;
 
                   await db.into(db.tourMembers).insert(

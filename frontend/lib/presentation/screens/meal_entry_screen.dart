@@ -90,10 +90,10 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 24, vertical: 20),
                     decoration: BoxDecoration(
-                      color: config.color.withOpacity(0.05),
+                      color: config.color.withValues(alpha: 0.05),
                       border: Border(
-                          bottom:
-                              BorderSide(color: config.color.withOpacity(0.1))),
+                          bottom: BorderSide(
+                              color: config.color.withValues(alpha: 0.1))),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -140,7 +140,8 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
                           icon: const Icon(Icons.calendar_today_rounded,
                               size: 20),
                           style: IconButton.styleFrom(
-                            backgroundColor: config.color.withOpacity(0.1),
+                            backgroundColor:
+                                config.color.withValues(alpha: 0.1),
                             foregroundColor: config.color,
                           ),
                         ),
@@ -166,7 +167,8 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
                             children: [
                               CircleAvatar(
                                 radius: 22,
-                                backgroundColor: config.color.withOpacity(0.1),
+                                backgroundColor:
+                                    config.color.withValues(alpha: 0.1),
                                 child: Text(m.user.name[0].toUpperCase(),
                                     style: TextStyle(
                                         color: config.color,
@@ -191,18 +193,20 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
                               ),
                               Container(
                                 decoration: BoxDecoration(
-                                  color: config.color.withOpacity(0.05),
+                                  color: config.color.withValues(alpha: 0.05),
                                   borderRadius: BorderRadius.circular(16),
                                   border: Border.all(
-                                    color: config.color.withOpacity(0.2),
+                                    color: config.color.withValues(alpha: 0.2),
                                     width: 1.5,
                                   ),
                                 ),
                                 child: Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     _buildMealButton(
                                         m.user.id, -0.5, config.color),
-                                    Expanded(
+                                    SizedBox(
+                                      width: 76,
                                       child: Container(
                                         alignment: Alignment.center,
                                         decoration: BoxDecoration(
@@ -210,8 +214,8 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
                                           borderRadius:
                                               BorderRadius.circular(8),
                                           border: Border.all(
-                                            color:
-                                                config.color.withOpacity(0.3),
+                                            color: config.color
+                                                .withValues(alpha: 0.3),
                                             width: 1,
                                           ),
                                         ),
@@ -234,8 +238,8 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
                                                     horizontal: 8, vertical: 8),
                                             hintText: "0.0",
                                             hintStyle: TextStyle(
-                                              color:
-                                                  config.color.withOpacity(0.3),
+                                              color: config.color
+                                                  .withValues(alpha: 0.3),
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
@@ -293,7 +297,7 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
                                 : () => Navigator.pop(context),
                             style: OutlinedButton.styleFrom(
                               side: BorderSide(
-                                  color: config.color.withOpacity(0.3)),
+                                  color: config.color.withValues(alpha: 0.3)),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),

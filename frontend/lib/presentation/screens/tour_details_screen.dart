@@ -1007,6 +1007,9 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                 final m = members[index];
                 final isMe = me?.id == m.user.id;
                 final isRemoved = m.status.toLowerCase().trim() == 'removed';
+                final roleNormalized = m.role.toLowerCase().trim();
+                final effectiveRole =
+                    m.user.id == tour.createdBy ? 'admin' : roleNormalized;
 
                 final isEditor = me?.id == tour.createdBy ||
                     members.any((x) =>
@@ -1030,7 +1033,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                         ),
                         if (isAdmin)
                           DropdownButton<String>(
-                            value: m.role,
+                            value: effectiveRole,
                             icon: const Icon(Icons.arrow_drop_down, size: 16),
                             style: TextStyle(
                                 fontSize: 11,
@@ -1082,7 +1085,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                         decoration: BoxDecoration(
                             color: Colors.grey.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(8)),
-                        child: Text(m.role.toUpperCase(),
+                        child: Text(effectiveRole.toUpperCase(),
                             style: const TextStyle(
                                 fontSize: 9,
                                 fontWeight: FontWeight.bold,
