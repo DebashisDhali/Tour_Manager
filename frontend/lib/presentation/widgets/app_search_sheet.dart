@@ -99,44 +99,72 @@ class _AppSearchSheetState extends ConsumerState<AppSearchSheet> {
       _isLoading = true;
     });
 
+    // Use Future.delayed to prevent rebuild conflicts
+    await Future.delayed(Duration.zero);
+
     try {
       final db = ref.read(databaseProvider);
 
-      // Fetch all tours and filter in memory for safety
+      // Fetch all non-deleted tours
       final allTours = await (db.select(db.tours)
             ..where((t) => t.isDeleted.equals(false)))
           .get();
-      final tours = allTours
-          .where((t) =>
-              t.name.toLowerCase().contains(query) ||
-              t.purpose.toLowerCase().contains(query))
-          .toList()
-        ..sort((a, b) => a.name.compareTo(b.name));
 
-      // Fetch all users and filter in memory for safety
+      // Filter in memory with null-safety
+      final filteredTours = <models.Tour>[];
+      for (final tour in allTours) {
+        try {
+          final name = tour.name ?? '';
+          final purpose = tour.purpose ?? '';
+          if (name.toLowerCase().contains(query) ||
+              purpose.toLowerCase().contains(query)) {
+            filteredTours.add(tour);
+          }
+        } catch (e) {
+          debugPrint('⚠️ Error filtering tour: $e');
+          continue;
+        }
+      }
+      filteredTours.sort((a, b) => (a.name ?? '').compareTo(b.name ?? ''));
+
+      // Fetch all non-deleted users
       final allUsers = await (db.select(db.users)
             ..where((u) => u.isDeleted.equals(false)))
           .get();
-      final users = allUsers
-          .where((u) => u.name.toLowerCase().contains(query))
-          .toList()
-        ..sort((a, b) => a.name.compareTo(b.name));
+
+      // Filter in memory with null-safety
+      final filteredUsers = <models.User>[];
+      for (final user in allUsers) {
+        try {
+          final name = user.name ?? '';
+          if (name.toLowerCase().contains(query)) {
+            filteredUsers.add(user);
+          }
+        } catch (e) {
+          debugPrint('⚠️ Error filtering user: $e');
+          continue;
+        }
+      }
+      filteredUsers.sort((a, b) => (a.name ?? '').compareTo(b.name ?? ''));
 
       if (!mounted) return;
       setState(() {
-        _tourResults = tours;
-        _userResults = users;
+        _tourResults = filteredTours;
+        _userResults = filteredUsers;
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('❌ Search Error: $e\n$st');
       if (!mounted) return;
       setState(() => _isLoading = false);
-      debugPrint('❌ Search Error: $e');
       if (mounted) {
+        final errorMsg = e.toString().split('\n').first;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('Search failed: ${e.toString().split('\n').first}'),
-              backgroundColor: Colors.red),
+            content: Text('Search error: $errorMsg'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
         );
       }
     }
@@ -312,81 +340,104 @@ class _AppSearchSheetState extends ConsumerState<AppSearchSheet> {
   }
 
   Widget _buildTourCard(models.Tour tour) {
-    final config = PurposeConfig.getConfig(tour.purpose);
-    final isJoined = _joinedTourIds.contains(tour.id);
-    final isPending = _pendingTourIds.contains(tour.id);
+    try {
+      final config = PurposeConfig.getConfig(tour.purpose ?? 'tour');
+      final isJoined = _joinedTourIds.contains(tour.id);
+      final isPending = _pendingTourIds.contains(tour.id);
+      final tourName = tour.name ?? 'Unnamed Tour';
+      final tourPurpose = tour.purpose ?? 'tour';
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-              color: Theme.of(context).dividerColor.withValues(alpha: 0.12)),
-        ),
-        child: ListTile(
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          leading: CircleAvatar(
-            backgroundColor: config.color.withValues(alpha: 0.12),
-            child: Icon(config.icon, color: config.color),
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.12)),
           ),
-          title: Text(tour.name,
-              style: const TextStyle(fontWeight: FontWeight.w800)),
-          subtitle: Text('${config.label} • ${tour.purpose}'),
-          trailing: isJoined
-              ? FilledButton(
-                  onPressed: () => _openTour(tour),
-                  child: const Text('Open'),
-                )
-              : isPending
-                  ? const Chip(label: Text('Pending'))
-                  : FilledButton(
-                      onPressed: () => _requestJoin(tour),
-                      child: const Text('Request Join'),
-                    ),
+          child: ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            leading: CircleAvatar(
+              backgroundColor: config.color.withValues(alpha: 0.12),
+              child: Icon(config.icon, color: config.color),
+            ),
+            title: Text(tourName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w800)),
+            subtitle: Text('${config.label} • $tourPurpose',
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            trailing: isJoined
+                ? FilledButton(
+                    onPressed: () => _openTour(tour),
+                    child: const Text('Open'),
+                  )
+                : isPending
+                    ? const Chip(label: Text('Pending'))
+                    : FilledButton(
+                        onPressed: () => _requestJoin(tour),
+                        child: const Text('Request Join'),
+                      ),
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      debugPrint('❌ Error building tour card: $e');
+      return const SizedBox.shrink();
+    }
   }
 
   Widget _buildUserCard(models.User user) {
-    final isMe = user.id == ref.read(currentUserProvider).value?.id;
-    final avatarImage = _resolveAvatarImage(user.avatarUrl);
+    try {
+      final isMe = user.id == ref.read(currentUserProvider).value?.id;
+      final avatarImage = _resolveAvatarImage(user.avatarUrl);
+      final userName = user.name ?? 'Unknown User';
+      final userSubtitle = isMe
+          ? 'My profile'
+          : (user.email?.isNotEmpty == true
+              ? user.email!
+              : (user.phone?.isNotEmpty == true ? user.phone! : 'Profile'));
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-              color: Theme.of(context).dividerColor.withValues(alpha: 0.12)),
-        ),
-        child: ListTile(
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          leading: CircleAvatar(
-            backgroundImage: avatarImage,
-            child: avatarImage == null
-                ? Text(
-                    user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  )
-                : null,
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+                color: Theme.of(context).dividerColor.withValues(alpha: 0.12)),
           ),
-          title: Text(user.name,
-              style: const TextStyle(fontWeight: FontWeight.w800)),
-          subtitle: Text(
-              isMe ? 'My profile' : (user.email ?? user.phone ?? 'Profile')),
-          trailing: FilledButton(
-            onPressed: () => _openUser(user),
-            child: Text(isMe ? 'Open Me' : 'Open'),
+          child: ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            leading: CircleAvatar(
+              backgroundImage: avatarImage,
+              child: avatarImage == null
+                  ? Text(
+                      userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    )
+                  : null,
+            ),
+            title: Text(userName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w800)),
+            subtitle: Text(userSubtitle,
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            trailing: FilledButton(
+              onPressed: () => _openUser(user),
+              child: Text(isMe ? 'Open Me' : 'Open'),
+            ),
           ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      debugPrint('❌ Error building user card: $e');
+      return const SizedBox.shrink();
+    }
   }
 
   ImageProvider? _resolveAvatarImage(String? rawValue) {
