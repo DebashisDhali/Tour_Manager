@@ -359,6 +359,8 @@ class _AppSearchSheetState extends ConsumerState<AppSearchSheet> {
           child: ListTile(
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            onTap: isJoined ? () => _openTour(tour) : null,
+            enabled: isJoined,
             leading: CircleAvatar(
               backgroundColor: config.color.withValues(alpha: 0.12),
               child: Icon(config.icon, color: config.color),
@@ -367,28 +369,12 @@ class _AppSearchSheetState extends ConsumerState<AppSearchSheet> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontWeight: FontWeight.w800)),
-            subtitle: Text('${config.label} • $tourPurpose',
-                maxLines: 1, overflow: TextOverflow.ellipsis),
-            trailing: isJoined
-                ? SizedBox(
-                    width: 70,
-                    child: FilledButton(
-                      onPressed: () => _openTour(tour),
-                      child: const Text('Open'),
-                    ),
-                  )
-                : isPending
-                    ? const SizedBox(
-                        width: 70,
-                        child: Chip(label: Text('Pending')),
-                      )
-                    : SizedBox(
-                        width: 95,
-                        child: FilledButton(
-                          onPressed: () => _requestJoin(tour),
-                          child: const Text('Request Join'),
-                        ),
-                      ),
+            subtitle: Text(
+                isPending
+                    ? '${config.label} • Pending'
+                    : '${config.label} • $tourPurpose',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
           ),
         ),
       );
@@ -421,6 +407,7 @@ class _AppSearchSheetState extends ConsumerState<AppSearchSheet> {
           child: ListTile(
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            onTap: () => _openUser(user),
             leading: CircleAvatar(
               backgroundImage: avatarImage,
               child: avatarImage == null
@@ -436,13 +423,6 @@ class _AppSearchSheetState extends ConsumerState<AppSearchSheet> {
                 style: const TextStyle(fontWeight: FontWeight.w800)),
             subtitle: Text(userSubtitle,
                 maxLines: 1, overflow: TextOverflow.ellipsis),
-            trailing: SizedBox(
-              width: 65,
-              child: FilledButton(
-                onPressed: () => _openUser(user),
-                child: Text(isMe ? 'Open Me' : 'Open'),
-              ),
-            ),
           ),
         ),
       );
