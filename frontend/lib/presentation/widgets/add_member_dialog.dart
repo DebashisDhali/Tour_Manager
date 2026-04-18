@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
-import 'package:drift/drift.dart' hide Column;
-import '../../data/local/app_database.dart';
 import '../../data/providers/app_providers.dart';
 import '../../domain/logic/purpose_config.dart';
 
@@ -76,50 +73,14 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
     if (_selectedUsers.isEmpty) return;
 
     setState(() => _isLoading = true);
-    final db = ref.read(databaseProvider);
     final syncService = ref.read(syncServiceProvider);
     int count = 0;
 
     try {
       for (var user in _selectedUsers) {
         try {
-          // 1. Add locally
-          await db.createUser(User(
-            id: user['id'],
-            name: user['name'],
-            phone: user['phone'],
-            isMe: false,
-            isSynced: true,
-            isDeleted: false,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-          ));
-
-          await db.into(db.tourMembers).insert(
-              TourMember(
-                tourId: widget.tourId,
-                userId: user['id'],
-                status: 'active',
-                role: 'viewer',
-                mealCount: 0.0,
-                isSynced: true,
-                isDeleted: false,
-              ),
-              mode: InsertMode.insertOrReplace);
-
-          // 2. Add to server
+          // Send invitation; target user must accept from their profile.
           await syncService.addMemberToTour(widget.tourId, user['id']);
-
-          // 3. Retroactive split if requested
-          if (_retroactiveSplit) {
-            final currentUserId = ref.read(currentUserProvider).value?.id;
-            await syncService.applyRetroactiveSplitLocally(
-                widget.tourId, user['id']);
-            if (currentUserId != null) {
-              await syncService.retroactiveSplit(
-                  widget.tourId, user['id'], currentUserId);
-            }
-          }
           count++;
         } catch (e) {
           debugPrint("Failed to add user ${user['name']}: $e");
@@ -131,7 +92,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text(
-                  'Added $count ${count == 1 ? 'member' : 'members'} successfully!${_retroactiveSplit ? ' Past expenses redistributed.' : ''}')),
+                  'Invitation sent to $count ${count == 1 ? 'member' : 'members'}. They must accept from profile.')),
         );
       }
     } finally {
@@ -141,76 +102,12 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
 
   Future<void> _addMemberManually() async {
     if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-      try {
-        final tour = ref.read(singleTourProvider(widget.tourId)).value;
-        final config = PurposeConfig.getConfig(tour?.purpose);
-        final db = ref.read(databaseProvider);
-        final syncService = ref.read(syncServiceProvider);
-        final rawNames = _nameController.text
-            .split(',')
-            .map((e) => e.trim())
-            .where((e) => e.isNotEmpty)
-            .toList();
-        final phoneValue = _phoneController.text.trim();
-        int addedCount = 0;
-
-        for (final name in rawNames) {
-          final userId = const Uuid().v4();
-          await db.createUser(User(
-            id: userId,
-            name: name,
-            phone: rawNames.length == 1 && phoneValue.isNotEmpty
-                ? phoneValue
-                : null,
-            isMe: false,
-            isSynced: false,
-            isDeleted: false,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-          ));
-
-          await db.into(db.tourMembers).insert(TourMember(
-                tourId: widget.tourId,
-                userId: userId,
-                status: 'active',
-                role: 'viewer',
-                mealCount: 0.0,
-                isSynced: false,
-                isDeleted: false,
-              ));
-
-          if (_retroactiveSplit) {
-            await syncService.applyRetroactiveSplitLocally(
-                widget.tourId, userId);
-            final currentUserId = ref.read(currentUserProvider).value?.id;
-            if (currentUserId != null) {
-              syncService
-                  .retroactiveSplit(widget.tourId, userId, currentUserId)
-                  .catchError(
-                      (e) => debugPrint('Retroactive server sync failed: $e'));
-            }
-          }
-          addedCount++;
-        }
-
-        if (mounted) {
-          Navigator.pop(context, true);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(
-                    '$addedCount ${config.memberLabel}${addedCount == 1 ? '' : 's'} added!${_retroactiveSplit ? ' Included in all past expenses.' : ''}')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-          );
-        }
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Manual add is disabled for approval flow. Search and select existing profiles to send requests.'),
+        ),
+      );
     }
   }
 
@@ -250,7 +147,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                       letterSpacing: 1)),
               const SizedBox(height: 8),
               Text(
-                'Search existing profiles or type phone/name and tap search. Select profiles and then press Add selected members.',
+                'Search existing profiles and send invitation requests. Users will join only after accepting from their profile.',
                 style: TextStyle(
                     fontSize: 11, color: Colors.grey, letterSpacing: 0.2),
               ),
@@ -385,7 +282,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                     onPressed: _isLoading ? null : _addSelectedUsers,
                     icon: const Icon(Icons.person_add_rounded, size: 18),
                     label: Text(
-                        "Add ${_selectedUsers.length} ${config.memberLabel}s"),
+                        "Send request to ${_selectedUsers.length} ${config.memberLabel}${_selectedUsers.length > 1 ? 's' : ''}"),
                     style: FilledButton.styleFrom(
                         backgroundColor: config.color,
                         shape: RoundedRectangleBorder(
@@ -467,7 +364,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                     ),
                     Switch(
                       value: _retroactiveSplit,
-                      onChanged: (v) => setState(() => _retroactiveSplit = v),
+                      onChanged: null,
                       activeColor: config.color,
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
@@ -515,7 +412,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        'Enter multiple names separated by commas, then tap Add Member(s). If you add only one name, you can fill phone optionally.',
+                        'Approval flow works with existing profiles. Search above and send request instead of direct manual add.',
                         style: TextStyle(
                             fontSize: 11,
                             color: Theme.of(context)
@@ -557,6 +454,16 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                   child: const Text('Add Member(s)',
                       style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Tip: Open user search above, select profiles, then send request.',
+                style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.55)),
               ),
             ],
           ),

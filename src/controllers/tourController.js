@@ -314,18 +314,107 @@ exports.addMember = async (req, res) => {
       if (existingMember.status === 'active') {
         await t.rollback();
         return res.status(400).json({ error: 'Already a member' });
+      } else if (existingMember.status === 'pending') {
+        await t.rollback();
+        return res.status(400).json({ error: 'Invitation already pending' });
       } else {
-        await existingMember.update({ status: 'active', removed_at: null, role: 'viewer' }, { transaction: t });
+        await existingMember.update(
+          { status: 'pending', removed_at: null, role: 'viewer' },
+          { transaction: t }
+        );
       }
     } else {
-      await tour.addUser(user, { through: { role: 'viewer' }, transaction: t });
+      await TourMember.create(
+        {
+          tour_id: tourId,
+          user_id: userId,
+          role: 'viewer',
+          status: 'pending',
+          joined_at: new Date(),
+        },
+        { transaction: t }
+      );
     }
 
     await t.commit();
-    res.json({ message: 'Member added successfully' });
+    res.json({ message: 'Invitation sent successfully' });
   } catch (err) {
     if (t) await t.rollback();
     res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getMyInvitations = async (req, res) => {
+  try {
+    const invitations = await TourMember.findAll({
+      where: { user_id: req.user.id, status: 'pending' },
+      include: [{ model: Tour, attributes: ['id', 'name', 'purpose', 'created_by'] }],
+      order: [['updated_at', 'DESC']]
+    });
+
+    const payload = invitations.map((inv) => ({
+      tourId: inv.tour_id,
+      role: inv.role,
+      status: inv.status,
+      joinedAt: inv.joined_at,
+      tour: inv.Tour,
+    }));
+
+    return res.json(payload);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+exports.respondToInvitation = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const { tourId } = req.params;
+    const action = (req.body.action || '').toLowerCase();
+
+    if (!['accept', 'reject'].includes(action)) {
+      await t.rollback();
+      return res.status(400).json({ error: 'action must be accept or reject' });
+    }
+
+    const member = await TourMember.findOne({
+      where: {
+        tour_id: tourId,
+        user_id: req.user.id,
+        status: 'pending'
+      },
+      transaction: t
+    });
+
+    if (!member) {
+      await t.rollback();
+      return res.status(404).json({ error: 'Pending invitation not found' });
+    }
+
+    if (action === 'accept') {
+      await member.update(
+        {
+          status: 'active',
+          removed_at: null,
+          joined_at: new Date()
+        },
+        { transaction: t }
+      );
+    } else {
+      await member.update(
+        {
+          status: 'removed',
+          removed_at: new Date()
+        },
+        { transaction: t }
+      );
+    }
+
+    await t.commit();
+    return res.json({ message: `Invitation ${action}ed successfully` });
+  } catch (err) {
+    if (t) await t.rollback();
+    return res.status(500).json({ error: err.message });
   }
 };
 

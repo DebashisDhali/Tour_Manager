@@ -8,6 +8,8 @@ const joinRequestController = require('../controllers/joinRequestController');
 router.post('/', auth, tourController.createTour);
 router.get('/', auth, tourController.getAllTours);
 router.post('/join', auth, tourController.joinTour);
+router.get('/invitations/my', auth, tourController.getMyInvitations);
+router.patch('/:tourId/invitations/respond', auth, tourController.respondToInvitation);
 router.post('/:tourId/invite-code/regenerate', auth, rbac.checkTourAccess(['admin', 'editor']), tourController.regenerateInviteCode);
 
 // Temporary Diagnostic Route (no auth for direct inspection via ping)

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:drift/drift.dart' show Variable;
 import 'package:frontend/data/providers/app_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'create_tour_screen.dart';
@@ -30,11 +32,19 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
   final _profileKey = GlobalKey();
   final _joinCodeAppBarKey = GlobalKey();
   final _tourOverlayKey = GlobalKey<AppTourOverlayState>();
+  int _unreadNotificationCount = 0;
+  Set<String> _currentNotificationKeys = <String>{};
+  Timer? _notificationTimer;
 
   @override
   void initState() {
     super.initState();
     Future.microtask(() => _triggerInitialSync());
+    Future.microtask(() => _refreshNotifications(showSnackBar: true));
+    _notificationTimer = Timer.periodic(
+      const Duration(seconds: 45),
+      (_) => _refreshNotifications(),
+    );
     // Check if app tour needs to run (after first frame renders)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkAndStartTour();
@@ -52,6 +62,12 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
         }
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _notificationTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _checkAndStartTour() async {
@@ -118,10 +134,103 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
     if (user != null) {
       try {
         await ref.read(syncServiceProvider).startSync(user.id);
+        await _refreshNotifications(showSnackBar: true);
       } catch (e) {
         debugPrint("Initial auto-sync failed: $e");
       }
     }
+  }
+
+  Future<void> _refreshNotifications({bool showSnackBar = false}) async {
+    final user = ref.read(currentUserProvider).value;
+    if (user == null) return;
+
+    try {
+      final invitations =
+          await ref.read(syncServiceProvider).getMyInvitations();
+      final uniqueTourIds = <String>{};
+      final notificationKeys = <String>{};
+      for (final inv in invitations) {
+        final tour = inv['tour'] is Map
+            ? Map<String, dynamic>.from(inv['tour'] as Map)
+            : <String, dynamic>{};
+        final tourId = inv['tourId']?.toString() ?? tour['id']?.toString();
+        if (tourId != null && tourId.isNotEmpty) {
+          uniqueTourIds.add(tourId);
+          notificationKeys.add('invite_$tourId');
+        }
+      }
+
+      final db = ref.read(databaseProvider);
+      final approvalRows = await db.customSelect(
+        '''
+        SELECT DISTINCT jr.id AS request_id
+        FROM join_requests jr
+        INNER JOIN tour_members tm ON tm.tour_id = jr.tour_id
+        WHERE jr.status = 'pending'
+          AND LOWER(tm.user_id) = LOWER(?)
+          AND tm.status = 'active'
+          AND (LOWER(tm.role) = 'admin' OR LOWER(tm.role) = 'editor')
+        ''',
+        variables: [Variable.withString(user.id)],
+      ).get();
+      for (final row in approvalRows) {
+        final reqId = row.data['request_id']?.toString();
+        if (reqId != null && reqId.isNotEmpty) {
+          notificationKeys.add('approval_$reqId');
+        }
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final seenKey = 'seen_notification_keys_${user.id}';
+      final seenKeys = prefs.getStringList(seenKey)?.toSet() ?? <String>{};
+      final nextUnreadCount =
+          notificationKeys.where((k) => !seenKeys.contains(k)).length;
+
+      final shouldShowSnack =
+          showSnackBar && mounted && nextUnreadCount > _unreadNotificationCount;
+
+      if (!mounted) return;
+      setState(() {
+        _unreadNotificationCount = nextUnreadCount;
+        _currentNotificationKeys = notificationKeys;
+      });
+
+      if (shouldShowSnack) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'You have $nextUnreadCount unread notification${nextUnreadCount > 1 ? 's' : ''}.'),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Notification check failed: $e');
+    }
+  }
+
+  Future<void> _openProfileAndMarkSeen(models.User user) async {
+    final prefs = await SharedPreferences.getInstance();
+    final seenKey = 'seen_notification_keys_${user.id}';
+    final existingSeen = prefs.getStringList(seenKey)?.toSet() ?? <String>{};
+    existingSeen.addAll(_currentNotificationKeys);
+
+    final trimmedSeen = existingSeen.toList();
+    if (trimmedSeen.length > 1000) {
+      trimmedSeen.removeRange(0, trimmedSeen.length - 1000);
+    }
+
+    await prefs.setStringList(seenKey, trimmedSeen);
+
+    if (mounted) {
+      setState(() => _unreadNotificationCount = 0);
+    }
+
+    if (!mounted) return;
+    navigateWithTransition(context,
+        builder: () => UserProfileScreen(user: user, isMe: true));
   }
 
   @override
@@ -198,29 +307,64 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                   if (user != null)
                     InkWell(
                       key: _profileKey,
-                      onTap: () {
-                        navigateWithTransition(context,
-                            builder: () =>
-                                UserProfileScreen(user: user, isMe: true));
-                      },
+                      onTap: () => _openProfileAndMarkSeen(user),
                       child: Padding(
                         padding: const EdgeInsets.only(right: 16, left: 8),
-                        child: CircleAvatar(
-                          radius: 16,
-                          backgroundColor: config.color.withValues(alpha: 0.1),
-                          backgroundImage: user.avatarUrl != null
-                              ? NetworkImage(user.avatarUrl!)
-                              : null,
-                          child: user.avatarUrl == null
-                              ? Text(
-                                  user.name.isNotEmpty
-                                      ? user.name[0].toUpperCase()
-                                      : 'U',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      color: config.color,
-                                      fontWeight: FontWeight.bold))
-                              : null,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            CircleAvatar(
+                              radius: 16,
+                              backgroundColor:
+                                  config.color.withValues(alpha: 0.1),
+                              backgroundImage: user.avatarUrl != null
+                                  ? NetworkImage(user.avatarUrl!)
+                                  : null,
+                              child: user.avatarUrl == null
+                                  ? Text(
+                                      user.name.isNotEmpty
+                                          ? user.name[0].toUpperCase()
+                                          : 'U',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: config.color,
+                                          fontWeight: FontWeight.bold))
+                                  : null,
+                            ),
+                            if (_unreadNotificationCount > 0)
+                              Positioned(
+                                right: -5,
+                                top: -5,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 5, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .surface,
+                                        width: 1),
+                                  ),
+                                  constraints: const BoxConstraints(
+                                    minWidth: 16,
+                                    minHeight: 16,
+                                  ),
+                                  child: Text(
+                                    _unreadNotificationCount > 99
+                                        ? '99+'
+                                        : _unreadNotificationCount.toString(),
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ),
@@ -748,6 +892,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
 
     try {
       await ref.read(syncServiceProvider).startSync(user.id);
+      await _refreshNotifications();
 
       if (mounted) {
         messenger.hideCurrentSnackBar();

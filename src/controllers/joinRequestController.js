@@ -2,7 +2,11 @@ const { JoinRequest, Tour, User, TourMember, sequelize } = require('../models');
 
 exports.createJoinRequest = async (req, res) => {
   try {
-    const { tourId, user_id, user_name } = req.body;
+    const tourId = req.params.tourId || req.body.tourId;
+
+    if (!tourId) {
+      return res.status(400).json({ error: 'tourId is required' });
+    }
 
     const tour = await Tour.findByPk(tourId);
     if (!tour) return res.status(404).json({ error: 'Tour not found' });

@@ -26,6 +26,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       _avatarController; // This will now hold base64 or URL
   bool _isEditing = false;
   bool _isLoading = false;
+  bool _isLoadingInvitations = false;
+  List<Map<String, dynamic>> _pendingInvitations = [];
   final ImagePicker _picker = ImagePicker();
 
   ThemeData get theme => Theme.of(context);
@@ -51,6 +53,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     _emailController = TextEditingController(text: widget.user.email ?? "");
     _avatarController =
         TextEditingController(text: widget.user.avatarUrl ?? "");
+
+    if (widget.isMe) {
+      _loadIncomingInvitations();
+    }
   }
 
   @override
@@ -122,6 +128,64 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+    }
+  }
+
+  Future<void> _loadIncomingInvitations() async {
+    setState(() => _isLoadingInvitations = true);
+    try {
+      final syncService = ref.read(syncServiceProvider);
+      final invitations = await syncService.getMyInvitations();
+      final dedupedByTour = <String, Map<String, dynamic>>{};
+
+      for (final invitation in invitations) {
+        final tour = invitation['tour'] is Map
+            ? Map<String, dynamic>.from(invitation['tour'] as Map)
+            : <String, dynamic>{};
+        final tourId =
+            invitation['tourId']?.toString() ?? tour['id']?.toString() ?? '';
+        if (tourId.isEmpty) continue;
+        // Keep only one pending invitation per tour for clean UI.
+        dedupedByTour[tourId] = invitation;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _pendingInvitations = dedupedByTour.values.toList();
+        _isLoadingInvitations = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoadingInvitations = false);
+    }
+  }
+
+  Future<void> _respondToInvitation(String tourId, String action) async {
+    try {
+      setState(() => _isLoadingInvitations = true);
+      final syncService = ref.read(syncServiceProvider);
+      await syncService.respondToInvitation(tourId, action);
+
+      final currentUser = ref.read(currentUserProvider).value;
+      if (currentUser != null) {
+        await syncService.startSync(currentUser.id);
+      }
+
+      await _loadIncomingInvitations();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(action == 'accept'
+              ? 'Invitation accepted'
+              : 'Invitation rejected'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoadingInvitations = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red),
+      );
     }
   }
 
@@ -320,6 +384,76 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                 Colors.orange),
           ],
         ),
+        if (widget.isMe) ...[
+          const SizedBox(height: 20),
+          _buildSectionCard(
+            title: 'Pending Join Invitations',
+            items: [
+              if (_isLoadingInvitations)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (_pendingInvitations.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text('No pending invitations right now.'),
+                )
+              else
+                ..._pendingInvitations.map((invitation) {
+                  final tour = invitation['tour'] is Map
+                      ? Map<String, dynamic>.from(invitation['tour'] as Map)
+                      : <String, dynamic>{};
+                  final tourId = invitation['tourId']?.toString() ??
+                      tour['id']?.toString();
+                  final tourName = tour['name']?.toString() ?? 'Unnamed Tour';
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Theme.of(context)
+                              .dividerColor
+                              .withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: ListTile(
+                        title: Text(
+                          tourName,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        subtitle: const Text(
+                            'You were invited to join this tour. Accept or reject.'),
+                        trailing: tourId == null
+                            ? null
+                            : Wrap(
+                                spacing: 8,
+                                children: [
+                                  OutlinedButton(
+                                    onPressed: _isLoadingInvitations
+                                        ? null
+                                        : () => _respondToInvitation(
+                                            tourId, 'reject'),
+                                    child: const Text('Reject'),
+                                  ),
+                                  FilledButton(
+                                    onPressed: _isLoadingInvitations
+                                        ? null
+                                        : () => _respondToInvitation(
+                                            tourId, 'accept'),
+                                    child: const Text('Accept'),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    ),
+                  );
+                }),
+            ],
+          ),
+        ],
         const SizedBox(height: 20),
         if (widget.isMe) ...[
           _buildSectionCard(

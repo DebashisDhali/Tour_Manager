@@ -842,10 +842,41 @@ class SyncService {
       final response = await dio
           .post('$baseUrl/tours/$tourId/add-member', data: {'userId': userId});
       if (response.statusCode != 200) {
-        throw Exception(response.data['error'] ?? 'Failed to add member');
+        throw Exception(response.data['error'] ?? 'Failed to send invitation');
       }
     } catch (e) {
       print("Add member failed: $e");
+      throw Exception(e.toString());
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getMyInvitations() async {
+    try {
+      final response = await dio.get('$baseUrl/tours/invitations/my');
+      if (response.statusCode == 200 && response.data is List) {
+        return (response.data as List)
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      print("Get my invitations failed: $e");
+      return [];
+    }
+  }
+
+  Future<void> respondToInvitation(String tourId, String action) async {
+    try {
+      final response = await dio.patch(
+        '$baseUrl/tours/$tourId/invitations/respond',
+        data: {'action': action},
+      );
+      if (response.statusCode != 200) {
+        throw Exception(
+            response.data['error'] ?? 'Failed to respond invitation');
+      }
+    } catch (e) {
+      print("Respond invitation failed: $e");
       throw Exception(e.toString());
     }
   }

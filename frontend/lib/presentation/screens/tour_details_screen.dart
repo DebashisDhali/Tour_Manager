@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:drift/drift.dart' as drift;
 import 'user_profile_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/data/providers/app_providers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/add_member_dialog.dart';
 import '../widgets/add_income_dialog.dart';
 import '../widgets/allocate_fund_dialog.dart';
@@ -44,18 +46,107 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
   TabController? _tabController;
   int _tabLength = 3;
   bool _isProgram = false;
+  int _unreadNotificationCount = 0;
+  Set<String> _currentNotificationKeys = <String>{};
+  Timer? _notificationTimer;
 
   @override
   void initState() {
     super.initState();
     // Pre-select a member filter if provided (navigated from summary screen)
     _selectedFilterMemberId = widget.initialFilterMemberId;
+    Future.microtask(() => _refreshNotifications(showSnackBar: false));
+    _notificationTimer = Timer.periodic(
+      const Duration(seconds: 45),
+      (_) => _refreshNotifications(showSnackBar: false),
+    );
   }
 
   @override
   void dispose() {
+    _notificationTimer?.cancel();
     _tabController?.dispose();
     super.dispose();
+  }
+
+  Future<void> _refreshNotifications({bool showSnackBar = false}) async {
+    final user = ref.read(currentUserProvider).value;
+    if (user == null) return;
+
+    try {
+      final invitations =
+          await ref.read(syncServiceProvider).getMyInvitations();
+      final notificationKeys = <String>{};
+
+      for (final inv in invitations) {
+        final tour = inv['tour'] is Map
+            ? Map<String, dynamic>.from(inv['tour'] as Map)
+            : <String, dynamic>{};
+        final tourId = inv['tourId']?.toString() ?? tour['id']?.toString();
+        if (tourId != null && tourId.isNotEmpty) {
+          notificationKeys.add('invite_$tourId');
+        }
+      }
+
+      final db = ref.read(databaseProvider);
+      final approvalRows = await db.customSelect(
+        '''
+        SELECT DISTINCT jr.id AS request_id
+        FROM join_requests jr
+        INNER JOIN tour_members tm ON tm.tour_id = jr.tour_id
+        WHERE jr.status = 'pending'
+          AND LOWER(tm.user_id) = LOWER(?)
+          AND tm.status = 'active'
+          AND (LOWER(tm.role) = 'admin' OR LOWER(tm.role) = 'editor')
+        ''',
+        variables: [drift.Variable.withString(user.id)],
+      ).get();
+      for (final row in approvalRows) {
+        final reqId = row.data['request_id']?.toString();
+        if (reqId != null && reqId.isNotEmpty) {
+          notificationKeys.add('approval_$reqId');
+        }
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final seenKey = 'seen_notification_keys_${user.id}';
+      final seenKeys = prefs.getStringList(seenKey)?.toSet() ?? <String>{};
+      final nextUnreadCount =
+          notificationKeys.where((key) => !seenKeys.contains(key)).length;
+
+      if (!mounted) return;
+      setState(() {
+        _unreadNotificationCount = nextUnreadCount;
+        _currentNotificationKeys = notificationKeys;
+      });
+
+      if (showSnackBar && nextUnreadCount > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'You have $nextUnreadCount unread notification${nextUnreadCount > 1 ? 's' : ''}.'),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Tour details notification refresh failed: $e');
+    }
+  }
+
+  Future<void> _openProfileAndMarkSeen(User user) async {
+    final prefs = await SharedPreferences.getInstance();
+    final seenKey = 'seen_notification_keys_${user.id}';
+    final existingSeen = prefs.getStringList(seenKey)?.toSet() ?? <String>{};
+    existingSeen.addAll(_currentNotificationKeys);
+    await prefs.setStringList(seenKey, existingSeen.toList());
+
+    if (!mounted) return;
+    setState(() => _unreadNotificationCount = 0);
+
+    navigateWithTransition(context,
+        builder: () => UserProfileScreen(user: user, isMe: true));
   }
 
   void _initTabController(Tour tour) {
@@ -155,6 +246,46 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
               ],
             ),
             actions: [
+              if (me != null)
+                IconButton(
+                  onPressed: () => _openProfileAndMarkSeen(me),
+                  tooltip: 'Notifications',
+                  icon: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(Icons.notifications_none_rounded, size: 22),
+                      if (_unreadNotificationCount > 0)
+                        Positioned(
+                          right: -6,
+                          top: -6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.white, width: 1),
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 16,
+                              minHeight: 16,
+                            ),
+                            child: Text(
+                              _unreadNotificationCount > 99
+                                  ? '99+'
+                                  : _unreadNotificationCount.toString(),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               IconButton(
                 icon: const Icon(Icons.auto_awesome,
                     size: 22, color: Colors.amberAccent),
@@ -888,7 +1019,12 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data!.isEmpty)
           return const SizedBox.shrink();
-        final requests = snapshot.data!;
+        final dedupedByUser = <String, JoinRequest>{};
+        for (final req in snapshot.data!) {
+          final key = '${req.tourId}_${req.userId}'.toLowerCase();
+          dedupedByUser[key] = req;
+        }
+        final requests = dedupedByUser.values.toList();
 
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
