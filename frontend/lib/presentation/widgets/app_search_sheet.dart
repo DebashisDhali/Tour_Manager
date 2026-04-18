@@ -114,8 +114,8 @@ class _AppSearchSheetState extends ConsumerState<AppSearchSheet> {
       final filteredTours = <models.Tour>[];
       for (final tour in allTours) {
         try {
-          final name = tour.name ?? '';
-          final purpose = tour.purpose ?? '';
+          final name = tour.name;
+          final purpose = tour.purpose;
           if (name.toLowerCase().contains(query) ||
               purpose.toLowerCase().contains(query)) {
             filteredTours.add(tour);
@@ -136,7 +136,7 @@ class _AppSearchSheetState extends ConsumerState<AppSearchSheet> {
       final filteredUsers = <models.User>[];
       for (final user in allUsers) {
         try {
-          final name = user.name ?? '';
+          final name = user.name;
           if (name.toLowerCase().contains(query)) {
             filteredUsers.add(user);
           }
@@ -341,11 +341,11 @@ class _AppSearchSheetState extends ConsumerState<AppSearchSheet> {
 
   Widget _buildTourCard(models.Tour tour) {
     try {
-      final config = PurposeConfig.getConfig(tour.purpose ?? 'tour');
+      final config = PurposeConfig.getConfig(tour.purpose);
       final isJoined = _joinedTourIds.contains(tour.id);
       final isPending = _pendingTourIds.contains(tour.id);
-      final tourName = tour.name ?? 'Unnamed Tour';
-      final tourPurpose = tour.purpose ?? 'tour';
+      final tourName = tour.name;
+      final tourPurpose = tour.purpose;
 
       return Padding(
         padding: const EdgeInsets.only(bottom: 12),
@@ -393,12 +393,12 @@ class _AppSearchSheetState extends ConsumerState<AppSearchSheet> {
     try {
       final isMe = user.id == ref.read(currentUserProvider).value?.id;
       final avatarImage = _resolveAvatarImage(user.avatarUrl);
-      final userName = user.name ?? 'Unknown User';
+      final userName = user.name;
       final userSubtitle = isMe
           ? 'My profile'
-          : (user.email?.isNotEmpty == true
+          : ((user.email ?? '').isNotEmpty
               ? user.email!
-              : (user.phone?.isNotEmpty == true ? user.phone! : 'Profile'));
+              : ((user.phone ?? '').isNotEmpty ? user.phone! : 'Profile'));
 
       return Padding(
         padding: const EdgeInsets.only(bottom: 12),

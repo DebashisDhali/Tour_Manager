@@ -37,7 +37,7 @@ module.exports = (sequelize) => {
     }
   }, {
     timestamps: true,
-    createdAt: 'created_at',
+    createdAt: false,
     updatedAt: 'updated_at',
     indexes: [
       { fields: ['updated_at'] },
