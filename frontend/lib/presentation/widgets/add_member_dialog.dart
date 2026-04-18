@@ -26,7 +26,8 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
   final Set<Map<String, dynamic>> _selectedUsers = {};
   bool _isLoading = false;
   bool _isSearching = false;
-  bool _retroactiveSplit = false; // Whether to include new member in past expenses
+  bool _retroactiveSplit =
+      false; // Whether to include new member in past expenses
 
   @override
   void dispose() {
@@ -62,8 +63,10 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
       final userId = userData['id']?.toString() ?? '';
       if (userId.isEmpty) return;
 
-      final existsIndex = _selectedUsers.toList().indexWhere((u) => u['id']?.toString() == userId);
-      
+      final existsIndex = _selectedUsers
+          .toList()
+          .indexWhere((u) => u['id']?.toString() == userId);
+
       if (existsIndex != -1) {
         _selectedUsers.removeWhere((u) => u['id']?.toString() == userId);
       } else {
@@ -74,7 +77,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
 
   Future<void> _addSelectedUsers() async {
     if (_selectedUsers.isEmpty) return;
-    
+
     setState(() => _isLoading = true);
     final db = ref.read(databaseProvider);
     final syncService = ref.read(syncServiceProvider);
@@ -94,16 +97,18 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
           ));
-          
-          await db.into(db.tourMembers).insert(TourMember(
-            tourId: widget.tourId,
-            userId: user['id'],
-            status: 'active',
-            role: 'viewer',
-            mealCount: 0.0,
-            isSynced: true,
-            isDeleted: false,
-          ), mode: InsertMode.insertOrReplace);
+
+          await db.into(db.tourMembers).insert(
+              TourMember(
+                tourId: widget.tourId,
+                userId: user['id'],
+                status: 'active',
+                role: 'viewer',
+                mealCount: 0.0,
+                isSynced: true,
+                isDeleted: false,
+              ),
+              mode: InsertMode.insertOrReplace);
 
           // 2. Add to server
           await syncService.addMemberToTour(widget.tourId, user['id']);
@@ -111,9 +116,11 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
           // 3. Retroactive split if requested
           if (_retroactiveSplit) {
             final currentUserId = ref.read(currentUserProvider).value?.id;
-            await syncService.applyRetroactiveSplitLocally(widget.tourId, user['id']);
+            await syncService.applyRetroactiveSplitLocally(
+                widget.tourId, user['id']);
             if (currentUserId != null) {
-              await syncService.retroactiveSplit(widget.tourId, user['id'], currentUserId);
+              await syncService.retroactiveSplit(
+                  widget.tourId, user['id'], currentUserId);
             }
           }
           count++;
@@ -125,7 +132,9 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
       if (mounted) {
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Added $count ${count == 1 ? 'member' : 'members'} successfully!${_retroactiveSplit ? ' Past expenses redistributed.' : ''}')),
+          SnackBar(
+              content: Text(
+                  'Added $count ${count == 1 ? 'member' : 'members'} successfully!${_retroactiveSplit ? ' Past expenses redistributed.' : ''}')),
         );
       }
     } finally {
@@ -146,7 +155,9 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
         await db.createUser(User(
           id: userId,
           name: _nameController.text.trim(),
-          phone: _phoneController.text.isEmpty ? null : _phoneController.text.trim(),
+          phone: _phoneController.text.isEmpty
+              ? null
+              : _phoneController.text.trim(),
           isMe: false,
           isSynced: false,
           isDeleted: false,
@@ -155,14 +166,14 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
         ));
 
         await db.into(db.tourMembers).insert(TourMember(
-          tourId: widget.tourId,
-          userId: userId,
-          status: 'active',
-          role: 'viewer',
-          mealCount: 0.0,
-          isSynced: false,
-          isDeleted: false,
-        ));
+              tourId: widget.tourId,
+              userId: userId,
+              status: 'active',
+              role: 'viewer',
+              mealCount: 0.0,
+              isSynced: false,
+              isDeleted: false,
+            ));
 
         // Apply retroactive split locally before navigating away
         if (_retroactiveSplit) {
@@ -170,17 +181,19 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
           // Server sync will push redistributed splits on next connectivity
           final currentUserId = ref.read(currentUserProvider).value?.id;
           if (currentUserId != null) {
-            syncService.retroactiveSplit(widget.tourId, userId, currentUserId)
-              .catchError((e) => debugPrint('Retroactive server sync failed: $e'));
+            syncService
+                .retroactiveSplit(widget.tourId, userId, currentUserId)
+                .catchError(
+                    (e) => debugPrint('Retroactive server sync failed: $e'));
           }
         }
 
         if (mounted) {
           Navigator.pop(context, true);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(
-              '${config.memberLabel} added!${_retroactiveSplit ? ' Included in all past expenses.' : ''}'
-            )),
+            SnackBar(
+                content: Text(
+                    '${config.memberLabel} added!${_retroactiveSplit ? ' Included in all past expenses.' : ''}')),
           );
         }
       } catch (e) {
@@ -209,18 +222,26 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
         children: [
           Icon(Icons.person_add_rounded, color: config.color),
           const SizedBox(width: 12),
-          Text('Add ${config.memberLabel}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text('Add ${config.memberLabel}',
+              style:
+                  const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         ],
       ),
       content: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
+        constraints:
+            BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.7),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Search Section
-              const Text("SEARCH GLOBAL PROFILES", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Colors.grey, letterSpacing: 1)),
+              const Text("SEARCH GLOBAL PROFILES",
+                  style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 11,
+                      color: Colors.grey,
+                      letterSpacing: 1)),
               const SizedBox(height: 12),
               TextField(
                 controller: _searchController,
@@ -230,10 +251,20 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                   fillColor: Colors.grey.withOpacity(0.05),
                   isDense: true,
                   prefixIcon: Icon(Icons.search, size: 20, color: config.color),
-                  suffixIcon: _isSearching 
-                      ? const SizedBox(width: 16, height: 16, child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2)))
-                      : IconButton(icon: const Icon(Icons.arrow_forward), onPressed: () => _searchUsers(_searchController.text)),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  suffixIcon: _isSearching
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: Padding(
+                              padding: EdgeInsets.all(12),
+                              child: CircularProgressIndicator(strokeWidth: 2)))
+                      : IconButton(
+                          icon: const Icon(Icons.arrow_forward),
+                          onPressed: () =>
+                              _searchUsers(_searchController.text)),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none),
                 ),
                 onSubmitted: _searchUsers,
               ),
@@ -245,36 +276,54 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+                    border: Border.all(
+                        color: Theme.of(context).dividerColor.withOpacity(0.1)),
                   ),
                   child: Column(
                     children: _searchResults.map((item) {
                       try {
-                        if (item == null || item is! Map) return const SizedBox.shrink();
-                        
+                        if (item == null || item is! Map)
+                          return const SizedBox.shrink();
+
                         final u = Map<String, dynamic>.from(item);
                         final uId = u['id']?.toString() ?? '';
                         if (uId.isEmpty) return const SizedBox.shrink();
 
-                        final isSelected = _selectedUsers.any((selected) => selected['id']?.toString() == uId);
+                        final isSelected = _selectedUsers.any(
+                            (selected) => selected['id']?.toString() == uId);
                         final rawName = u['name']?.toString() ?? 'Member';
-                        final name = rawName.trim().isEmpty ? 'Member' : rawName.trim();
-                        final phone = u['phone']?.toString() ?? u['email']?.toString() ?? 'No contact';
-                        
+                        final name =
+                            rawName.trim().isEmpty ? 'Member' : rawName.trim();
+                        final phone = u['phone']?.toString() ??
+                            u['email']?.toString() ??
+                            'No contact';
+
                         return ListTile(
                           onTap: () => _toggleUserSelection(u),
                           dense: true,
                           leading: CircleAvatar(
-                            backgroundColor: isSelected ? config.color : config.color.withOpacity(0.1),
-                            child: isSelected 
-                              ? const Icon(Icons.check, color: Colors.white, size: 16)
-                              : Text(
-                                  name[0].toUpperCase(), 
-                                  style: TextStyle(color: config.color, fontSize: 12, fontWeight: FontWeight.bold)
-                                ),
+                            backgroundColor: isSelected
+                                ? config.color
+                                : config.color.withOpacity(0.1),
+                            child: isSelected
+                                ? const Icon(Icons.check,
+                                    color: Colors.white, size: 16)
+                                : Text(name[0].toUpperCase(),
+                                    style: TextStyle(
+                                        color: config.color,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold)),
                           ),
-                          title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          subtitle: Text(phone, style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
+                          title: Text(name,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold, fontSize: 13)),
+                          subtitle: Text(phone,
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withOpacity(0.6))),
                           trailing: Checkbox(
                             value: isSelected,
                             activeColor: config.color,
@@ -283,7 +332,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                           ),
                         );
                       } catch (e) {
-                         return const SizedBox.shrink();
+                        return const SizedBox.shrink();
                       }
                     }).toList(),
                   ),
@@ -293,18 +342,23 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
               if (_selectedUsers.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
                     color: config.color.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     children: [
-                      Text("${_selectedUsers.length} selected", style: TextStyle(fontWeight: FontWeight.bold, color: config.color)),
+                      Text("${_selectedUsers.length} selected",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: config.color)),
                       const Spacer(),
                       TextButton(
                         onPressed: () => setState(() => _selectedUsers.clear()),
-                        child: const Text("Clear All", style: TextStyle(color: Colors.red, fontSize: 12)),
+                        child: const Text("Clear All",
+                            style: TextStyle(color: Colors.red, fontSize: 12)),
                       ),
                     ],
                   ),
@@ -316,8 +370,12 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                   child: FilledButton.icon(
                     onPressed: _isLoading ? null : _addSelectedUsers,
                     icon: const Icon(Icons.person_add_rounded, size: 18),
-                    label: Text("Add ${_selectedUsers.length} ${config.memberLabel}s"),
-                    style: FilledButton.styleFrom(backgroundColor: config.color, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    label: Text(
+                        "Add ${_selectedUsers.length} ${config.memberLabel}s"),
+                    style: FilledButton.styleFrom(
+                        backgroundColor: config.color,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12))),
                   ),
                 ),
               ],
@@ -327,7 +385,16 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                 child: Row(
                   children: [
                     const Expanded(child: Divider()),
-                    Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text("OR", style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.4), fontWeight: FontWeight.bold))),
+                    Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text("OR",
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withOpacity(0.4),
+                                fontWeight: FontWeight.bold))),
                     const Expanded(child: Divider()),
                   ],
                 ),
@@ -336,33 +403,61 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
               // Invite Code Section
               tourAsync.maybeWhen(
                 data: (tour) {
-                   if (tour == null || tour.inviteCode == null) return const SizedBox.shrink();
-                   final hasServerCode = tour.isSynced;
-                   return Column(
+                  if (tour == null || tour.inviteCode == null)
+                    return const SizedBox.shrink();
+                  final hasServerCode = tour.isSynced;
+                  return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("SHARE INVITE CODE", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Colors.grey, letterSpacing: 1)),
+                      const Text("SHARE INVITE CODE",
+                          style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 11,
+                              color: Colors.grey,
+                              letterSpacing: 1)),
                       const SizedBox(height: 12),
                       InkWell(
                         onTap: hasServerCode
                             ? () {
-                                Clipboard.setData(ClipboardData(text: tour.inviteCode!));
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code copied!')));
+                                Clipboard.setData(
+                                    ClipboardData(text: tour.inviteCode!));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text('Code copied!')));
                               }
                             : null,
                         borderRadius: BorderRadius.circular(16),
                         child: Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: hasServerCode ? config.color.withOpacity(0.05) : Colors.grey.withOpacity(0.08),
+                            color: hasServerCode
+                                ? config.color.withOpacity(0.05)
+                                : Colors.grey.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: hasServerCode ? config.color.withOpacity(0.1) : Colors.grey.withOpacity(0.2)),
+                            border: Border.all(
+                                color: hasServerCode
+                                    ? config.color.withOpacity(0.1)
+                                    : Colors.grey.withOpacity(0.2)),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(tour.inviteCode!, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 4, color: hasServerCode ? Colors.black : Colors.grey)),
-                              Icon(hasServerCode ? Icons.copy_all_rounded : Icons.lock_outline, color: hasServerCode ? config.color : Colors.grey, size: 20),
+                              Text(tour.inviteCode!,
+                                  style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 4,
+                                      color: hasServerCode
+                                          ? Colors.black
+                                          : Colors.grey)),
+                              Icon(
+                                  hasServerCode
+                                      ? Icons.copy_all_rounded
+                                      : Icons.lock_outline,
+                                  color: hasServerCode
+                                      ? config.color
+                                      : Colors.grey,
+                                  size: 20),
                             ],
                           ),
                         ),
@@ -370,8 +465,9 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                       if (!hasServerCode) ...[
                         const SizedBox(height: 12),
                         Text(
-                          'এই ট্যুরটি এখনো সার্ভারে সিঙ্ক হয়নি। শেয়ার করার আগে sync করুন।',
-                          style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+                          'এই ট্যুরটি এখনো সার্ভারে সিঙ্ক হয়নি। শেয়ার করার আগে অনলাইনে সিঙ্ক করুন।',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.red.shade700),
                         ),
                         const SizedBox(height: 12),
                       ],
@@ -385,12 +481,17 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
               // Retroactive Split Toggle
               Container(
                 margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
-                  color: _retroactiveSplit ? config.color.withOpacity(0.08) : Colors.grey.withOpacity(0.05),
+                  color: _retroactiveSplit
+                      ? config.color.withOpacity(0.08)
+                      : Colors.grey.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: _retroactiveSplit ? config.color.withOpacity(0.3) : Colors.grey.withOpacity(0.1),
+                    color: _retroactiveSplit
+                        ? config.color.withOpacity(0.3)
+                        : Colors.grey.withOpacity(0.1),
                   ),
                 ),
                 child: Row(
@@ -410,13 +511,20 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
-                              color: _retroactiveSplit ? config.color : Theme.of(context).colorScheme.onSurface,
+                              color: _retroactiveSplit
+                                  ? config.color
+                                  : Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             'Split all existing expenses equally with this member',
-                            style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)),
+                            style: TextStyle(
+                                fontSize: 10,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withOpacity(0.5)),
                           ),
                         ],
                       ),
@@ -432,7 +540,12 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
               ),
 
               // Manual Section
-              const Text("ADD MANUALLY", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Colors.grey, letterSpacing: 1)),
+              const Text("ADD MANUALLY",
+                  style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 11,
+                      color: Colors.grey,
+                      letterSpacing: 1)),
               const SizedBox(height: 12),
               Form(
                 key: _formKey,
@@ -445,10 +558,13 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                         isDense: true,
                         filled: true,
                         fillColor: Colors.grey.withOpacity(0.05),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none),
                         prefixIcon: const Icon(Icons.person_outline, size: 20),
                       ),
-                      validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Required' : null,
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -458,7 +574,9 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                         isDense: true,
                         filled: true,
                         fillColor: Colors.grey.withOpacity(0.05),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none),
                         prefixIcon: const Icon(Icons.phone_outlined, size: 20),
                       ),
                       keyboardType: TextInputType.phone,
@@ -475,9 +593,11 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: config.color,
                     side: BorderSide(color: config.color),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text('Add Manually', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: const Text('Add Manually',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -493,4 +613,3 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
     );
   }
 }
-

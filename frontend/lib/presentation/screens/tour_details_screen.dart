@@ -212,45 +212,71 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                 ),
             ],
             bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(48),
-              child: Container(
-                decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withOpacity(0.1)),
-                child: TabBar(
-                  controller: _tabController,
-                  isScrollable:
-                      _isProgram || (tour.purpose.toLowerCase() == 'mess'),
-                  indicator: const UnderlineTabIndicator(
-                    borderSide: BorderSide(width: 3.0, color: Colors.white),
-                    insets: EdgeInsets.symmetric(horizontal: 16.0),
+              preferredSize: const Size.fromHeight(70),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.1)),
+                    child: TabBar(
+                      controller: _tabController,
+                      isScrollable:
+                          _isProgram || (tour.purpose.toLowerCase() == 'mess'),
+                      indicator: const UnderlineTabIndicator(
+                        borderSide: BorderSide(width: 3.0, color: Colors.white),
+                        insets: EdgeInsets.symmetric(horizontal: 16.0),
+                      ),
+                      labelColor: Colors.white,
+                      unselectedLabelColor: Colors.white70,
+                      labelStyle: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 13,
+                          letterSpacing: 0.2),
+                      unselectedLabelStyle: const TextStyle(
+                          fontWeight: FontWeight.w600, fontSize: 12),
+                      tabs: _isProgram
+                          ? [
+                              const Tab(text: 'DASHBOARD'),
+                              const Tab(text: 'INCOME'),
+                              const Tab(text: 'EXPENSES'),
+                              const Tab(text: 'TEAM'),
+                              const Tab(text: 'BANK'),
+                            ]
+                          : [
+                              Tab(text: config.expenseListLabel.toUpperCase()),
+                              Tab(text: config.memberLabel.toUpperCase()),
+                              if (tour.purpose.toLowerCase() == 'mess')
+                                const Tab(text: 'MEALS'),
+                              const Tab(text: 'SUMMARY'),
+                            ],
+                    ),
                   ),
-                  labelColor: Colors.white,
-                  unselectedLabelColor: Colors.white70,
-                  labelStyle: const TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 13,
-                      letterSpacing: 0.2),
-                  unselectedLabelStyle: const TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 12),
-                  tabs: _isProgram
-                      ? [
-                          const Tab(text: 'DASHBOARD'),
-                          const Tab(text: 'INCOME'),
-                          const Tab(text: 'EXPENSES'),
-                          const Tab(text: 'TEAM'),
-                          const Tab(text: 'BANK'),
-                        ]
-                      : [
-                          Tab(text: config.expenseListLabel.toUpperCase()),
-                          Tab(text: config.memberLabel.toUpperCase()),
-                          if (tour.purpose.toLowerCase() == 'mess')
-                            const Tab(text: 'MEALS'),
-                          const Tab(text: 'SUMMARY'),
+                  if (!tour.isSynced)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      color: Colors.red.shade50,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.lock_outline,
+                              color: Colors.red, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'This tour is not yet synced to the server. Invite code is not valid until sync completes.',
+                              style: TextStyle(
+                                  color: Colors.red.shade700, fontSize: 12),
+                            ),
+                          ),
                         ],
-                ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
