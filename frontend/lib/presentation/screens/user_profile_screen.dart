@@ -74,11 +74,13 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       if (image != null) {
         final bytes = await image.readAsBytes();
         final base64Image = base64Encode(bytes);
+        if (!mounted) return;
         setState(() {
           _avatarController.text = "data:image/png;base64,$base64Image";
         });
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text("Error picking image: $e")));
     }
@@ -104,6 +106,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       );
 
       await db.createUser(updatedUser);
+      if (!mounted) return;
       setState(() {
         _isEditing = false;
         _isLoading = false;
@@ -115,6 +118,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         ref.invalidate(currentUserProvider);
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
@@ -167,11 +171,19 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     ImageProvider? backgroundImage;
 
     if (photoData.isNotEmpty) {
-      if (photoData.startsWith("data:image")) {
-        final base64String = photoData.split(',').last;
-        backgroundImage = MemoryImage(base64Decode(base64String));
-      } else {
-        backgroundImage = NetworkImage(photoData);
+      try {
+        if (photoData.startsWith("data:image")) {
+          final parts = photoData.split(',');
+          if (parts.length > 1 && parts.last.isNotEmpty) {
+            backgroundImage = MemoryImage(base64Decode(parts.last));
+          }
+        } else if (photoData.startsWith('http://') ||
+            photoData.startsWith('https://')) {
+          backgroundImage = NetworkImage(photoData);
+        }
+      } catch (e) {
+        debugPrint('Profile avatar fallback due to invalid image data: $e');
+        backgroundImage = null;
       }
     }
 
@@ -195,8 +207,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color:
-                        (isDark ? Colors.black : Colors.blue).withOpacity(0.1),
+                    color: (isDark ? Colors.black : Colors.blue)
+                        .withValues(alpha: 0.1),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -236,7 +248,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         )
@@ -318,7 +330,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                      color: Colors.indigo.withOpacity(0.1),
+                      color: Colors.indigo.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10)),
                   child: Icon(
                       ref.watch(themeProvider) == ThemeMode.dark
@@ -342,7 +354,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                 trailing: Switch.adaptive(
                   value: isDark,
                   activeColor: Colors.indigo,
-                  activeTrackColor: Colors.indigo.withOpacity(0.5),
+                  activeTrackColor: Colors.indigo.withValues(alpha: 0.5),
                   onChanged: (val) {
                     ref
                         .read(themeProvider.notifier)
@@ -367,7 +379,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                 foregroundColor: Colors.red.shade600,
                 elevation: 0,
                 side: BorderSide(
-                    color: Colors.red.shade100.withOpacity(isDark ? 0.2 : 1.0),
+                    color: Colors.red.shade100
+                        .withValues(alpha: isDark ? 0.2 : 1.0),
                     width: 1.5),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16)),
@@ -483,7 +496,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
         boxShadow: [
           if (!isDark)
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 15,
               offset: const Offset(0, 5),
             )
@@ -518,7 +531,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10)),
             child: Icon(icon, color: color, size: 20),
           ),
@@ -571,7 +584,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
               backgroundColor: Colors.blue.shade600,
               foregroundColor: Colors.white,
               elevation: 5,
-              shadowColor: Colors.blue.withOpacity(0.3),
+              shadowColor: Colors.blue.withValues(alpha: 0.3),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20)),
             ),
