@@ -15,9 +15,10 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProviderStateMixin {
+class _LoginScreenState extends ConsumerState<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
-  final _loginController = TextEditingController(); 
+  final _loginController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -25,6 +26,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   List<Map<String, String>> _savedAccounts = [];
+  List<Map<String, String>> _filteredSuggestions = [];
 
   @override
   void initState() {
@@ -38,11 +40,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
     );
     _animationController.forward();
     _loadSavedCredentials();
+    _loginController.addListener(_updateSuggestions);
+  }
+
+  void _updateSuggestions() {
+    final input = _loginController.text.trim().toLowerCase();
+    setState(() {
+      if (input.isEmpty) {
+        // Show last 2 accounts when field is empty
+        _filteredSuggestions = _savedAccounts.take(2).toList();
+      } else {
+        // Filter accounts by phone/email match
+        _filteredSuggestions = _savedAccounts
+            .where((acc) => (acc['login'] ?? '').toLowerCase().contains(input))
+            .take(2)
+            .toList();
+      }
+    });
   }
 
   Future<void> _loadSavedCredentials() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     // Load a single last remembered account for default fill
     final savedLogin = prefs.getString('remembered_login');
     final savedPass = prefs.getString('remembered_password');
@@ -54,7 +73,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
       try {
         final List<dynamic> decoded = jsonDecode(accountsJson);
         setState(() {
-          _savedAccounts = decoded.map((e) => Map<String, String>.from(e)).toList();
+          _savedAccounts =
+              decoded.map((e) => Map<String, String>.from(e)).toList();
         });
       } catch (e) {
         debugPrint("Error decoding accounts: $e");
@@ -73,9 +93,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
   @override
   void dispose() {
     _animationController.dispose();
+    _loginController.removeListener(_updateSuggestions);
     _loginController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _quickLogin(String login, String password) async {
+    _loginController.text = login;
+    _passwordController.text = password;
+    _rememberMe = true;
+    await _login();
   }
 
   Future<void> _login() async {
@@ -112,10 +140,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
         // Remove if exists to re-add at front (or just update)
         newList.removeWhere((acc) => acc['login'] == loginInfo);
         newList.insert(0, {'login': loginInfo, 'password': password});
-        
+
         // Keep only last 5 accounts
         if (newList.length > 5) newList.removeRange(5, newList.length);
-        
+
         await prefs.setString('saved_accounts_list', jsonEncode(newList));
       } else {
         await prefs.remove('remembered_login');
@@ -124,8 +152,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
       }
 
       // Start background sync
-      ref.read(syncServiceProvider).startSync(user.id).catchError((e) => debugPrint("Auto Sync failed: $e"));
-      
+      ref
+          .read(syncServiceProvider)
+          .startSync(user.id)
+          .catchError((e) => debugPrint("Auto Sync failed: $e"));
+
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const TourListScreen()),
@@ -135,15 +166,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
     } catch (e) {
       if (mounted) {
         final errorMsg = e.toString().toLowerCase();
-        if (errorMsg.contains('internet') || errorMsg.contains('network') || errorMsg.contains('server communication')) {
-           NoInternetSheet.show(context, onRetry: _login, message: e.toString().replaceAll("Exception: ", ""));
+        if (errorMsg.contains('internet') ||
+            errorMsg.contains('network') ||
+            errorMsg.contains('server communication')) {
+          NoInternetSheet.show(context,
+              onRetry: _login,
+              message: e.toString().replaceAll("Exception: ", ""));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(e.toString().replaceAll("Exception: ", "")), 
+              content: Text(e.toString().replaceAll("Exception: ", "")),
               backgroundColor: Colors.redAccent,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
           );
         }
@@ -170,14 +206,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    const Color(0xFFEFF6FF).withValues(alpha: 0.6), // Lightest blue
+                    const Color(0xFFEFF6FF)
+                        .withValues(alpha: 0.6), // Lightest blue
                     const Color(0xFFF8FAFC).withValues(alpha: 0.0),
                   ],
                 ),
               ),
             ),
           ),
-          
+
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
@@ -203,15 +240,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                             ),
                           ],
                         ),
-                        child: Icon(Icons.account_balance_wallet_rounded, 
-                          size: 50, color: Colors.blue.shade600),
+                        child: Icon(Icons.account_balance_wallet_rounded,
+                            size: 50, color: Colors.blue.shade600),
                       ),
                       const SizedBox(height: 32),
                       Text(
                         "Welcome Back",
                         style: TextStyle(
-                          fontSize: 34, 
-                          fontWeight: FontWeight.w800, 
+                          fontSize: 34,
+                          fontWeight: FontWeight.w800,
                           color: Colors.blueGrey.shade900,
                           letterSpacing: -1.2,
                         ),
@@ -220,13 +257,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                       Text(
                         "Sign in to access your tour analytics",
                         style: TextStyle(
-                          fontSize: 16, 
+                          fontSize: 16,
                           color: Colors.blueGrey.shade500,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                       const SizedBox(height: 24),
-                      
+
                       // Saved Accounts Suggestions
                       if (_savedAccounts.isNotEmpty) ...[
                         SizedBox(
@@ -241,21 +278,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                                 child: ActionChip(
                                   avatar: CircleAvatar(
                                     backgroundColor: Colors.blue.shade100,
-                                    child: Text(acc['login']![0].toUpperCase(), 
-                                        style: TextStyle(color: Colors.blue.shade800, fontSize: 12, fontWeight: FontWeight.bold)),
+                                    child: Text(acc['login']![0].toUpperCase(),
+                                        style: TextStyle(
+                                            color: Colors.blue.shade800,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold)),
                                   ),
-                                  label: Text(acc['login']!, style: const TextStyle(fontSize: 12)),
+                                  label: Text(acc['login']!,
+                                      style: const TextStyle(fontSize: 12)),
                                   onPressed: () {
                                     setState(() {
                                       _loginController.text = acc['login']!;
-                                      _passwordController.text = acc['password']!;
+                                      _passwordController.text =
+                                          acc['password']!;
                                       _rememberMe = true;
                                     });
                                   },
                                   backgroundColor: Colors.white,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(24),
-                                    side: BorderSide(color: Colors.blue.shade100),
+                                    side:
+                                        BorderSide(color: Colors.blue.shade100),
                                   ),
                                 ),
                               );
@@ -266,7 +309,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                       ] else ...[
                         const SizedBox(height: 56),
                       ],
-                      
+
                       // Login Fields
                       Form(
                         key: _formKey,
@@ -277,8 +320,103 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                               label: "Email or Phone",
                               hint: "Enter your identifier",
                               icon: Icons.alternate_email_rounded,
-                              validator: (v) => v == null || v.isEmpty ? "Required" : null,
+                              validator: (v) =>
+                                  v == null || v.isEmpty ? "Required" : null,
                             ),
+                            // Suggestions for saved accounts
+                            if (_filteredSuggestions.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 12),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.blueGrey.shade200,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    children: _filteredSuggestions
+                                        .asMap()
+                                        .entries
+                                        .map((entry) {
+                                      final account = entry.value;
+                                      final login = account['login'] ?? '';
+                                      final password =
+                                          account['password'] ?? '';
+                                      return Column(
+                                        children: [
+                                          if (entry.key > 0)
+                                            Divider(
+                                              height: 1,
+                                              color: Colors.blueGrey.shade100,
+                                            ),
+                                          Material(
+                                            color: Colors.transparent,
+                                            child: InkWell(
+                                              onTap: () =>
+                                                  _quickLogin(login, password),
+                                              child: Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  horizontal: 16,
+                                                  vertical: 12,
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    Icon(Icons.history_rounded,
+                                                        size: 18,
+                                                        color: Colors
+                                                            .blueGrey.shade400),
+                                                    const SizedBox(width: 12),
+                                                    Expanded(
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          Text(
+                                                            login,
+                                                            style: TextStyle(
+                                                              fontSize: 14,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w700,
+                                                              color: Colors
+                                                                  .blueGrey
+                                                                  .shade800,
+                                                            ),
+                                                          ),
+                                                          Text(
+                                                            'Tap to login',
+                                                            style: TextStyle(
+                                                              fontSize: 11,
+                                                              color: Colors
+                                                                  .blueGrey
+                                                                  .shade500,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                    Icon(
+                                                        Icons
+                                                            .arrow_forward_rounded,
+                                                        size: 16,
+                                                        color: Colors
+                                                            .blueGrey.shade400),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                              ),
                             const SizedBox(height: 24),
                             _buildModernTextField(
                               controller: _passwordController,
@@ -288,13 +426,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                               obscureText: _obscurePassword,
                               suffixIcon: IconButton(
                                 icon: Icon(
-                                  _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                                  _obscurePassword
+                                      ? Icons.visibility_off_rounded
+                                      : Icons.visibility_rounded,
                                   color: Colors.blueGrey.shade400,
                                   size: 22,
                                 ),
-                                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword),
                               ),
-                              validator: (v) => v == null || v.isEmpty ? "Required" : null,
+                              validator: (v) =>
+                                  v == null || v.isEmpty ? "Required" : null,
                             ),
                             Align(
                               alignment: Alignment.centerLeft,
@@ -306,8 +448,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                                     child: Checkbox(
                                       value: _rememberMe,
                                       activeColor: Colors.blue.shade600,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                                      onChanged: (v) => setState(() => _rememberMe = v ?? false),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(4)),
+                                      onChanged: (v) => setState(
+                                          () => _rememberMe = v ?? false),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
@@ -338,7 +483,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                               ),
                             ),
                             const SizedBox(height: 32),
-                            
+
                             // Login Button
                             SizedBox(
                               width: double.infinity,
@@ -349,49 +494,51 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                                   backgroundColor: Colors.blue.shade600,
                                   foregroundColor: Colors.white,
                                   elevation: 8,
-                                  shadowColor: Colors.blue.withValues(alpha: 0.4),
+                                  shadowColor:
+                                      Colors.blue.withValues(alpha: 0.4),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                 ),
-                                child: _isLoading 
-                                  ? const SizedBox(
-                                      width: 24, 
-                                      height: 24, 
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 3,
-                                        color: Colors.white,
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 3,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                    : const Text(
+                                        "Login Now",
+                                        style: TextStyle(
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.5,
+                                        ),
                                       ),
-                                    )
-                                  : const Text(
-                                      "Login Now",
-                                      style: TextStyle(
-                                        fontSize: 17, 
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      
+
                       const SizedBox(height: 40),
-                      
+
                       // Footer
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
                             "Don't have an account? ",
-                            style: TextStyle(color: Colors.blueGrey.shade600, fontSize: 15),
+                            style: TextStyle(
+                                color: Colors.blueGrey.shade600, fontSize: 15),
                           ),
                           TextButton(
                             onPressed: () => Navigator.push(
-                              context, 
-                              MaterialPageRoute(builder: (_) => const RegisterScreen())
-                            ),
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const RegisterScreen())),
                             style: TextButton.styleFrom(
                               foregroundColor: Colors.blue.shade700,
                             ),
@@ -444,7 +591,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
           controller: controller,
           obscureText: obscureText,
           validator: validator,
-          style: TextStyle(color: Colors.blueGrey.shade900, fontWeight: FontWeight.w500),
+          style: TextStyle(
+              color: Colors.blueGrey.shade900, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(color: Colors.blueGrey.shade400, fontSize: 14),
@@ -454,7 +602,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
             fillColor: Colors.white,
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: Colors.blueGrey.shade200, width: 1.5),
+              borderSide:
+                  BorderSide(color: Colors.blueGrey.shade200, width: 1.5),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
@@ -468,11 +617,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
               borderRadius: BorderRadius.circular(16),
               borderSide: BorderSide(color: Colors.red.shade500, width: 2),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
           ),
         ),
       ],
     );
   }
 }
-
