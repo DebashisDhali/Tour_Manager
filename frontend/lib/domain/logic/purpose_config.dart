@@ -64,10 +64,10 @@ class PurposeConfig {
           name: 'Event',
           label: 'Event',
           pluralLabel: 'Events',
-          memberLabel: 'Participants',
-          addExpenseLabel: 'Add Event Cost',
-          expenseListLabel: 'Expenditures',
-          setupLabel: 'Event Details',
+          memberLabel: 'Members',
+          addExpenseLabel: 'Add Tour Expense',
+          expenseListLabel: 'Tour Expenses',
+          setupLabel: 'Tour Setup',
           icon: Icons.auto_awesome_rounded,
           color: const Color(0xFF8B5CF6), // Violet 500
           gradient: const LinearGradient(
@@ -84,10 +84,10 @@ class PurposeConfig {
           name: 'Project',
           label: 'Project',
           pluralLabel: 'Projects',
-          memberLabel: 'Team Members',
-          addExpenseLabel: 'Add Expense',
-          expenseListLabel: 'Costs',
-          setupLabel: 'Project Setup',
+          memberLabel: 'Members',
+          addExpenseLabel: 'Add Tour Expense',
+          expenseListLabel: 'Tour Expenses',
+          setupLabel: 'Tour Setup',
           icon: Icons.layers_rounded,
           color: const Color(0xFF3B82F6), // Blue 500
           gradient: const LinearGradient(
@@ -95,7 +95,7 @@ class PurposeConfig {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          shadowColor: const Color(0xFF3B82F6).withOpacity(0.2),
+          shadowColor: const Color(0xFF3B82F6).withValues(alpha: 0.2),
         );
       case 'party':
         return PurposeConfig(
@@ -103,10 +103,10 @@ class PurposeConfig {
           name: 'Party',
           label: 'Party',
           pluralLabel: 'Parties',
-          memberLabel: 'Guests',
-          addExpenseLabel: 'Add Contribution',
-          expenseListLabel: 'Contributions',
-          setupLabel: 'Party Setup',
+          memberLabel: 'Members',
+          addExpenseLabel: 'Add Tour Expense',
+          expenseListLabel: 'Tour Expenses',
+          setupLabel: 'Tour Setup',
           icon: Icons.nightlife_rounded,
           color: const Color(0xFFEF4444), // Red 500
           gradient: const LinearGradient(
@@ -141,10 +141,10 @@ class PurposeConfig {
           name: 'Project',
           label: 'Project',
           pluralLabel: 'Projects',
-          memberLabel: 'Team Members',
-          addExpenseLabel: 'Add Expense',
-          expenseListLabel: 'Costs',
-          setupLabel: 'Project Setup',
+          memberLabel: 'Members',
+          addExpenseLabel: 'Add Tour Expense',
+          expenseListLabel: 'Tour Expenses',
+          setupLabel: 'Tour Setup',
           icon: Icons.layers_rounded,
           color: const Color(0xFF3B82F6), // Blue 500
           gradient: const LinearGradient(
