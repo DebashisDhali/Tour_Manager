@@ -167,32 +167,31 @@ final expensesProvider = StreamProvider.family
     .autoDispose<List<ExpenseWithPayer>, String>((ref, tourId) {
   final db = ref.watch(databaseProvider);
 
-  // Only show expenses from active members and editors/admins (not viewer-only)
   final expenseQuery = db.select(db.expenses).join([
     leftOuterJoin(db.users, db.users.id.equalsExp(db.expenses.payerId)),
-    innerJoin(
-        db.tourMembers, db.tourMembers.tourId.equalsExp(db.expenses.tourId)),
   ])
-    ..where(db.expenses.tourId.equals(tourId) &
-        db.expenses.isDeleted.equals(false) &
-        (db.tourMembers.role.equals('admin') |
-            db.tourMembers.role.equals('editor') |
-            db.tourMembers.role.equals('viewer')))
+    ..where(
+        db.expenses.tourId.equals(tourId) & db.expenses.isDeleted.equals(false))
     ..orderBy([OrderingTerm.desc(db.expenses.createdAt)]);
 
   return expenseQuery.watch().map((rows) {
-    return rows.map((row) {
+    final uniqueByExpenseId = <String, ExpenseWithPayer>{};
+
+    for (final row in rows) {
       try {
-        return ExpenseWithPayer(
+        final expenseWithPayer = ExpenseWithPayer(
           row.readTable(db.expenses),
           row.readTableOrNull(db.users),
         );
+        uniqueByExpenseId[expenseWithPayer.expense.id] = expenseWithPayer;
       } catch (e) {
         print(
             "\n\n🧨 FATAL ERROR MAPPING EXPENSES PROVIDER ROW: ${row.rawData.data}\n\n");
         rethrow;
       }
-    }).toList();
+    }
+
+    return uniqueByExpenseId.values.toList();
   }).distinct((previous, next) {
     // Prevent duplicate emissions by comparing list lengths and IDs
     if (previous.length != next.length) return false;
