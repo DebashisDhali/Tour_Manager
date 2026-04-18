@@ -337,33 +337,44 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
               tourAsync.maybeWhen(
                 data: (tour) {
                    if (tour == null || tour.inviteCode == null) return const SizedBox.shrink();
+                   final hasServerCode = tour.isSynced;
                    return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text("SHARE INVITE CODE", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Colors.grey, letterSpacing: 1)),
                       const SizedBox(height: 12),
                       InkWell(
-                        onTap: () {
-                          Clipboard.setData(ClipboardData(text: tour.inviteCode!));
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code copied!')));
-                        },
+                        onTap: hasServerCode
+                            ? () {
+                                Clipboard.setData(ClipboardData(text: tour.inviteCode!));
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code copied!')));
+                              }
+                            : null,
                         borderRadius: BorderRadius.circular(16),
                         child: Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: config.color.withOpacity(0.05),
+                            color: hasServerCode ? config.color.withOpacity(0.05) : Colors.grey.withOpacity(0.08),
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: config.color.withOpacity(0.1)),
+                            border: Border.all(color: hasServerCode ? config.color.withOpacity(0.1) : Colors.grey.withOpacity(0.2)),
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(tour.inviteCode!, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 4)),
-                              Icon(Icons.copy_all_rounded, color: config.color, size: 20),
+                              Text(tour.inviteCode!, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 4, color: hasServerCode ? Colors.black : Colors.grey)),
+                              Icon(hasServerCode ? Icons.copy_all_rounded : Icons.lock_outline, color: hasServerCode ? config.color : Colors.grey, size: 20),
                             ],
                           ),
                         ),
                       ),
+                      if (!hasServerCode) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          'এই ট্যুরটি এখনো সার্ভারে সিঙ্ক হয়নি। শেয়ার করার আগে sync করুন।',
+                          style: TextStyle(fontSize: 12, color: Colors.red.shade700),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       const SizedBox(height: 24),
                     ],
                   );

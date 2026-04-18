@@ -1,6 +1,11 @@
-const { Tour, User, JoinRequest, Expense, ExpenseSplit, ExpensePayer, Settlement, TourMember, sequelize } = require('../models');
+const { Tour, User, JoinRequest, Expense, ExpenseSplit, ExpensePayer, Settlement, ProgramIncome, TourMember, sequelize } = require('../models');
 const { v4: uuidv4 } = require('uuid');
 const { Op } = require('sequelize');
+
+const INVITE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function generateInviteCode() {
+  return Array.from({ length: 6 }, () => INVITE_CHARS[Math.floor(Math.random() * INVITE_CHARS.length)]).join('');
+}
 
 exports.createTour = async (req, res) => {
   try {
@@ -77,6 +82,52 @@ exports.findTourByCode = async (req, res) => {
     res.status(200).json(tour);
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+};
+
+exports.regenerateInviteCode = async (req, res) => {
+  const { tourId } = req.params;
+  if (!tourId) {
+    return res.status(400).json({ error: 'tourId is required' });
+  }
+
+  const t = await sequelize.transaction();
+  try {
+    const tour = await Tour.findByPk(tourId, { transaction: t });
+    if (!tour) {
+      await t.rollback();
+      return res.status(404).json({ error: 'Tour not found' });
+    }
+
+    let inviteCode = null;
+    for (let i = 0; i < 8; i++) {
+      const candidate = generateInviteCode();
+      const existing = await Tour.findOne({
+        where: { invite_code: candidate, id: { [Op.ne]: tourId } },
+        transaction: t
+      });
+      if (!existing) {
+        inviteCode = candidate;
+        break;
+      }
+    }
+
+    if (!inviteCode) {
+      await t.rollback();
+      return res.status(500).json({ error: 'Failed to generate unique invite code. Please try again.' });
+    }
+
+    await tour.update({ invite_code: inviteCode }, { transaction: t });
+    await t.commit();
+
+    return res.status(200).json({
+      tourId: tour.id,
+      inviteCode,
+      message: 'Invite code generated and published to cloud'
+    });
+  } catch (err) {
+    if (t) await t.rollback();
+    return res.status(500).json({ error: err.message });
   }
 };
 

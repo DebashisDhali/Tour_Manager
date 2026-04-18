@@ -727,6 +727,31 @@ class SyncService {
     }
   }
 
+  Future<String> regenerateInviteCode(String tourId) async {
+    try {
+      final response = await dio.post('$baseUrl/tours/$tourId/invite-code/regenerate');
+      if (response.statusCode == 200 && response.data != null) {
+        final inviteCode = response.data['inviteCode']?.toString();
+        if (inviteCode == null || inviteCode.isEmpty) {
+          throw Exception('Invalid invite code response from server');
+        }
+        return inviteCode;
+      }
+      throw Exception(response.data?['error'] ?? 'Failed to generate invite code');
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        throw Exception('Only admin can generate invite code');
+      }
+      if (e.response?.statusCode == 404) {
+        throw Exception('Tour not found on server');
+      }
+      if (e.type == DioExceptionType.connectionError || e.type == DioExceptionType.connectionTimeout) {
+        throw Exception('Server unreachable. Check internet connection.');
+      }
+      throw Exception(e.response?.data?['error']?.toString() ?? e.message ?? 'Failed to generate invite code');
+    }
+  }
+
   Future<List<dynamic>> getJoinRequests(String tourId) async {
     try {
       final response = await dio.get('$baseUrl/tours/$tourId/requests');

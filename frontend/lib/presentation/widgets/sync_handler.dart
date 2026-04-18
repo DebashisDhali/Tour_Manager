@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/providers/app_providers.dart';
@@ -31,6 +32,8 @@ class SyncHandler extends ConsumerStatefulWidget {
 class _SyncHandlerState extends ConsumerState<SyncHandler>
     with WidgetsBindingObserver {
   Timer? _syncTimer;
+  ConnectivityResult _lastConnectivity = ConnectivityResult.none;
+  StreamSubscription<dynamic>? _connectivitySubscription;
 
   @override
   void initState() {
@@ -52,12 +55,33 @@ class _SyncHandlerState extends ConsumerState<SyncHandler>
       }
     });
 
+    // Auto-sync when network connectivity is regained
+    _connectivitySubscription =
+        Connectivity().onConnectivityChanged.listen((result) {
+      final currentResult = result is List
+          ? (result.isNotEmpty ? result.first : ConnectivityResult.none)
+          : result as ConnectivityResult;
+      if (currentResult != ConnectivityResult.none &&
+          _lastConnectivity == ConnectivityResult.none) {
+        _triggerSync('Connectivity Reconnected');
+      }
+      _lastConnectivity = currentResult;
+    });
+
+    Connectivity().checkConnectivity().then((result) {
+      final currentResult = result is List
+          ? (result.isNotEmpty ? result.first : ConnectivityResult.none)
+          : result as ConnectivityResult;
+      _lastConnectivity = currentResult;
+    }).catchError((_) {});
+
     _startPeriodicSync();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _connectivitySubscription?.cancel();
     _syncTimer?.cancel();
     super.dispose();
   }

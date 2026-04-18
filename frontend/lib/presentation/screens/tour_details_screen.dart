@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:drift/drift.dart' as drift;
-import 'dart:math';
 import 'user_profile_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/data/providers/app_providers.dart';
@@ -23,6 +22,7 @@ import '../widgets/premium_card.dart';
 class TourDetailsScreen extends ConsumerStatefulWidget {
   final String tourId;
   final String tourName;
+
   /// When set, opens directly to the Expenses tab with this member pre-filtered.
   final String? initialFilterMemberId;
 
@@ -37,7 +37,8 @@ class TourDetailsScreen extends ConsumerStatefulWidget {
   ConsumerState<TourDetailsScreen> createState() => _TourDetailsScreenState();
 }
 
-class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with TickerProviderStateMixin {
+class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
+    with TickerProviderStateMixin {
   String? _selectedFilterMemberId;
   TabController? _tabController;
   int _tabLength = 3;
@@ -61,7 +62,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
     final bool isProg = p == 'event' || p == 'business' || p == 'project';
     final bool isMess = p == 'mess';
     final int newLength = isProg ? 5 : (isMess ? 4 : 3);
-    
+
     if (_tabController == null || _tabLength != newLength) {
       _tabController?.dispose();
       _tabLength = newLength;
@@ -70,7 +71,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
       final int startIndex = widget.initialFilterMemberId != null
           ? (isProg ? 2 : 0) // expenses tab index
           : 0;
-      _tabController = TabController(length: _tabLength, vsync: this, initialIndex: startIndex);
+      _tabController = TabController(
+          length: _tabLength, vsync: this, initialIndex: startIndex);
       _tabController!.addListener(() {
         if (mounted) setState(() {}); // Rebuild for FAB updates
       });
@@ -90,7 +92,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.delete_outline, size: 64, color: Colors.grey),
+                  const Icon(Icons.delete_outline,
+                      size: 64, color: Colors.grey),
                   const SizedBox(height: 16),
                   const Text("This tour has been deleted."),
                   const SizedBox(height: 24),
@@ -103,13 +106,14 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
             ),
           );
         }
-        
+
         _initTabController(tour);
         final config = PurposeConfig.getConfig(tour.purpose);
 
         final me = ref.watch(currentUserProvider).value;
         final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
-        final myMember = membersAsync.value?.where((m) => m.user.id == me?.id).firstOrNull;
+        final myMember =
+            membersAsync.value?.where((m) => m.user.id == me?.id).firstOrNull;
         final myRole = myMember?.role ?? 'viewer';
         final isAdmin = me?.id == tour.createdBy || myRole == 'admin';
 
@@ -130,41 +134,62 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
             title: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(tour.name, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, letterSpacing: -0.8)),
+                Text(tour.name,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 20,
+                        letterSpacing: -0.8)),
                 const SizedBox(height: 2),
                 Text(
-                  tour.startDate == null 
-                    ? 'Ongoing Tracker' 
-                    : '${DateFormat('MMM dd').format(tour.startDate!)} - ${DateFormat('MMM dd, yyyy').format(tour.endDate ?? tour.startDate!)}',
-                  style: TextStyle(fontSize: 10, color: Colors.white.withOpacity(0.6), fontWeight: FontWeight.w800, letterSpacing: 0.5),
+                  tour.startDate == null
+                      ? 'Ongoing Tracker'
+                      : '${DateFormat('MMM dd').format(tour.startDate!)} - ${DateFormat('MMM dd, yyyy').format(tour.endDate ?? tour.startDate!)}',
+                  style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.white.withOpacity(0.6),
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5),
                 ),
               ],
             ),
             actions: [
               IconButton(
-                icon: const Icon(Icons.auto_awesome, size: 22, color: Colors.amberAccent),
+                icon: const Icon(Icons.auto_awesome,
+                    size: 22, color: Colors.amberAccent),
                 tooltip: 'AI Insights',
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => AiCoachScreen(tourId: tour.id, tourName: tour.name),
-                  ));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            AiCoachScreen(tourId: tour.id, tourName: tour.name),
+                      ));
                 },
               ),
               if (tour.inviteCode != null)
                 IconButton(
                   icon: const Icon(Icons.share_rounded, size: 22),
-                  onPressed: () => _showInviteCode(context, tour.inviteCode!, tour.purpose),
-                  tooltip: 'Invite ${config.memberLabel}',
+                  onPressed: tour.isSynced
+                      ? () => _generateAndShowCode(context, tour)
+                      : null,
+                  tooltip: tour.isSynced
+                      ? 'Invite ${config.memberLabel}'
+                      : 'Sync first to publish this tour',
                 )
               else
                 IconButton(
                   icon: const Icon(Icons.vpn_key_rounded, size: 22),
-                  onPressed: () => _generateAndShowCode(context, tour),
-                  tooltip: 'Generate Invite Code',
+                  onPressed: tour.isSynced
+                      ? () => _generateAndShowCode(context, tour)
+                      : null,
+                  tooltip: tour.isSynced
+                      ? 'Generate Invite Code'
+                      : 'Sync first to publish this tour',
                 ),
               if (isAdmin)
                 PopupMenuButton<String>(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20)),
                   icon: const Icon(Icons.more_vert_rounded),
                   onSelected: (val) {
                     if (val == 'delete_tour') {
@@ -174,7 +199,14 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                   itemBuilder: (context) => [
                     PopupMenuItem(
                       value: 'delete_tour',
-                      child: Row(children: [const Icon(Icons.delete_forever_rounded, color: Colors.red, size: 20), const SizedBox(width: 12), Text('Delete ${config.label}', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold))]),
+                      child: Row(children: [
+                        const Icon(Icons.delete_forever_rounded,
+                            color: Colors.red, size: 20),
+                        const SizedBox(width: 12),
+                        Text('Delete ${config.label}',
+                            style: const TextStyle(
+                                color: Colors.red, fontWeight: FontWeight.bold))
+                      ]),
                     ),
                   ],
                 ),
@@ -182,32 +214,42 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
             bottom: PreferredSize(
               preferredSize: const Size.fromHeight(48),
               child: Container(
-                decoration: BoxDecoration(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1)),
+                decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withOpacity(0.1)),
                 child: TabBar(
                   controller: _tabController,
-                  isScrollable: _isProgram || (tour.purpose.toLowerCase() == 'mess'),
+                  isScrollable:
+                      _isProgram || (tour.purpose.toLowerCase() == 'mess'),
                   indicator: const UnderlineTabIndicator(
                     borderSide: BorderSide(width: 3.0, color: Colors.white),
                     insets: EdgeInsets.symmetric(horizontal: 16.0),
                   ),
                   labelColor: Colors.white,
                   unselectedLabelColor: Colors.white70,
-                  labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.2),
-                  unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-                  tabs: _isProgram 
-                    ? [
-                        const Tab(text: 'DASHBOARD'),
-                        const Tab(text: 'INCOME'),
-                        const Tab(text: 'EXPENSES'),
-                        const Tab(text: 'TEAM'),
-                        const Tab(text: 'BANK'),
-                      ]
-                    : [
-                        Tab(text: config.expenseListLabel.toUpperCase()),
-                        Tab(text: config.memberLabel.toUpperCase()),
-                        if (tour.purpose.toLowerCase() == 'mess') const Tab(text: 'MEALS'),
-                        const Tab(text: 'SUMMARY'),
-                      ],
+                  labelStyle: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 13,
+                      letterSpacing: 0.2),
+                  unselectedLabelStyle: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 12),
+                  tabs: _isProgram
+                      ? [
+                          const Tab(text: 'DASHBOARD'),
+                          const Tab(text: 'INCOME'),
+                          const Tab(text: 'EXPENSES'),
+                          const Tab(text: 'TEAM'),
+                          const Tab(text: 'BANK'),
+                        ]
+                      : [
+                          Tab(text: config.expenseListLabel.toUpperCase()),
+                          Tab(text: config.memberLabel.toUpperCase()),
+                          if (tour.purpose.toLowerCase() == 'mess')
+                            const Tab(text: 'MEALS'),
+                          const Tab(text: 'SUMMARY'),
+                        ],
                 ),
               ),
             ),
@@ -215,24 +257,26 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
           body: TabBarView(
             controller: _tabController,
             children: _isProgram
-              ? [
-                  _buildProgramOverviewTab(tour),
-                  _buildIncomesTab(tour),
-                  _buildExpensesTab(tour),
-                  _buildMembersTab(tour),
-                  _buildAllocationsTab(tour),
-                ]
-              : [
-                  _buildExpensesTab(tour),
-                  _buildMembersTab(tour),
-                  if (tour.purpose.toLowerCase() == 'mess') _buildMealsTab(tour),
-                  _buildSummaryTab(),
-                ],
+                ? [
+                    _buildProgramOverviewTab(tour),
+                    _buildIncomesTab(tour),
+                    _buildExpensesTab(tour),
+                    _buildMembersTab(tour),
+                    _buildAllocationsTab(tour),
+                  ]
+                : [
+                    _buildExpensesTab(tour),
+                    _buildMembersTab(tour),
+                    if (tour.purpose.toLowerCase() == 'mess')
+                      _buildMealsTab(tour),
+                    _buildSummaryTab(),
+                  ],
           ),
           floatingActionButton: _buildFab(tour),
         );
       },
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, s) => Scaffold(body: Center(child: Text("Error: $e"))),
     );
   }
@@ -243,13 +287,14 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
 
     final me = ref.watch(currentUserProvider).value;
     final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
-    final myMember = membersAsync.value?.where((m) => m.user.id == me?.id).firstOrNull;
+    final myMember =
+        membersAsync.value?.where((m) => m.user.id == me?.id).firstOrNull;
     final myRole = myMember?.role ?? 'viewer';
-    final isEditor = me?.id == tour.createdBy || myRole == 'admin' || myRole == 'editor';
+    final isEditor =
+        me?.id == tour.createdBy || myRole == 'admin' || myRole == 'editor';
     final isAdmin = me?.id == tour.createdBy || myRole == 'admin';
 
     if (!isEditor) return null;
-
 
     IconData icon = Icons.add;
     String label = "Add Expense";
@@ -266,23 +311,32 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
         case 1: // Incomes
           icon = Icons.add_card;
           label = "Add Income";
-          action = () => showDialog(context: context, builder: (_) => AddIncomeDialog(tourId: widget.tourId));
+          action = () => showDialog(
+              context: context,
+              builder: (_) => AddIncomeDialog(tourId: widget.tourId));
           break;
         case 2: // Expenses
           icon = Icons.add;
           label = "Add Expense";
-          action = () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddExpenseScreen(tourId: widget.tourId)));
+          action = () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => AddExpenseScreen(tourId: widget.tourId)));
           break;
         case 3: // Members
           if (!isAdmin) return null;
           icon = Icons.person_add;
           label = "Add ${config.memberLabel}";
-          action = () => showDialog(context: context, builder: (_) => AddMemberDialog(tourId: widget.tourId));
+          action = () => showDialog(
+              context: context,
+              builder: (_) => AddMemberDialog(tourId: widget.tourId));
           break;
         case 4: // Allocations
           icon = Icons.send;
           label = "Allocate";
-          action = () => showDialog(context: context, builder: (_) => AllocateFundDialog(tourId: widget.tourId));
+          action = () => showDialog(
+              context: context,
+              builder: (_) => AllocateFundDialog(tourId: widget.tourId));
           break;
       }
     } else {
@@ -290,22 +344,30 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
         case 0: // Expenses
           icon = Icons.add;
           label = config.addExpenseLabel;
-          action = () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddExpenseScreen(tourId: widget.tourId)));
+          action = () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => AddExpenseScreen(tourId: widget.tourId)));
           break;
         case 1: // Members
           if (!isAdmin) return null;
           icon = Icons.person_add;
           label = "Add ${config.memberLabel}";
-          action = () => showDialog(context: context, builder: (_) => AddMemberDialog(tourId: widget.tourId));
+          action = () => showDialog(
+              context: context,
+              builder: (_) => AddMemberDialog(tourId: widget.tourId));
           break;
         case 2: // Meals or Summary
-           if (tour.purpose.toLowerCase() == 'mess') {
-             icon = Icons.restaurant;
-             label = "Daily Meals";
-             action = () => Navigator.push(context, MaterialPageRoute(builder: (_) => MealEntryScreen(tourId: widget.tourId)));
-             break;
-           }
-           return null;
+          if (tour.purpose.toLowerCase() == 'mess') {
+            icon = Icons.restaurant;
+            label = "Daily Meals";
+            action = () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => MealEntryScreen(tourId: widget.tourId)));
+            break;
+          }
+          return null;
         default:
           return null;
       }
@@ -323,80 +385,86 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
   void _showAddOptionsSheet(Tour tour) {
     final config = PurposeConfig.getConfig(tour.purpose);
     showModalBottomSheet(
-      context: context, 
-      builder: (context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ListTile(
-            leading: Icon(Icons.add_card, color: config.color),
-            title: const Text("Add Collected Fund"),
-            onTap: () { Navigator.pop(context); showDialog(context: context, builder: (_) => AddIncomeDialog(tourId: widget.tourId)); },
-          ),
-          ListTile(
-            leading: Icon(Icons.add, color: config.color),
-            title: const Text("Add Expense"),
-            onTap: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => AddExpenseScreen(tourId: widget.tourId))); },
-          ),
-          ListTile(
-            leading: Icon(Icons.send, color: config.color),
-            title: const Text("Allocate Fund to Member"),
-            onTap: () { Navigator.pop(context); showDialog(context: context, builder: (_) => AllocateFundDialog(tourId: widget.tourId)); },
-          ),
-        ],
-      )
-    );
+        context: context,
+        builder: (context) => Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: Icon(Icons.add_card, color: config.color),
+                  title: const Text("Add Collected Fund"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    showDialog(
+                        context: context,
+                        builder: (_) => AddIncomeDialog(tourId: widget.tourId));
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.add, color: config.color),
+                  title: const Text("Add Expense"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                AddExpenseScreen(tourId: widget.tourId)));
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.send, color: config.color),
+                  title: const Text("Allocate Fund to Member"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    showDialog(
+                        context: context,
+                        builder: (_) =>
+                            AllocateFundDialog(tourId: widget.tourId));
+                  },
+                ),
+              ],
+            ));
   }
 
   void _generateAndShowCode(BuildContext context, Tour tour) async {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    final code = List.generate(6, (index) => chars[Random().nextInt(chars.length)]).join();
-    
-    final db = ref.read(databaseProvider);
-    await (db.update(db.tours)..where((t) => t.id.equals(tour.id))).write(ToursCompanion(
-      inviteCode: drift.Value(code),
-      isSynced: const drift.Value(false),
-    ));
-    
-    bool synced = false;
-    bool isPublishedToCloud = false;
-    try {
-      final me = ref.read(currentUserProvider).value;
-      if (me != null) {
-        for (int attempt = 1; attempt <= 3; attempt++) {
-          try {
-            await ref.read(syncServiceProvider).startSync(me.id);
-            synced = true;
-            break;
-          } catch (syncErr) {
-            if (attempt < 3) await Future.delayed(const Duration(seconds: 2));
-          }
-        }
-
-        // Verify invite code is actually queryable from server before sharing.
-        if (synced) {
-          final cloudTour = await ref.read(syncServiceProvider).findTourByCode(code);
-          if (cloudTour != null && cloudTour['id']?.toString() == tour.id) {
-            isPublishedToCloud = true;
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("Invite code sync deferred: $e");
-    }
-    
-    if (context.mounted) {
-      if (!synced) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offline: Code generated but not synced yet.')));
-      } else if (!isPublishedToCloud) {
+    if (!tour.isSynced) {
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Code saved locally, but not yet published to cloud. Please sync again before sharing.')),
+          const SnackBar(
+              content: Text('Sync first to publish this tour to the server.')),
         );
       }
-      _showInviteCode(context, code, tour.purpose, isPublishedToCloud: isPublishedToCloud);
+      return;
+    }
+
+    String? code;
+    try {
+      code = await ref.read(syncServiceProvider).regenerateInviteCode(tour.id);
+
+      final db = ref.read(databaseProvider);
+      await (db.update(db.tours)..where((t) => t.id.equals(tour.id))).write(
+        ToursCompanion(
+          inviteCode: drift.Value(code),
+          isSynced: const drift.Value(true),
+          updatedAt: drift.Value(DateTime.now()),
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+        );
+      }
+      return;
+    }
+
+    if (context.mounted && code != null) {
+      _showInviteCode(context, code, tour.purpose, isPublishedToCloud: true);
     }
   }
 
-  void _showInviteCode(BuildContext context, String code, String? purpose, {bool isPublishedToCloud = false}) {
+  void _showInviteCode(BuildContext context, String code, String? purpose,
+      {bool isPublishedToCloud = false}) {
     final config = PurposeConfig.getConfig(purpose);
 
     showDialog(
@@ -413,26 +481,49 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
             ),
             const SizedBox(height: 20),
             InkWell(
-              onTap: () {
-                Clipboard.setData(ClipboardData(text: code));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Code copied!')),
-                );
-              },
+              onTap: isPublishedToCloud
+                  ? () {
+                      Clipboard.setData(ClipboardData(text: code));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Code copied!')),
+                      );
+                    }
+                  : null,
               borderRadius: BorderRadius.circular(12),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 decoration: BoxDecoration(
-                  color: config.color.withOpacity(0.1),
+                  color: isPublishedToCloud
+                      ? config.color.withOpacity(0.1)
+                      : Colors.grey.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: config.color.withOpacity(0.2)),
+                  border: Border.all(
+                    color: isPublishedToCloud
+                        ? config.color.withOpacity(0.2)
+                        : Colors.grey.withOpacity(0.25),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(code, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 4, color: config.color)),
+                    Text(
+                      code,
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 4,
+                        color: isPublishedToCloud ? config.color : Colors.grey,
+                      ),
+                    ),
                     const SizedBox(width: 8),
-                    Icon(Icons.copy, size: 20, color: config.color.withOpacity(0.5)),
+                    Icon(
+                      isPublishedToCloud ? Icons.copy : Icons.lock_outline,
+                      size: 20,
+                      color: isPublishedToCloud
+                          ? config.color.withOpacity(0.5)
+                          : Colors.grey,
+                    ),
                   ],
                 ),
               ),
@@ -440,15 +531,19 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
-          FilledButton.icon(
-            onPressed: isPublishedToCloud ? () {
-              final text = "Join my ${config.label.toLowerCase()}! Code: $code";
-              Share.share(text);
-              Navigator.pop(context);
-            } : null,
-            icon: const Icon(Icons.share),
-            label: Text(isPublishedToCloud ? 'Share' : 'Sync Required'),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close')),
+          FilledButton(
+            onPressed: isPublishedToCloud
+                ? () {
+                    final text =
+                        "Join my ${config.label.toLowerCase()}! Code: $code";
+                    Share.share(text);
+                    Navigator.pop(context);
+                  }
+                : null,
+            child: Text(isPublishedToCloud ? 'Share' : 'Sync First'),
             style: FilledButton.styleFrom(backgroundColor: config.color),
           ),
         ],
@@ -464,27 +559,31 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
 
     final me = ref.watch(currentUserProvider).value;
     final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
-    final myMember = membersAsync.value?.where((m) => m.user.id == me?.id).firstOrNull;
+    final myMember =
+        membersAsync.value?.where((m) => m.user.id == me?.id).firstOrNull;
     final myRole = myMember?.role ?? 'viewer';
-    final isEditor = me?.id == tour.createdBy || myRole == 'admin' || myRole == 'editor';
+    final isEditor =
+        me?.id == tour.createdBy || myRole == 'admin' || myRole == 'editor';
 
     return expensesAsync.when(
       data: (allExpenses) {
         final allPayers = allPayersAsync.value ?? [];
-        final filteredExpenses = _selectedFilterMemberId == null 
-
-          ? allExpenses 
-          : allExpenses.where((e) {
-              if (e.expense.payerId == _selectedFilterMemberId) return true;
-              return allPayers.any((p) => p.expenseId == e.expense.id && p.userId == _selectedFilterMemberId);
-            }).toList();
+        final filteredExpenses = _selectedFilterMemberId == null
+            ? allExpenses
+            : allExpenses.where((e) {
+                if (e.expense.payerId == _selectedFilterMemberId) return true;
+                return allPayers.any((p) =>
+                    p.expenseId == e.expense.id &&
+                    p.userId == _selectedFilterMemberId);
+              }).toList();
 
         if (allExpenses.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.receipt_long_outlined, size: 60, color: config.color.withOpacity(0.3)),
+                Icon(Icons.receipt_long_outlined,
+                    size: 60, color: config.color.withOpacity(0.3)),
                 const SizedBox(height: 16),
                 const Text('No expenses yet.'),
               ],
@@ -496,13 +595,15 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
         if (_selectedFilterMemberId == null) {
           total = allExpenses.fold(0.0, (sum, e) => sum + e.expense.amount);
         } else {
-          final expensesWithPayerRecords = allPayers.map((p) => p.expenseId).toSet();
+          final expensesWithPayerRecords =
+              allPayers.map((p) => p.expenseId).toSet();
           total = allPayers
-            .where((p) => p.userId == _selectedFilterMemberId)
-            .fold(0.0, (sum, p) => sum + p.amount);
+              .where((p) => p.userId == _selectedFilterMemberId)
+              .fold(0.0, (sum, p) => sum + p.amount);
 
           for (var e in allExpenses) {
-            if (!expensesWithPayerRecords.contains(e.expense.id) && e.expense.payerId == _selectedFilterMemberId) {
+            if (!expensesWithPayerRecords.contains(e.expense.id) &&
+                e.expense.payerId == _selectedFilterMemberId) {
               total += e.expense.amount;
             }
           }
@@ -521,21 +622,29 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                     ChoiceChip(
                       label: const Text("All"),
                       selected: _selectedFilterMemberId == null,
-                      onSelected: (_) => setState(() => _selectedFilterMemberId = null),
+                      onSelected: (_) =>
+                          setState(() => _selectedFilterMemberId = null),
                       selectedColor: config.color,
-                      labelStyle: TextStyle(color: _selectedFilterMemberId == null ? Colors.white : Theme.of(context).colorScheme.onSurface),
+                      labelStyle: TextStyle(
+                          color: _selectedFilterMemberId == null
+                              ? Colors.white
+                              : Theme.of(context).colorScheme.onSurface),
                     ),
                     const SizedBox(width: 8),
                     ...members.map((m) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(m.user.name),
-                        selected: _selectedFilterMemberId == m.user.id,
-                        onSelected: (s) => setState(() => _selectedFilterMemberId = s ? m.user.id : null),
-                        selectedColor: config.color,
-                        labelStyle: TextStyle(color: _selectedFilterMemberId == m.user.id ? Colors.white : Theme.of(context).colorScheme.onSurface),
-                      ),
-                    )),
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(m.user.name),
+                            selected: _selectedFilterMemberId == m.user.id,
+                            onSelected: (s) => setState(() =>
+                                _selectedFilterMemberId = s ? m.user.id : null),
+                            selectedColor: config.color,
+                            labelStyle: TextStyle(
+                                color: _selectedFilterMemberId == m.user.id
+                                    ? Colors.white
+                                    : Theme.of(context).colorScheme.onSurface),
+                          ),
+                        )),
                   ],
                 ),
               ),
@@ -548,8 +657,13 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("Total Spent:", style: TextStyle(fontWeight: FontWeight.bold)),
-                  Text("৳${total.toStringAsFixed(0)}", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: config.color)),
+                  const Text("Total Spent:",
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  Text("৳${total.toStringAsFixed(0)}",
+                      style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: config.color)),
                 ],
               ),
             ),
@@ -563,46 +677,67 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
 
                   // Calculate display payer name(s)
                   String payerText = item.payer?.name ?? 'Combined';
-                  if (allPayersAsync.hasValue && allUsersAsync.hasValue && allPayersAsync.value != null && allUsersAsync.value != null) {
-                    final expPayers = allPayersAsync.value!.where((p) => p.expenseId == exp.id).toList();
+                  if (allPayersAsync.hasValue &&
+                      allUsersAsync.hasValue &&
+                      allPayersAsync.value != null &&
+                      allUsersAsync.value != null) {
+                    final expPayers = allPayersAsync.value!
+                        .where((p) => p.expenseId == exp.id)
+                        .toList();
                     if (expPayers.length > 1) {
                       final names = expPayers.map((p) {
-                         try {
-                           return allUsersAsync.value!.firstWhere((u) => u.id == p.userId).name;
-                         } catch (e) {
-                           return "User";
-                         }
+                        try {
+                          return allUsersAsync.value!
+                              .firstWhere((u) => u.id == p.userId)
+                              .name;
+                        } catch (e) {
+                          return "User";
+                        }
                       }).toList();
-                      
+
                       if (names.length == 2) {
                         payerText = names.join(" & ");
                       } else if (names.isNotEmpty) {
-                        payerText = "${names.first} + ${names.length - 1} others";
+                        payerText =
+                            "${names.first} + ${names.length - 1} others";
                       }
                     }
                   }
 
                   return PremiumCard(
-                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    margin:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     child: Row(
                       children: [
                         CircleAvatar(
                           radius: 18,
-                          backgroundColor: _getCategoryColor(exp.category).withOpacity(0.1),
-                          child: Icon(_getCategoryIcon(exp.category), color: _getCategoryColor(exp.category), size: 18),
+                          backgroundColor:
+                              _getCategoryColor(exp.category).withOpacity(0.1),
+                          child: Icon(_getCategoryIcon(exp.category),
+                              color: _getCategoryColor(exp.category), size: 18),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(exp.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: -0.2)),
+                              Text(exp.title,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      letterSpacing: -0.2)),
                               const SizedBox(height: 2),
                               Text(
-                                "Paid by: $payerText • ${DateFormat('MMM dd, hh:mm a').format(exp.createdAt)}", 
-                                style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7), fontWeight: FontWeight.w600)
-                              ),
+                                  "Paid by: $payerText • ${DateFormat('MMM dd, hh:mm a').format(exp.createdAt)}",
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withOpacity(0.7),
+                                      fontWeight: FontWeight.w600)),
                             ],
                           ),
                         ),
@@ -611,16 +746,31 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              "৳${(() {
-                                if (_selectedFilterMemberId == null) return exp.amount;
-                                final userPaid = allPayers.where((p) => p.expenseId == exp.id && p.userId == _selectedFilterMemberId);
-                                if (userPaid.isNotEmpty) return userPaid.fold(0.0, (sum, p) => sum + p.amount);
-                                return exp.payerId == _selectedFilterMemberId ? exp.amount : 0.0;
-                              })().toStringAsFixed(0)}", 
-                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Colors.redAccent)
-                            ),
-                            if (_selectedFilterMemberId != null) 
-                              Text("of ৳${exp.amount.toStringAsFixed(0)}", style: TextStyle(fontSize: 9, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3))),
+                                "৳${(() {
+                                  if (_selectedFilterMemberId == null)
+                                    return exp.amount;
+                                  final userPaid = allPayers.where((p) =>
+                                      p.expenseId == exp.id &&
+                                      p.userId == _selectedFilterMemberId);
+                                  if (userPaid.isNotEmpty)
+                                    return userPaid.fold(
+                                        0.0, (sum, p) => sum + p.amount);
+                                  return exp.payerId == _selectedFilterMemberId
+                                      ? exp.amount
+                                      : 0.0;
+                                })().toStringAsFixed(0)}",
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 14,
+                                    color: Colors.redAccent)),
+                            if (_selectedFilterMemberId != null)
+                              Text("of ৳${exp.amount.toStringAsFixed(0)}",
+                                  style: TextStyle(
+                                      fontSize: 9,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withOpacity(0.3))),
                           ],
                         ),
                         const SizedBox(width: 4),
@@ -629,12 +779,26 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                             padding: EdgeInsets.zero,
                             iconSize: 20,
                             onSelected: (val) {
-                              if (val == 'edit') Navigator.push(context, MaterialPageRoute(builder: (_) => AddExpenseScreen(tourId: widget.tourId, initialExpense: exp)));
-                              if (val == 'delete') _showDeleteDialog(context, exp);
+                              if (val == 'edit')
+                                Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => AddExpenseScreen(
+                                            tourId: widget.tourId,
+                                            initialExpense: exp)));
+                              if (val == 'delete')
+                                _showDeleteDialog(context, exp);
                             },
                             itemBuilder: (context) => [
-                              const PopupMenuItem(value: 'edit', child: Text('Edit', style: TextStyle(fontSize: 13))),
-                              const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red, fontSize: 13))),
+                              const PopupMenuItem(
+                                  value: 'edit',
+                                  child: Text('Edit',
+                                      style: TextStyle(fontSize: 13))),
+                              const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Delete',
+                                      style: TextStyle(
+                                          color: Colors.red, fontSize: 13))),
                             ],
                           ),
                       ],
@@ -654,15 +818,22 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
   Widget _buildJoinRequests(Tour tour) {
     final me = ref.watch(currentUserProvider).value;
     final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
-    final isAdmin = me?.id == tour.createdBy || (membersAsync.value?.any((m) => m.user.id == me?.id && m.role == 'admin') ?? false);
-    
+    final isAdmin = me?.id == tour.createdBy ||
+        (membersAsync.value
+                ?.any((m) => m.user.id == me?.id && m.role == 'admin') ??
+            false);
+
     if (!isAdmin) return const SizedBox.shrink();
 
     final db = ref.read(databaseProvider);
     return StreamBuilder<List<JoinRequest>>(
-      stream: (db.select(db.joinRequests)..where((t) => t.tourId.equals(widget.tourId) & t.status.equals('pending'))).watch(),
+      stream: (db.select(db.joinRequests)
+            ..where((t) =>
+                t.tourId.equals(widget.tourId) & t.status.equals('pending')))
+          .watch(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.isEmpty) return const SizedBox.shrink();
+        if (!snapshot.hasData || snapshot.data!.isEmpty)
+          return const SizedBox.shrink();
         final requests = snapshot.data!;
 
         return Container(
@@ -678,45 +849,69 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
             children: [
               const Row(
                 children: [
-                  Icon(Icons.person_add_alt_1_rounded, size: 20, color: Colors.orange),
+                  Icon(Icons.person_add_alt_1_rounded,
+                      size: 20, color: Colors.orange),
                   SizedBox(width: 12),
-                  Text("Join Requests", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                  Text("Join Requests",
+                      style:
+                          TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
                 ],
               ),
               const SizedBox(height: 12),
-              ...requests.map((r) => ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(child: Text(r.userName[0])),
-                title: Text(r.userName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.check_circle, color: Colors.green),
-                      onPressed: () async {
-                        try {
-                          await ref.read(syncServiceProvider).handleJoinRequest(r.id, 'approved');
-                          await (db.update(db.joinRequests)..where((t) => t.id.equals(r.id))).write(const JoinRequestsCompanion(status: drift.Value('approved')));
-                          await ref.read(syncServiceProvider).startSync(me!.id);
-                        } catch (e) {
-                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-                        }
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.cancel, color: Colors.red),
-                      onPressed: () async {
-                        try {
-                          await ref.read(syncServiceProvider).handleJoinRequest(r.id, 'rejected');
-                          await (db.update(db.joinRequests)..where((t) => t.id.equals(r.id))).write(const JoinRequestsCompanion(status: drift.Value('rejected')));
-                        } catch (e) {
-                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              )).toList(),
+              ...requests
+                  .map((r) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(child: Text(r.userName[0])),
+                        title: Text(r.userName,
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.check_circle,
+                                  color: Colors.green),
+                              onPressed: () async {
+                                try {
+                                  await ref
+                                      .read(syncServiceProvider)
+                                      .handleJoinRequest(r.id, 'approved');
+                                  await (db.update(db.joinRequests)
+                                        ..where((t) => t.id.equals(r.id)))
+                                      .write(const JoinRequestsCompanion(
+                                          status: drift.Value('approved')));
+                                  await ref
+                                      .read(syncServiceProvider)
+                                      .startSync(me!.id);
+                                } catch (e) {
+                                  if (context.mounted)
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text(e.toString())));
+                                }
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.cancel, color: Colors.red),
+                              onPressed: () async {
+                                try {
+                                  await ref
+                                      .read(syncServiceProvider)
+                                      .handleJoinRequest(r.id, 'rejected');
+                                  await (db.update(db.joinRequests)
+                                        ..where((t) => t.id.equals(r.id)))
+                                      .write(const JoinRequestsCompanion(
+                                          status: drift.Value('rejected')));
+                                } catch (e) {
+                                  if (context.mounted)
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text(e.toString())));
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ))
+                  .toList(),
             ],
           ),
         );
@@ -744,8 +939,14 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
               children: [
                 Icon(Icons.info_outline, color: config.color, size: 20),
                 const SizedBox(width: 12),
-                const Expanded(child: Text("Invite others via shared code to manage costs together.", style: TextStyle(fontSize: 12))),
-                TextButton(onPressed: _showMemberSystemInfo, child: const Text("How it works?", style: TextStyle(fontSize: 11))),
+                const Expanded(
+                    child: Text(
+                        "Invite others via shared code to manage costs together.",
+                        style: TextStyle(fontSize: 12))),
+                TextButton(
+                    onPressed: _showMemberSystemInfo,
+                    child: const Text("How it works?",
+                        style: TextStyle(fontSize: 11))),
               ],
             ),
           ),
@@ -755,116 +956,168 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: members.length,
               itemBuilder: (context, index) {
-          final m = members[index];
-          final isMe = me?.id == m.user.id;
-          final isRemoved = m.status.toLowerCase().trim() == 'removed';
-          
-            final isAdmin = me?.id == tour.createdBy || members.any((x) => x.user.id == me?.id && x.role == 'admin');
-            
-            Widget? trailingWidget;
-            if (isAdmin && !isMe) {
-               trailingWidget = Row(
-                 mainAxisSize: MainAxisSize.min,
-                 children: [
-                   if (!isRemoved) ...[
-                     IconButton(
-                       icon: Icon(Icons.history_rounded, color: config.color, size: 18),
-                       tooltip: "Include in Past Expenses",
-                       onPressed: () => _confirmRetroactiveSplit(m.user),
-                     ),
-                     DropdownButton<String>(
-                     value: m.role,
-                     icon: const Icon(Icons.arrow_drop_down, size: 16),
-                     style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface, fontWeight: FontWeight.bold),
-                     items: const [
-                       DropdownMenuItem(value: 'viewer', child: Text('Viewer')),
-                       DropdownMenuItem(value: 'editor', child: Text('Editor')),
-                       DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                     ],
-                     onChanged: (val) {
-                       if (val != null) {
-                         ref.read(databaseProvider).updateMemberRole(widget.tourId, m.user.id, val);
-                         ref.read(syncServiceProvider).updateMemberRole(widget.tourId, m.user.id, val).catchError((e) => debugPrint(e.toString()));
-                       }
-                     },
-                     underline: const SizedBox(),
-                   ),
-                   ],
-                   isRemoved 
-                     ? IconButton(
-                         onPressed: () => _showRestoreConfirmation(m.user), 
-                         icon: const Icon(Icons.settings_backup_restore, size: 20),
-                         color: config.color,
-                         tooltip: "Restore",
-                       )
-                     : IconButton(icon: const Icon(Icons.person_remove, color: Colors.red, size: 18), onPressed: () => _showLeaveConfirmation(m.user, isRemoval: true)),
-                 ],
-               );
-            } else {
-               if (!isRemoved) {
-                 trailingWidget = Container(
-                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                   decoration: BoxDecoration(color: Colors.grey.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                   child: Text(m.role.toUpperCase(), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Colors.grey))
-                 );
-               }
-            }
+                final m = members[index];
+                final isMe = me?.id == m.user.id;
+                final isRemoved = m.status.toLowerCase().trim() == 'removed';
 
-            return Card(
-              elevation: isRemoved ? 0 : 1,
-              color: isRemoved ? Colors.grey.shade50 : null,
-              child: Opacity(
-                opacity: isRemoved ? 0.6 : 1.0,
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: isRemoved ? Colors.grey.shade200 : config.color.withOpacity(0.1),
-                    child: Text(m.user.name[0], style: TextStyle(color: isRemoved ? Colors.grey : config.color, fontWeight: FontWeight.bold)),
-                  ),
-                  title: Text(
-                    isMe ? "${m.user.name} (You)" : m.user.name,
-                    style: TextStyle(
-                      decoration: isRemoved ? TextDecoration.lineThrough : null,
-                      color: isRemoved ? Colors.grey : null,
-                    ),
-                  ),
-                  subtitle: tour.purpose.toLowerCase() == 'mess' 
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(m.user.phone ?? "No phone", style: const TextStyle(fontSize: 10)),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Icon(Icons.restaurant_menu, size: 14, color: isRemoved ? Colors.grey : config.color.withOpacity(0.7)),
-                              const SizedBox(width: 4),
-                              Text(
-                                "Meal Count: ${m.mealCount.toStringAsFixed(1)}", 
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold, 
-                                  fontSize: 13, 
-                                  color: isRemoved ? Colors.grey : Theme.of(context).colorScheme.onSurface.withOpacity(0.8)
-                                ),
-                              ),
-                              if (isRemoved) ...[
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                  decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(4)),
-                                  child: const Text("REMOVED", style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.grey)),
+                final isAdmin = me?.id == tour.createdBy ||
+                    members
+                        .any((x) => x.user.id == me?.id && x.role == 'admin');
+
+                Widget? trailingWidget;
+                if (isAdmin && !isMe) {
+                  trailingWidget = Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!isRemoved) ...[
+                        IconButton(
+                          icon: Icon(Icons.history_rounded,
+                              color: config.color, size: 18),
+                          tooltip: "Include in Past Expenses",
+                          onPressed: () => _confirmRetroactiveSplit(m.user),
+                        ),
+                        DropdownButton<String>(
+                          value: m.role,
+                          icon: const Icon(Icons.arrow_drop_down, size: 16),
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: Theme.of(context).colorScheme.onSurface,
+                              fontWeight: FontWeight.bold),
+                          items: const [
+                            DropdownMenuItem(
+                                value: 'viewer', child: Text('Viewer')),
+                            DropdownMenuItem(
+                                value: 'editor', child: Text('Editor')),
+                            DropdownMenuItem(
+                                value: 'admin', child: Text('Admin')),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) {
+                              ref.read(databaseProvider).updateMemberRole(
+                                  widget.tourId, m.user.id, val);
+                              ref
+                                  .read(syncServiceProvider)
+                                  .updateMemberRole(
+                                      widget.tourId, m.user.id, val)
+                                  .catchError((e) => debugPrint(e.toString()));
+                            }
+                          },
+                          underline: const SizedBox(),
+                        ),
+                      ],
+                      isRemoved
+                          ? IconButton(
+                              onPressed: () => _showRestoreConfirmation(m.user),
+                              icon: const Icon(Icons.settings_backup_restore,
+                                  size: 20),
+                              color: config.color,
+                              tooltip: "Restore",
+                            )
+                          : IconButton(
+                              icon: const Icon(Icons.person_remove,
+                                  color: Colors.red, size: 18),
+                              onPressed: () => _showLeaveConfirmation(m.user,
+                                  isRemoval: true)),
+                    ],
+                  );
+                } else {
+                  if (!isRemoved) {
+                    trailingWidget = Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                            color: Colors.grey.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8)),
+                        child: Text(m.role.toUpperCase(),
+                            style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey)));
+                  }
+                }
+
+                return Card(
+                  elevation: isRemoved ? 0 : 1,
+                  color: isRemoved ? Colors.grey.shade50 : null,
+                  child: Opacity(
+                    opacity: isRemoved ? 0.6 : 1.0,
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: isRemoved
+                            ? Colors.grey.shade200
+                            : config.color.withOpacity(0.1),
+                        child: Text(m.user.name[0],
+                            style: TextStyle(
+                                color: isRemoved ? Colors.grey : config.color,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                      title: Text(
+                        isMe ? "${m.user.name} (You)" : m.user.name,
+                        style: TextStyle(
+                          decoration:
+                              isRemoved ? TextDecoration.lineThrough : null,
+                          color: isRemoved ? Colors.grey : null,
+                        ),
+                      ),
+                      subtitle: tour.purpose.toLowerCase() == 'mess'
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(m.user.phone ?? "No phone",
+                                    style: const TextStyle(fontSize: 10)),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Icon(Icons.restaurant_menu,
+                                        size: 14,
+                                        color: isRemoved
+                                            ? Colors.grey
+                                            : config.color.withOpacity(0.7)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      "Meal Count: ${m.mealCount.toStringAsFixed(1)}",
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: isRemoved
+                                              ? Colors.grey
+                                              : Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface
+                                                  .withOpacity(0.8)),
+                                    ),
+                                    if (isRemoved) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 4, vertical: 2),
+                                        decoration: BoxDecoration(
+                                            color: Colors.grey.shade200,
+                                            borderRadius:
+                                                BorderRadius.circular(4)),
+                                        child: const Text("REMOVED",
+                                            style: TextStyle(
+                                                fontSize: 8,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.grey)),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                               ],
-                            ],
-                          ),
-                        ],
-                      )
-                    : Text(m.user.phone ?? "No phone", style: TextStyle(color: isRemoved ? Colors.grey : null)),
-                  onTap: !isRemoved && tour.purpose.toLowerCase() == 'mess' && (isMe || me?.id == tour.createdBy)
-                    ? () => _showEditMealCountDialog(m)
-                    : null,
-                  trailing: trailingWidget,
-                ),
-              ),
-            );
+                            )
+                          : Text(m.user.phone ?? "No phone",
+                              style: TextStyle(
+                                  color: isRemoved ? Colors.grey : null)),
+                      onTap: !isRemoved &&
+                              tour.purpose.toLowerCase() == 'mess' &&
+                              (isMe || me?.id == tour.createdBy)
+                          ? () => _showEditMealCountDialog(m)
+                          : null,
+                      trailing: trailingWidget,
+                    ),
+                  ),
+                );
               },
             ),
           ),
@@ -885,119 +1138,205 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
     final me = ref.watch(currentUserProvider).value;
     final splitsAsync = ref.watch(tourSplitsProvider(widget.tourId));
     final splits = splitsAsync.value ?? [];
-    
+
     final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
     final members = membersAsync.value ?? [];
-    
+
     final usersStream = (db.select(db.users).join([
-      drift.innerJoin(db.tourMembers, db.tourMembers.userId.equalsExp(db.users.id))
-    ])..where(db.tourMembers.tourId.equals(widget.tourId)))
-    .map((row) => row.readTable(db.users))
-    .watch();
+      drift.innerJoin(
+          db.tourMembers, db.tourMembers.userId.equalsExp(db.users.id))
+    ])
+          ..where(db.tourMembers.tourId.equals(widget.tourId)))
+        .map((row) => row.readTable(db.users))
+        .watch();
 
     return StreamBuilder<List<ProgramIncome>>(
-      stream: (db.select(db.programIncomes)..where((t) => t.isDeleted.equals(false))).watch(), 
+      stream: (db.select(db.programIncomes)
+            ..where((t) => t.isDeleted.equals(false)))
+          .watch(),
       builder: (context, incomeSnap) {
-        final incomes = (incomeSnap.data ?? []).where((i) => i.tourId == widget.tourId).toList();
-        final totalCollected = incomes.fold(0.0, (sum, item) => sum + item.amount);
+        final incomes = (incomeSnap.data ?? [])
+            .where((i) => i.tourId == widget.tourId)
+            .toList();
+        final totalCollected =
+            incomes.fold(0.0, (sum, item) => sum + item.amount);
 
         return StreamBuilder<List<Expense>>(
-          stream: (db.select(db.expenses)..where((t) => t.isDeleted.equals(false))).watch(),
+          stream: (db.select(db.expenses)
+                ..where((t) => t.isDeleted.equals(false)))
+              .watch(),
           builder: (context, expenseSnap) {
-            final expenses = (expenseSnap.data ?? []).where((e) => e.tourId == widget.tourId).toList();
-            final totalSpent = expenses.fold(0.0, (sum, item) => sum + item.amount);
+            final expenses = (expenseSnap.data ?? [])
+                .where((e) => e.tourId == widget.tourId)
+                .toList();
+            final totalSpent =
+                expenses.fold(0.0, (sum, item) => sum + item.amount);
 
             return StreamBuilder<List<Settlement>>(
-              stream: (db.select(db.settlements)..where((t) => t.isDeleted.equals(false))).watch(),
+              stream: (db.select(db.settlements)
+                    ..where((t) => t.isDeleted.equals(false)))
+                  .watch(),
               builder: (context, settlementSnap) {
-                final settlements = (settlementSnap.data ?? []).where((s) => s.tourId == widget.tourId).toList();
-                final currentBalance = totalCollected - totalSpent; 
+                final settlements = (settlementSnap.data ?? [])
+                    .where((s) => s.tourId == widget.tourId)
+                    .toList();
+                final currentBalance = totalCollected - totalSpent;
 
                 return StreamBuilder<List<User>>(
                   stream: usersStream,
                   builder: (context, userSnap) {
-                    if (!userSnap.hasData) return const Center(child: CircularProgressIndicator());
+                    if (!userSnap.hasData)
+                      return const Center(child: CircularProgressIndicator());
                     final users = userSnap.data!;
                     final userBalances = <User, double>{};
-                    
+
                     for (final u in users) {
-                      final col = incomes.where((i) => i.collectedBy == u.id).fold(0.0, (sum, i) => sum + i.amount);
-                      final rec = settlements.where((s) => s.toId == u.id).fold(0.0, (sum, s) => sum + s.amount);
-                      final giv = settlements.where((s) => s.fromId == u.id).fold(0.0, (sum, s) => sum + s.amount);
-                      final spt = expenses.where((e) => e.payerId == u.id).fold(0.0, (sum, e) => sum + e.amount);
+                      final col = incomes
+                          .where((i) => i.collectedBy == u.id)
+                          .fold(0.0, (sum, i) => sum + i.amount);
+                      final rec = settlements
+                          .where((s) => s.toId == u.id)
+                          .fold(0.0, (sum, s) => sum + s.amount);
+                      final giv = settlements
+                          .where((s) => s.fromId == u.id)
+                          .fold(0.0, (sum, s) => sum + s.amount);
+                      final spt = expenses
+                          .where((e) => e.payerId == u.id)
+                          .fold(0.0, (sum, e) => sum + e.amount);
                       userBalances[u] = col + rec - giv - spt;
                     }
-                    
-                    final sortedUsers = List<User>.from(users)..sort((a, b) => (userBalances[b] ?? 0).compareTo(userBalances[a] ?? 0));
-                    final progressVal = totalCollected > 0 ? (totalSpent / totalCollected).clamp(0.0, 1.0) : 0.0;
+
+                    final sortedUsers = List<User>.from(users)
+                      ..sort((a, b) => (userBalances[b] ?? 0)
+                          .compareTo(userBalances[a] ?? 0));
+                    final progressVal = totalCollected > 0
+                        ? (totalSpent / totalCollected).clamp(0.0, 1.0)
+                        : 0.0;
 
                     return SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 24),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildPremiumDashboardCard(totalCollected, totalSpent, currentBalance, progressVal, config),
+                          _buildPremiumDashboardCard(totalCollected, totalSpent,
+                              currentBalance, progressVal, config),
                           const SizedBox(height: 32),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text("Your Team", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
-                              if (tour.createdBy == me?.id) IconButton.filledTonal(
-                                onPressed: () => showDialog(context: context, builder: (_) => AddMemberDialog(tourId: widget.tourId)),
-                                icon: const Icon(Icons.add_rounded, size: 20),
-                                style: IconButton.styleFrom(
-                                  backgroundColor: config.color.withOpacity(0.05),
-                                  foregroundColor: config.color,
+                              const Text("Your Team",
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: -0.5)),
+                              if (tour.createdBy == me?.id)
+                                IconButton.filledTonal(
+                                  onPressed: () => showDialog(
+                                      context: context,
+                                      builder: (_) => AddMemberDialog(
+                                          tourId: widget.tourId)),
+                                  icon: const Icon(Icons.add_rounded, size: 20),
+                                  style: IconButton.styleFrom(
+                                    backgroundColor:
+                                        config.color.withOpacity(0.05),
+                                    foregroundColor: config.color,
+                                  ),
                                 ),
-                              ),
                             ],
                           ),
                           const SizedBox(height: 16),
-                          _buildMemberStatusList(sortedUsers, userBalances, config),
-                          
+                          _buildMemberStatusList(
+                              sortedUsers, userBalances, config),
                           const SizedBox(height: 32),
-                          const Text("Quick Actions", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+                          const Text("Quick Actions",
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.5)),
                           const SizedBox(height: 16),
-                          Builder(
-                            builder: (context) {
-                              final myRole = members.firstWhere((m) => m.user.id == me?.id, orElse: () => members.first).role;
-                              final isViewer = myRole == 'viewer';
-                              
-                              if (isViewer) {
-                                return Container(
-                                  padding: const EdgeInsets.all(16),
-                                  decoration: BoxDecoration(color: Colors.amber.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                                  child: const Row(
-                                    children: [
-                                      Icon(Icons.lock_outline, color: Colors.orange, size: 20),
-                                      SizedBox(width: 8),
-                                      Expanded(child: Text("You are a Viewer. Viewers cannot add or edit expenses.", style: TextStyle(fontSize: 12, color: Colors.orange))),
-                                    ],
-                                  ),
-                                );
-                              }
-                              
-                              return Row(
-                                children: [
-                                  Expanded(child: _buildDashboardQuickButton(Icons.add_task_rounded, "Income", config.color, () => showDialog(context: context, builder: (_) => AddIncomeDialog(tourId: widget.tourId)))),
-                                  const SizedBox(width: 12),
-                                  Expanded(child: _buildDashboardQuickButton(Icons.receipt_rounded, "Expense", Colors.orange, () => Navigator.push(context, MaterialPageRoute(builder: (_) => AddExpenseScreen(tourId: widget.tourId))))),
-                                  const SizedBox(width: 12),
-                                  Expanded(child: _buildDashboardQuickButton(Icons.swap_calls_rounded, "Transfer", Colors.teal, () => showDialog(context: context, builder: (_) => AllocateFundDialog(tourId: widget.tourId)))),
-                                ],
+                          Builder(builder: (context) {
+                            final myRole = members
+                                .firstWhere((m) => m.user.id == me?.id,
+                                    orElse: () => members.first)
+                                .role;
+                            final isViewer = myRole == 'viewer';
+
+                            if (isViewer) {
+                              return Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                    color: Colors.amber.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12)),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.lock_outline,
+                                        color: Colors.orange, size: 20),
+                                    SizedBox(width: 8),
+                                    Expanded(
+                                        child: Text(
+                                            "You are a Viewer. Viewers cannot add or edit expenses.",
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.orange))),
+                                  ],
+                                ),
                               );
                             }
-                          ),
-                          
+
+                            return Row(
+                              children: [
+                                Expanded(
+                                    child: _buildDashboardQuickButton(
+                                        Icons.add_task_rounded,
+                                        "Income",
+                                        config.color,
+                                        () => showDialog(
+                                            context: context,
+                                            builder: (_) => AddIncomeDialog(
+                                                tourId: widget.tourId)))),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                    child: _buildDashboardQuickButton(
+                                        Icons.receipt_rounded,
+                                        "Expense",
+                                        Colors.orange,
+                                        () => Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                                builder: (_) =>
+                                                    AddExpenseScreen(
+                                                        tourId:
+                                                            widget.tourId))))),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                    child: _buildDashboardQuickButton(
+                                        Icons.swap_calls_rounded,
+                                        "Transfer",
+                                        Colors.teal,
+                                        () => showDialog(
+                                            context: context,
+                                            builder: (_) => AllocateFundDialog(
+                                                tourId: widget.tourId)))),
+                              ],
+                            );
+                          }),
                           const SizedBox(height: 32),
                           Row(
-                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                             children: [
-                               const Text("Recent Activity", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
-                               TextButton(onPressed: () => _tabController?.animateTo(1), child: const Text("See All")),
-                             ],
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text("Recent Activity",
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: -0.5)),
+                              TextButton(
+                                  onPressed: () => _tabController?.animateTo(1),
+                                  child: const Text("See All")),
+                            ],
                           ),
-                          _buildRecentTransactionsList(incomes, expenses, settlements, me?.id, splits),
+                          _buildRecentTransactionsList(
+                              incomes, expenses, settlements, me?.id, splits),
                           const SizedBox(height: 80),
                         ],
                       ),
@@ -1012,7 +1351,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
     );
   }
 
-  Widget _buildPremiumDashboardCard(double totalCollected, double totalSpent, double balance, double progress, PurposeConfig config) {
+  Widget _buildPremiumDashboardCard(double totalCollected, double totalSpent,
+      double balance, double progress, PurposeConfig config) {
     return PremiumCard(
       padding: EdgeInsets.zero,
       gradient: config.gradient,
@@ -1027,16 +1367,33 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("NET BALANCE", style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                    const Text("NET BALANCE",
+                        style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.5)),
                     Container(
-                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                       decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(8)),
-                       child: Text(DateFormat('MMM dd').format(DateTime.now()), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(8)),
+                      child: Text(DateFormat('MMM dd').format(DateTime.now()),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text("৳${balance.toStringAsFixed(0)}", style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w900, letterSpacing: -1)),
+                Text("৳${balance.toStringAsFixed(0)}",
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 36,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -1)),
                 const SizedBox(height: 24),
                 Row(
                   children: [
@@ -1044,8 +1401,17 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text("TOTAL FUND", style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1)),
-                          Text("৳${totalCollected.toStringAsFixed(0)}", style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
+                          const Text("TOTAL FUND",
+                              style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1)),
+                          Text("৳${totalCollected.toStringAsFixed(0)}",
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900)),
                         ],
                       ),
                     ),
@@ -1053,8 +1419,17 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          const Text("TOTAL SPENT", style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1)),
-                          Text("৳${totalSpent.toStringAsFixed(0)}", style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
+                          const Text("TOTAL SPENT",
+                              style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1)),
+                          Text("৳${totalSpent.toStringAsFixed(0)}",
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900)),
                         ],
                       ),
                     ),
@@ -1067,7 +1442,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                     value: progress,
                     minHeight: 8,
                     backgroundColor: Colors.white24,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white.withOpacity(0.8)),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.white.withOpacity(0.8)),
                   ),
                 ),
               ],
@@ -1075,12 +1451,20 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            decoration: const BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.vertical(bottom: Radius.circular(24))),
+            decoration: const BoxDecoration(
+                color: Colors.white10,
+                borderRadius:
+                    BorderRadius.vertical(bottom: Radius.circular(24))),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("${(progress * 100).toInt()}% of budget spent", style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
-                const Icon(Icons.insights_rounded, color: Colors.white, size: 16),
+                Text("${(progress * 100).toInt()}% of budget spent",
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600)),
+                const Icon(Icons.insights_rounded,
+                    color: Colors.white, size: 16),
               ],
             ),
           ),
@@ -1089,7 +1473,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
     );
   }
 
-  Widget _buildMemberStatusList(List<User> users, Map<User, double> balances, PurposeConfig config) {
+  Widget _buildMemberStatusList(
+      List<User> users, Map<User, double> balances, PurposeConfig config) {
     return SizedBox(
       height: 100,
       child: ListView.builder(
@@ -1111,20 +1496,34 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                     CircularProgressIndicator(
                       value: isNeg ? 1 : (isPos ? 1 : 0),
                       strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(isPos ? Colors.green : (isNeg ? Colors.orange : Colors.grey.shade300)),
+                      valueColor: AlwaysStoppedAnimation<Color>(isPos
+                          ? Colors.green
+                          : (isNeg ? Colors.orange : Colors.grey.shade300)),
                     ),
                     CircleAvatar(
                       radius: 20,
                       backgroundColor: config.color.withOpacity(0.1),
-                      child: Text(u.name[0].toUpperCase(), style: TextStyle(color: config.color, fontWeight: FontWeight.w900)),
+                      child: Text(u.name[0].toUpperCase(),
+                          style: TextStyle(
+                              color: config.color,
+                              fontWeight: FontWeight.w900)),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text(u.name, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                Text(u.name,
+                    style: const TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.w700)),
                 Text(
-                  bal.abs() < 1 ? "Settled" : "৳${bal.abs().toStringAsFixed(0)}", 
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isPos ? Colors.green : (isNeg ? Colors.orange : Colors.grey)),
+                  bal.abs() < 1
+                      ? "Settled"
+                      : "৳${bal.abs().toStringAsFixed(0)}",
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: isPos
+                          ? Colors.green
+                          : (isNeg ? Colors.orange : Colors.grey)),
                 ),
               ],
             ),
@@ -1134,7 +1533,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
     );
   }
 
-  Widget _buildDashboardQuickButton(IconData icon, String label, Color color, VoidCallback onTap) {
+  Widget _buildDashboardQuickButton(
+      IconData icon, String label, Color color, VoidCallback onTap) {
     return PremiumCard(
       padding: EdgeInsets.zero,
       margin: EdgeInsets.zero,
@@ -1145,23 +1545,32 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
           children: [
             Container(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                  color: color.withOpacity(0.1), shape: BoxShape.circle),
               child: Icon(icon, color: color, size: 20),
             ),
             const SizedBox(height: 8),
-            Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Theme.of(context).colorScheme.onSurface)),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: Theme.of(context).colorScheme.onSurface)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSummaryCard(String title, double amount, Color color, {VoidCallback? onTap, IconData? actionIcon, VoidCallback? onAction}) {
+  Widget _buildSummaryCard(String title, double amount, Color color,
+      {VoidCallback? onTap, IconData? actionIcon, VoidCallback? onAction}) {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: color.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+              color: color.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4)),
         ],
       ),
       child: ClipRRect(
@@ -1180,7 +1589,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                 ),
               ),
             ),
-            
+
             Material(
               color: Colors.transparent,
               child: InkWell(
@@ -1195,9 +1604,15 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                         children: [
                           Row(
                             children: [
-                              Text(title, style: TextStyle(color: color.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 0.2)),
+                              Text(title,
+                                  style: TextStyle(
+                                      color: color.withOpacity(0.8),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.2)),
                               const SizedBox(width: 4),
-                              Icon(Icons.info_outline, size: 12, color: color.withOpacity(0.4)),
+                              Icon(Icons.info_outline,
+                                  size: 12, color: color.withOpacity(0.4)),
                             ],
                           ),
                           if (actionIcon != null)
@@ -1209,21 +1624,21 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
                                 borderRadius: BorderRadius.circular(10),
                                 child: Padding(
                                   padding: const EdgeInsets.all(6),
-                                  child: Icon(actionIcon, size: 18, color: color),
+                                  child:
+                                      Icon(actionIcon, size: 18, color: color),
                                 ),
                               ),
                             ),
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Text("৳${amount.toStringAsFixed(0)}", 
-                        style: TextStyle(
-                          color: color, 
-                          fontSize: 26, 
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: -0.5,
-                        )
-                      ),
+                      Text("৳${amount.toStringAsFixed(0)}",
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: -0.5,
+                          )),
                     ],
                   ),
                 ),
@@ -1235,161 +1650,267 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
     );
   }
 
-  void _showSummaryDetailSheet(
-    String title, 
-    List<ProgramIncome> incomes, 
-    List<Expense> expenses, 
-    List<Settlement> settlements,
-    List<User> users,
-    {bool isIncome = false, bool isExpense = false, bool isBalance = false}
-  ) {
+  void _showSummaryDetailSheet(String title, List<ProgramIncome> incomes,
+      List<Expense> expenses, List<Settlement> settlements, List<User> users,
+      {bool isIncome = false, bool isExpense = false, bool isBalance = false}) {
     showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          padding: const EdgeInsets.all(24),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Theme.of(context).dividerColor, borderRadius: BorderRadius.circular(2)))),
-                const SizedBox(height: 20),
-                Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                const Divider(),
-                const SizedBox(height: 12),
-                
-                if (isIncome) ...[
-                  Text("Collected by Member", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5))),
-                  const SizedBox(height: 8),
-                  ...users.map((u) {
-                    final amount = incomes.where((i) => i.collectedBy == u.id).fold(0.0, (s, i) => s + i.amount);
-                    if (amount == 0) return const SizedBox.shrink();
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(backgroundColor: Colors.green.withOpacity(0.1), child: Text(u.name[0], style: const TextStyle(color: Colors.green))),
-                      title: Text(u.name),
-                      trailing: Text("৳${amount.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-                    );
-                  }).toList(),
-                  const SizedBox(height: 20),
-                  Text("Transaction History", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5))),
-                  const SizedBox(height: 8),
-                  if (incomes.isEmpty) const Text("No income recorded yet.")
-                  else ...incomes.map((i) => ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.receipt_long_outlined, size: 20),
-                    title: Text(i.source),
-                    subtitle: Text(DateFormat('MMM dd').format(i.date)),
-                    trailing: Text("+৳${i.amount.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-                  )),
-                ],
-  
-                if (isExpense) ...[
-                  Text("Spent by Member", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5))),
-                  const SizedBox(height: 8),
-                  ...users.map((u) {
-                    final amount = expenses.where((e) => e.payerId == u.id).fold(0.0, (s, e) => s + e.amount);
-                    if (amount == 0) return const SizedBox.shrink();
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(backgroundColor: Colors.orange.withOpacity(0.1), child: Text(u.name[0], style: const TextStyle(color: Colors.orange))),
-                      title: Text(u.name),
-                      trailing: Text("৳${amount.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
-                    );
-                  }).toList(),
-                  const SizedBox(height: 20),
-                  Text("Category Breakdown", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5))),
-                  const SizedBox(height: 8),
-                  if (expenses.isEmpty) const Text("No expenses recorded yet.")
-                  else ...(() {
-                    // Group by category
-                    final map = <String, double>{};
-                    for (var e in expenses) {
-                      map[e.category] = (map[e.category] ?? 0.0) + e.amount;
-                    }
-                    return map.entries.map((entry) => ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(
-                        backgroundColor: _getCategoryColor(entry.key).withOpacity(0.1),
-                        child: Icon(_getCategoryIcon(entry.key), color: _getCategoryColor(entry.key), size: 16),
-                      ),
-                      title: Text(entry.key),
-                      trailing: Text("-৳${entry.value.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
-                    ));
-                  })(),
-                ],
-  
-                if (isBalance) ...[
-                  Text("Cash in Hand (Personal)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5))),
-                  const SizedBox(height: 8),
-                  ...users.map((u) {
-                    final col = incomes.where((i) => i.collectedBy == u.id).fold(0.0, (sum, i) => sum + i.amount);
-                    final rec = settlements.where((s) => s.toId == u.id).fold(0.0, (sum, s) => sum + s.amount);
-                    final giv = settlements.where((s) => s.fromId == u.id).fold(0.0, (sum, s) => sum + s.amount);
-                    final spt = expenses.where((e) => e.payerId == u.id).fold(0.0, (sum, e) => sum + e.amount);
-                    final bal = col + rec - giv - spt;
-                    if (bal.abs() < 1) return const SizedBox.shrink();
-                    return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(backgroundColor: Colors.blue.withOpacity(0.1), child: Text(u.name[0], style: const TextStyle(color: Colors.blue))),
-                      title: Text(u.name),
-                      subtitle: Text(bal > 0 ? "Holding" : "Owed"),
-                    trailing: Text("৳${bal.toStringAsFixed(0)}", style: TextStyle(fontWeight: FontWeight.bold, color: bal >= 0 ? Colors.green : Colors.red)),
-                    );
-                  }).toList(),
-                  const Divider(height: 32),
-                  Text("Overall Summary", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5))),
-                  const SizedBox(height: 8),
-                  _buildDetailRow("Total Funds Collected", incomes.fold(0.0, (s, i) => s + i.amount), Colors.green),
-                  _buildDetailRow("Total Group Expenses", expenses.fold(0.0, (s, e) => s + e.amount), Colors.red),
-                  const Divider(),
-                  _buildDetailRow("Net Program Balance", incomes.fold(0.0, (s, i) => s + i.amount) - expenses.fold(0.0, (s, e) => s + e.amount), Colors.blue, isBold: true),
-                ],
-                
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: () => Navigator.pop(context), 
-                    child: const Text("Close"),
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) {
+          return Container(
+            constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(28)),
             ),
-          ),
-        );
-      }
-    );
+            padding: const EdgeInsets.all(24),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                      child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                              color: Theme.of(context).dividerColor,
+                              borderRadius: BorderRadius.circular(2)))),
+                  const SizedBox(height: 20),
+                  Text(title,
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  const Divider(),
+                  const SizedBox(height: 12),
+                  if (isIncome) ...[
+                    Text("Collected by Member",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(0.5))),
+                    const SizedBox(height: 8),
+                    ...users.map((u) {
+                      final amount = incomes
+                          .where((i) => i.collectedBy == u.id)
+                          .fold(0.0, (s, i) => s + i.amount);
+                      if (amount == 0) return const SizedBox.shrink();
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                            backgroundColor: Colors.green.withOpacity(0.1),
+                            child: Text(u.name[0],
+                                style: const TextStyle(color: Colors.green))),
+                        title: Text(u.name),
+                        trailing: Text("৳${amount.toStringAsFixed(0)}",
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green)),
+                      );
+                    }).toList(),
+                    const SizedBox(height: 20),
+                    Text("Transaction History",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(0.5))),
+                    const SizedBox(height: 8),
+                    if (incomes.isEmpty)
+                      const Text("No income recorded yet.")
+                    else
+                      ...incomes.map((i) => ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.receipt_long_outlined,
+                                size: 20),
+                            title: Text(i.source),
+                            subtitle: Text(DateFormat('MMM dd').format(i.date)),
+                            trailing: Text("+৳${i.amount.toStringAsFixed(0)}",
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green)),
+                          )),
+                  ],
+                  if (isExpense) ...[
+                    Text("Spent by Member",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(0.5))),
+                    const SizedBox(height: 8),
+                    ...users.map((u) {
+                      final amount = expenses
+                          .where((e) => e.payerId == u.id)
+                          .fold(0.0, (s, e) => s + e.amount);
+                      if (amount == 0) return const SizedBox.shrink();
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                            backgroundColor: Colors.orange.withOpacity(0.1),
+                            child: Text(u.name[0],
+                                style: const TextStyle(color: Colors.orange))),
+                        title: Text(u.name),
+                        trailing: Text("৳${amount.toStringAsFixed(0)}",
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange)),
+                      );
+                    }).toList(),
+                    const SizedBox(height: 20),
+                    Text("Category Breakdown",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(0.5))),
+                    const SizedBox(height: 8),
+                    if (expenses.isEmpty)
+                      const Text("No expenses recorded yet.")
+                    else
+                      ...(() {
+                        // Group by category
+                        final map = <String, double>{};
+                        for (var e in expenses) {
+                          map[e.category] = (map[e.category] ?? 0.0) + e.amount;
+                        }
+                        return map.entries.map((entry) => ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: CircleAvatar(
+                                backgroundColor: _getCategoryColor(entry.key)
+                                    .withOpacity(0.1),
+                                child: Icon(_getCategoryIcon(entry.key),
+                                    color: _getCategoryColor(entry.key),
+                                    size: 16),
+                              ),
+                              title: Text(entry.key),
+                              trailing: Text(
+                                  "-৳${entry.value.toStringAsFixed(0)}",
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.red)),
+                            ));
+                      })(),
+                  ],
+                  if (isBalance) ...[
+                    Text("Cash in Hand (Personal)",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(0.5))),
+                    const SizedBox(height: 8),
+                    ...users.map((u) {
+                      final col = incomes
+                          .where((i) => i.collectedBy == u.id)
+                          .fold(0.0, (sum, i) => sum + i.amount);
+                      final rec = settlements
+                          .where((s) => s.toId == u.id)
+                          .fold(0.0, (sum, s) => sum + s.amount);
+                      final giv = settlements
+                          .where((s) => s.fromId == u.id)
+                          .fold(0.0, (sum, s) => sum + s.amount);
+                      final spt = expenses
+                          .where((e) => e.payerId == u.id)
+                          .fold(0.0, (sum, e) => sum + e.amount);
+                      final bal = col + rec - giv - spt;
+                      if (bal.abs() < 1) return const SizedBox.shrink();
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                            backgroundColor: Colors.blue.withOpacity(0.1),
+                            child: Text(u.name[0],
+                                style: const TextStyle(color: Colors.blue))),
+                        title: Text(u.name),
+                        subtitle: Text(bal > 0 ? "Holding" : "Owed"),
+                        trailing: Text("৳${bal.toStringAsFixed(0)}",
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: bal >= 0 ? Colors.green : Colors.red)),
+                      );
+                    }).toList(),
+                    const Divider(height: 32),
+                    Text("Overall Summary",
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withOpacity(0.5))),
+                    const SizedBox(height: 8),
+                    _buildDetailRow(
+                        "Total Funds Collected",
+                        incomes.fold(0.0, (s, i) => s + i.amount),
+                        Colors.green),
+                    _buildDetailRow("Total Group Expenses",
+                        expenses.fold(0.0, (s, e) => s + e.amount), Colors.red),
+                    const Divider(),
+                    _buildDetailRow(
+                        "Net Program Balance",
+                        incomes.fold(0.0, (s, i) => s + i.amount) -
+                            expenses.fold(0.0, (s, e) => s + e.amount),
+                        Colors.blue,
+                        isBold: true),
+                  ],
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("Close"),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
+          );
+        });
   }
 
-  Widget _buildDetailRow(String label, double amount, Color color, {bool isBold = false}) {
+  Widget _buildDetailRow(String label, double amount, Color color,
+      {bool isBold = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
-          Text("৳${amount.toStringAsFixed(0)}", style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: isBold ? 18 : 14)),
+          Text(label,
+              style: TextStyle(
+                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
+          Text("৳${amount.toStringAsFixed(0)}",
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                  fontSize: isBold ? 18 : 14)),
         ],
       ),
     );
   }
 
-  Widget _buildSettlementInstructions(Map<User, double> balances, List<User> creditors, List<User> debtors, PurposeConfig config) {
+  Widget _buildSettlementInstructions(Map<User, double> balances,
+      List<User> creditors, List<User> debtors, PurposeConfig config) {
     // Greedy algorithm for settlement instructions
     final List<Widget> items = [];
-    final creditorsCopy = creditors.map((u) => {'user': u, 'bal': balances[u] ?? 0.0}).toList();
-    final debtorsCopy = debtors.map((u) => {'user': u, 'bal': -(balances[u] ?? 0.0)}).toList();
+    final creditorsCopy =
+        creditors.map((u) => {'user': u, 'bal': balances[u] ?? 0.0}).toList();
+    final debtorsCopy =
+        debtors.map((u) => {'user': u, 'bal': -(balances[u] ?? 0.0)}).toList();
 
     int cIdx = 0;
     int dIdx = 0;
@@ -1406,15 +1927,22 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
         visualDensity: VisualDensity.compact,
         leading: Icon(Icons.send_rounded, color: config.color, size: 20),
         title: Text.rich(TextSpan(children: [
-          TextSpan(text: from.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+          TextSpan(
+              text: from.name,
+              style: const TextStyle(fontWeight: FontWeight.bold)),
           const TextSpan(text: " pays "),
-          TextSpan(text: to.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+          TextSpan(
+              text: to.name,
+              style: const TextStyle(fontWeight: FontWeight.bold)),
         ])),
-        trailing: Text("৳${settlement.toStringAsFixed(0)}", style: TextStyle(fontWeight: FontWeight.bold, color: config.color)),
+        trailing: Text("৳${settlement.toStringAsFixed(0)}",
+            style: TextStyle(fontWeight: FontWeight.bold, color: config.color)),
       ));
 
-      creditorsCopy[cIdx]['bal'] = (creditorsCopy[cIdx]['bal'] as double) - settlement;
-      debtorsCopy[dIdx]['bal'] = (debtorsCopy[dIdx]['bal'] as double) - settlement;
+      creditorsCopy[cIdx]['bal'] =
+          (creditorsCopy[cIdx]['bal'] as double) - settlement;
+      debtorsCopy[dIdx]['bal'] =
+          (debtorsCopy[dIdx]['bal'] as double) - settlement;
 
       if ((creditorsCopy[cIdx]['bal'] as double).abs() < 0.1) cIdx++;
       if ((debtorsCopy[dIdx]['bal'] as double).abs() < 0.1) dIdx++;
@@ -1423,7 +1951,9 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
     return Card(
       color: config.color.withOpacity(0.05),
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: config.color.withOpacity(0.2))),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: config.color.withOpacity(0.2))),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Column(children: items),
@@ -1434,11 +1964,16 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
   Widget _buildIncomesTab(Tour tour) {
     final db = ref.watch(databaseProvider);
     return StreamBuilder<List<ProgramIncome>>(
-      stream: (db.select(db.programIncomes)..where((t) => t.tourId.equals(widget.tourId) & t.isDeleted.equals(false))).watch(),
+      stream: (db.select(db.programIncomes)
+            ..where((t) =>
+                t.tourId.equals(widget.tourId) & t.isDeleted.equals(false)))
+          .watch(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        if (!snapshot.hasData)
+          return const Center(child: CircularProgressIndicator());
         final incomes = snapshot.data!;
-        if (incomes.isEmpty) return const Center(child: Text("No funds collected."));
+        if (incomes.isEmpty)
+          return const Center(child: Text("No funds collected."));
         return ListView.builder(
           padding: const EdgeInsets.all(16),
           itemCount: incomes.length,
@@ -1446,9 +1981,13 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
             final inc = incomes[index];
             return Card(
               child: ListTile(
-                leading: const CircleAvatar(backgroundColor: Colors.greenAccent, child: Icon(Icons.arrow_downward, color: Colors.green)),
+                leading: const CircleAvatar(
+                    backgroundColor: Colors.greenAccent,
+                    child: Icon(Icons.arrow_downward, color: Colors.green)),
                 title: Text(inc.source),
-                trailing: Text("+৳${inc.amount.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                trailing: Text("+৳${inc.amount.toStringAsFixed(0)}",
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, color: Colors.green)),
               ),
             );
           },
@@ -1460,11 +1999,16 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
   Widget _buildAllocationsTab(Tour tour) {
     final db = ref.watch(databaseProvider);
     return StreamBuilder<List<Settlement>>(
-      stream: (db.select(db.settlements)..where((t) => t.tourId.equals(widget.tourId) & t.isDeleted.equals(false))).watch(),
+      stream: (db.select(db.settlements)
+            ..where((t) =>
+                t.tourId.equals(widget.tourId) & t.isDeleted.equals(false)))
+          .watch(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        if (!snapshot.hasData)
+          return const Center(child: CircularProgressIndicator());
         final settlements = snapshot.data!;
-        if (settlements.isEmpty) return const Center(child: Text("No allocations."));
+        if (settlements.isEmpty)
+          return const Center(child: Text("No allocations."));
         return ListView.builder(
           padding: const EdgeInsets.all(16),
           itemCount: settlements.length,
@@ -1472,9 +2016,12 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
             final s = settlements[index];
             return Card(
               child: ListTile(
-                leading: const CircleAvatar(backgroundColor: Colors.blueAccent, child: Icon(Icons.swap_horiz, color: Colors.white)),
+                leading: const CircleAvatar(
+                    backgroundColor: Colors.blueAccent,
+                    child: Icon(Icons.swap_horiz, color: Colors.white)),
                 title: const Text("Transfer"),
-                trailing: Text("৳${s.amount.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                trailing: Text("৳${s.amount.toStringAsFixed(0)}",
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
               ),
             );
           },
@@ -1483,7 +2030,11 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
     );
   }
 
-  Widget _buildQuickActionButton({required IconData icon, required String label, required Color color, required VoidCallback onTap}) {
+  Widget _buildQuickActionButton(
+      {required IconData icon,
+      required String label,
+      required Color color,
+      required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -1498,42 +2049,75 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
           children: [
             Icon(icon, color: color),
             const SizedBox(height: 4),
-            Text(label, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
+            Text(label,
+                style: TextStyle(
+                    color: color, fontWeight: FontWeight.bold, fontSize: 12)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildRecentTransactionsList(List<ProgramIncome> incomes, List<Expense> expenses, List<Settlement> settlements, String? myId, List<ExpenseSplit> splits) {
+  Widget _buildRecentTransactionsList(
+      List<ProgramIncome> incomes,
+      List<Expense> expenses,
+      List<Settlement> settlements,
+      String? myId,
+      List<ExpenseSplit> splits) {
     // Combine and sort by date/time
     final transactions = <Map<String, dynamic>>[];
-    
+
     for (final i in incomes) {
       if (myId == null || i.collectedBy == myId) {
-        transactions.add({'type': 'income', 'amount': i.amount, 'title': i.source, 'date': i.date, 'id': i.id});
+        transactions.add({
+          'type': 'income',
+          'amount': i.amount,
+          'title': i.source,
+          'date': i.date,
+          'id': i.id
+        });
       }
     }
     for (final e in expenses) {
-      final isSharedWithMe = splits.any((s) => s.expenseId == e.id && s.userId == myId);
+      final isSharedWithMe =
+          splits.any((s) => s.expenseId == e.id && s.userId == myId);
       if (myId == null || e.payerId == myId || isSharedWithMe) {
-        transactions.add({'type': 'expense', 'amount': e.amount, 'title': e.title, 'date': e.createdAt, 'id': e.id});
+        transactions.add({
+          'type': 'expense',
+          'amount': e.amount,
+          'title': e.title,
+          'date': e.createdAt,
+          'id': e.id
+        });
       }
     }
     for (final s in settlements) {
       if (myId == null || s.fromId == myId || s.toId == myId) {
-        transactions.add({'type': 'allocation', 'amount': s.amount, 'title': 'Fund Transfer', 'date': s.date, 'id': s.id});
+        transactions.add({
+          'type': 'allocation',
+          'amount': s.amount,
+          'title': 'Fund Transfer',
+          'date': s.date,
+          'id': s.id
+        });
       }
     }
 
-    transactions.sort((a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
+    transactions.sort(
+        (a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
     final latest = transactions.take(5).toList();
 
     if (latest.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(24),
         alignment: Alignment.center,
-        child: Text(myId != null ? "No personal transactions yet." : "No transactions yet.", style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3))),
+        child: Text(
+            myId != null
+                ? "No personal transactions yet."
+                : "No transactions yet.",
+            style: TextStyle(
+                color:
+                    Theme.of(context).colorScheme.onSurface.withOpacity(0.3))),
       );
     }
 
@@ -1544,8 +2128,12 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
         return ListTile(
           visualDensity: VisualDensity.compact,
           leading: Icon(
-            isIncome ? Icons.arrow_downward : (isExpense ? Icons.arrow_upward : Icons.swap_horiz),
-            color: isIncome ? Colors.green : (isExpense ? Colors.red : Colors.blue),
+            isIncome
+                ? Icons.arrow_downward
+                : (isExpense ? Icons.arrow_upward : Icons.swap_horiz),
+            color: isIncome
+                ? Colors.green
+                : (isExpense ? Colors.red : Colors.blue),
             size: 18,
           ),
           title: Text(tx['title'], style: const TextStyle(fontSize: 14)),
@@ -1554,7 +2142,11 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
             "${isIncome ? '+' : (isExpense ? '-' : '')}৳${tx['amount'].toStringAsFixed(0)}",
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: isIncome ? Colors.green : (isExpense ? Colors.red : Theme.of(context).colorScheme.onSurface),
+              color: isIncome
+                  ? Colors.green
+                  : (isExpense
+                      ? Colors.red
+                      : Theme.of(context).colorScheme.onSurface),
             ),
           ),
         );
@@ -1564,21 +2156,31 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
 
   IconData _getCategoryIcon(String category) {
     switch (category.toLowerCase()) {
-      case 'food': return Icons.restaurant;
-      case 'transport': return Icons.directions_bus;
-      case 'hotel': return Icons.hotel;
-      case 'shopping': return Icons.shopping_bag;
-      default: return Icons.more_horiz;
+      case 'food':
+        return Icons.restaurant;
+      case 'transport':
+        return Icons.directions_bus;
+      case 'hotel':
+        return Icons.hotel;
+      case 'shopping':
+        return Icons.shopping_bag;
+      default:
+        return Icons.more_horiz;
     }
   }
 
   Color _getCategoryColor(String category) {
     switch (category.toLowerCase()) {
-      case 'food': return Colors.orange;
-      case 'transport': return Colors.blue;
-      case 'hotel': return Colors.purple;
-      case 'shopping': return Colors.pink;
-      default: return Colors.grey;
+      case 'food':
+        return Colors.orange;
+      case 'transport':
+        return Colors.blue;
+      case 'hotel':
+        return Colors.purple;
+      case 'shopping':
+        return Colors.pink;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -1588,8 +2190,17 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
       builder: (context) => AlertDialog(
         title: const Text("Delete Expense?"),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-          TextButton(onPressed: () async { await ref.read(databaseProvider).deleteExpenseWithDetails(exp.id); Navigator.pop(context); }, child: const Text("Delete", style: TextStyle(color: Colors.red))),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel")),
+          TextButton(
+              onPressed: () async {
+                await ref
+                    .read(databaseProvider)
+                    .deleteExpenseWithDetails(exp.id);
+                Navigator.pop(context);
+              },
+              child: const Text("Delete", style: TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -1601,10 +2212,20 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
       context: context,
       builder: (context) => AlertDialog(
         title: Text("Delete ${config.label}?"),
-        content: Text("This will delete the ${config.label.toLowerCase()} permanently for everyone."),
+        content: Text(
+            "This will delete the ${config.label.toLowerCase()} permanently for everyone."),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-          FilledButton(onPressed: () async { await ref.read(databaseProvider).deleteTourWithDetails(tour.id); Navigator.pop(context); Navigator.pop(context); }, style: FilledButton.styleFrom(backgroundColor: Colors.red), child: const Text("Delete")),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel")),
+          FilledButton(
+              onPressed: () async {
+                await ref.read(databaseProvider).deleteTourWithDetails(tour.id);
+                Navigator.pop(context);
+                Navigator.pop(context);
+              },
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text("Delete")),
         ],
       ),
     );
@@ -1613,17 +2234,29 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
   void _showLeaveConfirmation(User user, {required bool isRemoval}) {
     final tour = ref.read(singleTourProvider(widget.tourId)).value;
     final config = PurposeConfig.getConfig(tour?.purpose);
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(isRemoval ? "Remove ${config.memberLabel}" : "Leave ${config.label}"),
-        content: Text(isRemoval 
-          ? "This ${config.memberLabel.toLowerCase()} will be marked as 'Removed' and lose access. Their past expenses and contributions will be kept to ensure correct group balance."
-          : "You will be marked as 'Left'. You can still see records but cannot add new entries."),
+        title: Text(isRemoval
+            ? "Remove ${config.memberLabel}"
+            : "Leave ${config.label}"),
+        content: Text(isRemoval
+            ? "This ${config.memberLabel.toLowerCase()} will be marked as 'Removed' and lose access. Their past expenses and contributions will be kept to ensure correct group balance."
+            : "You will be marked as 'Left'. You can still see records but cannot add new entries."),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-          FilledButton(onPressed: () async { await ref.read(databaseProvider).markMemberAsLeft(widget.tourId, user.id); Navigator.pop(context); }, style: FilledButton.styleFrom(backgroundColor: Colors.red), child: Text(isRemoval ? "Remove" : "Leave")),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel")),
+          FilledButton(
+              onPressed: () async {
+                await ref
+                    .read(databaseProvider)
+                    .markMemberAsLeft(widget.tourId, user.id);
+                Navigator.pop(context);
+              },
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              child: Text(isRemoval ? "Remove" : "Leave")),
         ],
       ),
     );
@@ -1632,29 +2265,34 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
   void _showRestoreConfirmation(User user) {
     final tour = ref.read(singleTourProvider(widget.tourId)).value;
     final config = PurposeConfig.getConfig(tour?.purpose);
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text("Restore ${config.memberLabel}"),
-        content: Text("Do you want to restore ${user.name} to this ${config.label.toLowerCase()}? They will regain full access."),
+        content: Text(
+            "Do you want to restore ${user.name} to this ${config.label.toLowerCase()}? They will regain full access."),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel")),
           FilledButton(
-            onPressed: () async { 
-              await ref.read(databaseProvider).reactivateMember(widget.tourId, user.id); 
-              Navigator.pop(context); 
-            }, 
-            style: FilledButton.styleFrom(backgroundColor: config.color), 
-            child: const Text("Restore")
-          ),
+              onPressed: () async {
+                await ref
+                    .read(databaseProvider)
+                    .reactivateMember(widget.tourId, user.id);
+                Navigator.pop(context);
+              },
+              style: FilledButton.styleFrom(backgroundColor: config.color),
+              child: const Text("Restore")),
         ],
       ),
     );
   }
 
   void _showEditMealCountDialog(MemberWithStatus m) {
-    final controller = TextEditingController(text: m.mealCount.toStringAsFixed(1));
+    final controller =
+        TextEditingController(text: m.mealCount.toStringAsFixed(1));
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1662,18 +2300,23 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
         content: TextFormField(
           controller: controller,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: "Total Meals", suffixText: "meals"),
+          decoration: const InputDecoration(
+              labelText: "Total Meals", suffixText: "meals"),
           autofocus: true,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel")),
           FilledButton(
             onPressed: () async {
               final val = double.tryParse(controller.text) ?? 0.0;
-              await ref.read(databaseProvider).updateMealCount(widget.tourId, m.user.id, val);
+              await ref
+                  .read(databaseProvider)
+                  .updateMealCount(widget.tourId, m.user.id, val);
               if (mounted) Navigator.pop(context);
               ref.invalidate(tourMembersProvider(widget.tourId));
-            }, 
+            },
             child: const Text("Update"),
           ),
         ],
@@ -1684,35 +2327,44 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
   Widget _buildMealsTab(Tour tour) {
     final mealRecordsAsync = ref.watch(tourMealRecordsProvider(widget.tourId));
     final usersAsync = ref.watch(tourUsersProvider(widget.tourId));
-    
+
     final me = ref.watch(currentUserProvider).value;
     final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
-    final myMember = membersAsync.value?.where((m) => m.user.id == me?.id).firstOrNull;
+    final myMember =
+        membersAsync.value?.where((m) => m.user.id == me?.id).firstOrNull;
     final myRole = myMember?.role ?? 'viewer';
-    final isEditor = me?.id == tour.createdBy || myRole == 'admin' || myRole == 'editor';
+    final isEditor =
+        me?.id == tour.createdBy || myRole == 'admin' || myRole == 'editor';
 
-    
     return mealRecordsAsync.when(
       data: (records) {
         return usersAsync.when(
           data: (users) {
-            final userMap = { for (var u in users) u.id : u.name };
-            
+            final userMap = {for (var u in users) u.id: u.name};
+
             if (records.isEmpty) {
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.restaurant_menu, size: 64, color: Colors.grey.shade300),
+                    Icon(Icons.restaurant_menu,
+                        size: 64, color: Colors.grey.shade300),
                     const SizedBox(height: 16),
-                    const Text("No meal records found.", style: TextStyle(color: Colors.grey)),
+                    const Text("No meal records found.",
+                        style: TextStyle(color: Colors.grey)),
                     const SizedBox(height: 24),
                     if (isEditor)
                       ElevatedButton.icon(
-                        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MealEntryScreen(tourId: widget.tourId))),
+                        onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) =>
+                                    MealEntryScreen(tourId: widget.tourId))),
                         icon: const Icon(Icons.add),
                         label: const Text("Enter Daily Meals"),
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white),
                       ),
                   ],
                 ),
@@ -1724,7 +2376,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
               final dateKey = DateFormat('yyyy-MM-dd').format(r.date);
               grouped.putIfAbsent(dateKey, () => []).add(r);
             }
-            final sortedDates = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
+            final sortedDates = grouped.keys.toList()
+              ..sort((a, b) => b.compareTo(a));
 
             return ListView.builder(
               padding: const EdgeInsets.all(16),
@@ -1732,34 +2385,62 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
               itemBuilder: (context, index) {
                 final dateKey = sortedDates[index];
                 final dailyRecords = grouped[dateKey]!;
-                final dailyTotal = dailyRecords.fold(0.0, (sum, r) => sum + r.count);
+                final dailyTotal =
+                    dailyRecords.fold(0.0, (sum, r) => sum + r.count);
                 final date = dailyRecords.first.date;
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
                   child: ExpansionTile(
-                    leading: CircleAvatar(backgroundColor: Colors.orange.withOpacity(0.1), child: const Icon(Icons.calendar_today, size: 18, color: Colors.orange)),
-                    title: Text(DateFormat('EEEE, MMM dd').format(date), style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text("Total Meals: ${dailyTotal.toStringAsFixed(1)}"),
-                    trailing: isEditor ? PopupMenuButton<String>(
-                      onSelected: (v) {
-                        if (v == 'edit') {
-                           Navigator.push(context, MaterialPageRoute(builder: (_) => MealEntryScreen(tourId: widget.tourId, initialDate: date)));
-                        } else if (v == 'delete') {
-                           _showDeleteMealDayDialog(date, dailyRecords);
-                        }
-                      },
-                      itemBuilder: (c) => [
-                         const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text("Edit Day")])),
-                         const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 18, color: Colors.red), SizedBox(width: 8), Text("Delete Day", style: TextStyle(color: Colors.red))])),
-                      ],
-                    ) : null,
+                    leading: CircleAvatar(
+                        backgroundColor: Colors.orange.withOpacity(0.1),
+                        child: const Icon(Icons.calendar_today,
+                            size: 18, color: Colors.orange)),
+                    title: Text(DateFormat('EEEE, MMM dd').format(date),
+                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle:
+                        Text("Total Meals: ${dailyTotal.toStringAsFixed(1)}"),
+                    trailing: isEditor
+                        ? PopupMenuButton<String>(
+                            onSelected: (v) {
+                              if (v == 'edit') {
+                                Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) => MealEntryScreen(
+                                            tourId: widget.tourId,
+                                            initialDate: date)));
+                              } else if (v == 'delete') {
+                                _showDeleteMealDayDialog(date, dailyRecords);
+                              }
+                            },
+                            itemBuilder: (c) => [
+                              const PopupMenuItem(
+                                  value: 'edit',
+                                  child: Row(children: [
+                                    Icon(Icons.edit, size: 18),
+                                    SizedBox(width: 8),
+                                    Text("Edit Day")
+                                  ])),
+                              const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Row(children: [
+                                    Icon(Icons.delete,
+                                        size: 18, color: Colors.red),
+                                    SizedBox(width: 8),
+                                    Text("Delete Day",
+                                        style: TextStyle(color: Colors.red))
+                                  ])),
+                            ],
+                          )
+                        : null,
                     children: [
-                       ...dailyRecords.map((r) => ListTile(
-                         dense: true,
-                         title: Text(userMap[r.userId] ?? "Unknown Member"),
-                         trailing: Text("${r.count.toStringAsFixed(1)} meals"),
-                       )),
+                      ...dailyRecords.map((r) => ListTile(
+                            dense: true,
+                            title: Text(userMap[r.userId] ?? "Unknown Member"),
+                            trailing:
+                                Text("${r.count.toStringAsFixed(1)} meals"),
+                          )),
                     ],
                   ),
                 );
@@ -1776,29 +2457,32 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
   }
 
   void _showDeleteMealDayDialog(DateTime date, List<MealRecord> records) {
-     showDialog(
-       context: context,
-       builder: (context) => AlertDialog(
-         title: const Text("Delete Day's Records?"),
-         content: Text("Delete all ${records.length} meal entries for ${DateFormat('MMM dd').format(date)}?"),
-         actions: [
-           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-           FilledButton(
-             onPressed: () async {
-               final db = ref.read(databaseProvider);
-               for (var r in records) {
-                 await db.deleteMealRecord(r.id, r.tourId, r.userId);
-               }
-               if (mounted) Navigator.pop(context);
-               ref.invalidate(tourMealRecordsProvider(widget.tourId));
-               ref.invalidate(tourMembersProvider(widget.tourId));
-             }, 
-             style: FilledButton.styleFrom(backgroundColor: Colors.red),
-             child: const Text("Delete"),
-           ),
-         ],
-       ),
-     );
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete Day's Records?"),
+        content: Text(
+            "Delete all ${records.length} meal entries for ${DateFormat('MMM dd').format(date)}?"),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel")),
+          FilledButton(
+            onPressed: () async {
+              final db = ref.read(databaseProvider);
+              for (var r in records) {
+                await db.deleteMealRecord(r.id, r.tourId, r.userId);
+              }
+              if (mounted) Navigator.pop(context);
+              ref.invalidate(tourMealRecordsProvider(widget.tourId));
+              ref.invalidate(tourMembersProvider(widget.tourId));
+            },
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showMemberSystemInfo() {
@@ -1820,25 +2504,36 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text("How to add ${config.memberLabel.toLowerCase()}:", style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text("How to add ${config.memberLabel.toLowerCase()}:",
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              const Text("1. Share the 'Invite Code' from the top-right button."),
-              const Text("2. Other people use 'Join with Code' from their home screen."),
+              const Text(
+                  "1. Share the 'Invite Code' from the top-right button."),
+              const Text(
+                  "2. Other people use 'Join with Code' from their home screen."),
               const SizedBox(height: 16),
-              const Text("Role & Permissions:", style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text("Role & Permissions:",
+                  style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              Text("• The Creator (Admin) can add ${config.memberLabel.toLowerCase()}, manage all data, and remove others."),
-              Text("• Joined ${config.memberLabel} can only see data and edit their own meal records."),
+              Text(
+                  "• The Creator (Admin) can add ${config.memberLabel.toLowerCase()}, manage all data, and remove others."),
+              Text(
+                  "• Joined ${config.memberLabel} can only see data and edit their own meal records."),
               const SizedBox(height: 16),
-              const Text("Removing Member:", style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text("Removing Member:",
+                  style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              Text("• Removing someone revokes their access to the ${config.label.toLowerCase()} immediately."),
-              const Text("• Their financial history is kept for group balance correctness."),
+              Text(
+                  "• Removing someone revokes their access to the ${config.label.toLowerCase()} immediately."),
+              const Text(
+                  "• Their financial history is kept for group balance correctness."),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Got it")),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Got it")),
         ],
       ),
     );
@@ -1849,24 +2544,34 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen> with Tick
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Include in Past Expenses"),
-        content: Text("Do you want to redistribute all existing expenses equally to include ${user.name}? This will change everyone's balances."),
+        content: Text(
+            "Do you want to redistribute all existing expenses equally to include ${user.name}? This will change everyone's balances."),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.primary),
+            style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary),
             onPressed: () async {
               Navigator.pop(ctx);
               try {
                 final currentUserId = ref.read(currentUserProvider).value?.id;
                 final syncService = ref.read(syncServiceProvider);
-                await syncService.applyRetroactiveSplitLocally(widget.tourId, user.id);
+                await syncService.applyRetroactiveSplitLocally(
+                    widget.tourId, user.id);
                 if (currentUserId != null) {
-                  syncService.retroactiveSplit(widget.tourId, user.id, currentUserId)
-                    .catchError((e) => debugPrint('Server sync failed: $e'));
+                  syncService
+                      .retroactiveSplit(widget.tourId, user.id, currentUserId)
+                      .catchError((e) => debugPrint('Server sync failed: $e'));
                 }
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Member included in past expenses successfully!')));
+                if (mounted)
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text(
+                          'Member included in past expenses successfully!')));
               } catch (e) {
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                if (mounted)
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text('Error: $e')));
               }
             },
             child: const Text("Yes"),
@@ -1882,7 +2587,9 @@ class _GridPainter extends CustomPainter {
   _GridPainter(this.color);
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color.withOpacity(0.05)..strokeWidth = 0.5;
+    final paint = Paint()
+      ..color = color.withOpacity(0.05)
+      ..strokeWidth = 0.5;
     for (double i = 0; i < size.width; i += 30) {
       canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
     }
@@ -1890,7 +2597,7 @@ class _GridPainter extends CustomPainter {
       canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
     }
   }
+
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-
