@@ -175,7 +175,7 @@ class AppTourOverlayState extends State<AppTourOverlay>
                     padding:
                         const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
+                      color: Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                           color: Colors.white.withValues(alpha: 0.2)),

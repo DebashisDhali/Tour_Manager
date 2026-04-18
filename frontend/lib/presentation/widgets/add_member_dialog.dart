@@ -260,7 +260,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                 decoration: InputDecoration(
                   hintText: 'Name or Phone number...',
                   filled: true,
-                  fillColor: Colors.grey.withOpacity(0.05),
+                  fillColor: Colors.grey.withValues(alpha: 0.05),
                   isDense: true,
                   prefixIcon: Icon(Icons.search, size: 20, color: config.color),
                   suffixIcon: _isSearching
@@ -407,7 +407,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                                 color: Theme.of(context)
                                     .colorScheme
                                     .onSurface
-                                    .withOpacity(0.4),
+                                    .withValues(alpha: 0.4),
                                 fontWeight: FontWeight.bold))),
                     const Expanded(child: Divider()),
                   ],
@@ -421,13 +421,13 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
                   color: _retroactiveSplit
-                      ? config.color.withOpacity(0.08)
-                      : Colors.grey.withOpacity(0.05),
+                      ? config.color.withValues(alpha: 0.08)
+                      : Colors.grey.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: _retroactiveSplit
-                        ? config.color.withOpacity(0.3)
-                        : Colors.grey.withOpacity(0.1),
+                        ? config.color.withValues(alpha: 0.3)
+                        : Colors.grey.withValues(alpha: 0.1),
                   ),
                 ),
                 child: Row(
@@ -460,7 +460,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                                 color: Theme.of(context)
                                     .colorScheme
                                     .onSurface
-                                    .withOpacity(0.5)),
+                                    .withValues(alpha: 0.5)),
                           ),
                         ],
                       ),
@@ -494,7 +494,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                         hintText: 'Type names separated by commas',
                         isDense: true,
                         filled: true,
-                        fillColor: Colors.grey.withOpacity(0.05),
+                        fillColor: Colors.grey.withValues(alpha: 0.05),
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none),
@@ -521,7 +521,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                             color: Theme.of(context)
                                 .colorScheme
                                 .onSurface
-                                .withOpacity(0.6)),
+                                .withValues(alpha: 0.6)),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -531,7 +531,7 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
                         labelText: 'Phone (Optional)',
                         isDense: true,
                         filled: true,
-                        fillColor: Colors.grey.withOpacity(0.05),
+                        fillColor: Colors.grey.withValues(alpha: 0.05),
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none),

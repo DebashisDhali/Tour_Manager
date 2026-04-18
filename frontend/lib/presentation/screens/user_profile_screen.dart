@@ -420,26 +420,48 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     );
 
     if (confirm == true) {
-      debugPrint("🚀 Aggressive Logout sequence started...");
+      debugPrint("🚀 Logout sequence started...");
       try {
+        // Step 1: Perform logout (clear token + preferences)
         await ref.read(authServiceProvider).logout();
         debugPrint("🔑 Token removed. Refreshing providers...");
 
-        ref.invalidate(currentUserProvider);
+        // Step 2: Invalidate providers immediately (even if not mounted)
+        try {
+          ref.invalidate(currentUserProvider);
+        } catch (e) {
+          debugPrint("⚠️ Provider invalidation issue (non-critical): $e");
+        }
 
+        // Step 3: Navigate only if still mounted
         if (mounted) {
           debugPrint("📍 Navigating back to Login screen.");
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const LoginScreen()),
-            (route) => false,
-          );
+          try {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const LoginScreen()),
+              (route) => false,
+            );
+          } catch (e) {
+            debugPrint("⚠️ Navigation error (non-critical): $e");
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content:
+                        Text("Logout successful. Please restart the app.")),
+              );
+            }
+          }
+        } else {
+          debugPrint(
+              "⚠️ Widget not mounted, logout completed but cannot navigate");
         }
       } catch (e) {
-        debugPrint("❌ ERROR DURING LOGOUT FLOW: $e");
+        debugPrint("❌ ERROR DURING LOGOUT: $e");
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content: Text("Logout failed: $e"),
+                content: Text(
+                    "Logout failed: ${e.toString().replaceAll('Exception: ', '')}"),
                 backgroundColor: Colors.red),
           );
         }

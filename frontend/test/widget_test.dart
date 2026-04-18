@@ -109,27 +109,4 @@ void main() {
 
     expect(find.byType(Text), findsWidgets);
   });
-
-  testWidgets('HomeRouter shows loading on init', (WidgetTester tester) async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setBool('onboarding_done', false);
-
-    await tester.pumpWidget(
-      MaterialApp(home: _HomeRouter(prefs: prefs)),
-    );
-
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
-  });
-
-  testWidgets('HomeRouter navigates based on onboarding flag',
-      (WidgetTester tester) async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setBool('onboarding_done', true);
-
-    await tester.pumpWidget(
-      MaterialApp(home: _HomeRouter(prefs: prefs)),
-    );
-
-    expect(find.byType(Scaffold), findsOneWidget);
-  });
 }

@@ -718,6 +718,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
               child: ListView.builder(
                 padding: const EdgeInsets.only(bottom: 80),
                 itemCount: filteredExpenses.length,
+                key: ValueKey(
+                    'expenses-${filteredExpenses.map((e) => e.expense.id).join('-')}'),
                 itemBuilder: (context, index) {
                   final item = filteredExpenses[index];
                   final exp = item.expense;
