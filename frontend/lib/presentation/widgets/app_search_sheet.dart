@@ -81,7 +81,7 @@ class _AppSearchSheetState extends ConsumerState<AppSearchSheet> {
   }
 
   Future<void> _search(String rawQuery) async {
-    final query = rawQuery.trim();
+    final query = rawQuery.trim().toLowerCase();
     if (query.isEmpty) {
       if (!mounted) return;
       setState(() {
@@ -93,13 +93,6 @@ class _AppSearchSheetState extends ConsumerState<AppSearchSheet> {
       return;
     }
 
-    // Escape SQL LIKE special characters: %, _, \
-    // So user-typed wildcards don't break the query
-    final escapedQuery = query
-        .replaceAll('\\', '\\\\')
-        .replaceAll('%', '\\%')
-        .replaceAll('_', '\\_');
-
     if (!mounted) return;
     setState(() {
       _query = query;
@@ -108,19 +101,26 @@ class _AppSearchSheetState extends ConsumerState<AppSearchSheet> {
 
     try {
       final db = ref.read(databaseProvider);
-      final tours = await (db.select(db.tours)
-            ..where((t) =>
-                t.isDeleted.equals(false) &
-                (t.name.contains(escapedQuery) |
-                    t.purpose.contains(escapedQuery)))
-            ..orderBy([(t) => OrderingTerm.asc(t.name)]))
-          .get();
 
-      final users = await (db.select(db.users)
-            ..where((u) =>
-                u.isDeleted.equals(false) & u.name.contains(escapedQuery))
-            ..orderBy([(u) => OrderingTerm.asc(u.name)]))
+      // Fetch all tours and filter in memory for safety
+      final allTours = await (db.select(db.tours)
+            ..where((t) => t.isDeleted.equals(false)))
           .get();
+      final tours = allTours
+          .where((t) =>
+              t.name.toLowerCase().contains(query) ||
+              t.purpose.toLowerCase().contains(query))
+          .toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
+
+      // Fetch all users and filter in memory for safety
+      final allUsers = await (db.select(db.users)
+            ..where((u) => u.isDeleted.equals(false)))
+          .get();
+      final users = allUsers
+          .where((u) => u.name.toLowerCase().contains(query))
+          .toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
 
       if (!mounted) return;
       setState(() {
@@ -131,10 +131,14 @@ class _AppSearchSheetState extends ConsumerState<AppSearchSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Search failed: $e'), backgroundColor: Colors.red),
-      );
+      debugPrint('❌ Search Error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Search failed: ${e.toString().split('\n').first}'),
+              backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
