@@ -24,7 +24,7 @@ android {
         applicationId = "com.tourapp.frontend"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = 26  // Updated from flutter.minSdkVersion (21) to support google_ml_kit plugin
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
