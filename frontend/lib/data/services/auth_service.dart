@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -154,6 +155,9 @@ class AuthService {
     await (db.update(db.users)..where((u) => u.id.isNotValue(userId)))
         .write(const UsersCompanion(isMe: Value(false)));
 
+    // Save user JSON to SharedPreferences for quick restore on app restart
+    await prefs.setString('saved_user', jsonEncode(newUser.toJson()));
+
     return newUser;
   }
 
@@ -162,6 +166,7 @@ class AuthService {
       _cachedToken = null;
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('auth_token');
+      await prefs.remove('saved_user');
 
       // Wiping the database here causes critical data loss of offline unsynced items.
       // E.g., if a user creates a tour offline and logs out, the tour and its invite code are lost forever.
@@ -181,4 +186,31 @@ class AuthService {
     _cachedToken = prefs.getString('auth_token');
     return _cachedToken;
   }
-}
+
+  Future<User?> restoreSession() async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        debugPrint('🔑 No saved token found');
+        return null;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = prefs.getString('saved_user');
+      if (userJson == null) {
+        debugPrint('🔑 No saved user found');
+        return null;
+      }
+
+      // Decode and restore user from local storage
+      final decoded = User.fromJson(
+        Map<String, dynamic>.from(jsonDecode(userJson)),
+      );
+
+      debugPrint('✅ Session restored for user: ${decoded.name}');
+      return decoded;
+    } catch (e) {
+      debugPrint('❌ Session restore failed: $e');
+      return null;
+    }
+  }

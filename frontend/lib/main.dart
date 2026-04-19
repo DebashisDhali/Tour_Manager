@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'data/providers/theme_provider.dart';
+import 'data/providers/providers.dart';
 import 'presentation/theme/app_theme.dart';
 import 'presentation/screens/login_screen.dart';
 import 'presentation/screens/onboarding_screen.dart';
+import 'presentation/screens/tour_list_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,14 +53,15 @@ class _HomeRouter extends StatefulWidget {
 
 class _HomeRouterState extends State<_HomeRouter> {
   bool? _showOnboarding;
+  bool? _isLoggedIn;
 
   @override
   void initState() {
     super.initState();
-    _checkOnboarding();
+    _initializeApp();
   }
 
-  Future<void> _checkOnboarding() async {
+  Future<void> _initializeApp() async {
     try {
       final done = widget.prefs.getBool('onboarding_done') ?? false;
       if (mounted) {
@@ -67,8 +70,7 @@ class _HomeRouterState extends State<_HomeRouter> {
     } catch (e) {
       debugPrint('Error checking onboarding: $e');
       if (mounted) {
-        setState(
-            () => _showOnboarding = true); // Default to onboarding on error
+        setState(() => _showOnboarding = true);
       }
     }
   }
@@ -90,6 +92,66 @@ class _HomeRouterState extends State<_HomeRouter> {
       );
     }
 
-    return _showOnboarding! ? const OnboardingScreen() : const LoginScreen();
+    if (_showOnboarding!) {
+      return const OnboardingScreen();
+    }
+
+    // Check for auto-login
+    return _AutoLoginWrapper(child: const LoginScreen());
+  }
+}
+
+class _AutoLoginWrapper extends ConsumerWidget {
+  final Widget child;
+
+  const _AutoLoginWrapper({required this.child});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return FutureBuilder<User?>(
+      future: ref.read(authServiceProvider).restoreSession(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Restoring session...'),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // If user session restored, go to TourListScreen
+        if (snapshot.hasData && snapshot.data != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            debugPrint('✅ Auto-login successful: ${snapshot.data!.name}');
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const TourListScreen()),
+              (route) => false,
+            );
+          });
+          return const Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Loading app...'),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Otherwise, show login screen
+        return child;
+      },
+    );
   }
 }
