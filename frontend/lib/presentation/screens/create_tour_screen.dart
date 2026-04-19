@@ -151,8 +151,8 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
           final errorMsg = e.toString().toLowerCase();
           debugPrint('❌ Attempt $attemptCount: Failed to invite $userName: $e');
 
-          // If we get "not a member" error, try syncing and retrying
-          if (errorMsg.contains('403') &&
+          // If we get "not a member" 403 error, try syncing and retrying
+          if (errorMsg.contains('http 403') &&
               errorMsg.contains('not a member') &&
               attemptCount < 3) {
             debugPrint(

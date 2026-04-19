@@ -926,6 +926,17 @@ class SyncService {
       if (response.statusCode != 200) {
         throw Exception(response.data['error'] ?? 'Failed to send invitation');
       }
+    } on DioException catch (e) {
+      // Extract detailed error info from DioException
+      final statusCode = e.response?.statusCode ?? 0;
+      final errorMsg = e.response?.data?['error']?.toString() ??
+          e.message ??
+          'Failed to send invitation';
+      debugPrint(
+          "❌ Dio Error [HTTP $statusCode] POST $baseUrl/tours/$tourId/add-member (type: ${e.type}) | server: $errorMsg");
+      debugPrint("Add member failed: $e");
+      // Throw with status code and error message so caller can identify 403 errors
+      throw Exception("HTTP $statusCode: $errorMsg");
     } catch (e) {
       debugPrint("Add member failed: $e");
       throw Exception(e.toString());
