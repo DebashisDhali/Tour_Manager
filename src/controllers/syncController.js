@@ -286,12 +286,12 @@ exports.syncData = async (req, res) => {
       updatedMembers,
       allTours
     ] = await Promise.all([
-      Expense.findAll({ where: { tour_id: tourIds, ...dateCondition }, include: [ExpenseSplit, ExpensePayer] }),
-      Settlement.findAll({ where: { tour_id: tourIds, ...dateCondition } }),
-      ProgramIncome.findAll({ where: { tour_id: tourIds, ...dateCondition } }),
-      JoinRequest.findAll({ where: { tour_id: tourIds } }),  // no updated_at column — always fetch all
-      TourMember.findAll({ where: { tour_id: tourIds, ...dateCondition }, include: [User] }),
-      Tour.findAll({ where: { id: tourIds }, raw: true })
+      tourIds.length > 0 ? Expense.findAll({ where: { tour_id: { [Op.in]: tourIds }, ...dateCondition }, include: [ExpenseSplit, ExpensePayer] }) : [],
+      tourIds.length > 0 ? Settlement.findAll({ where: { tour_id: { [Op.in]: tourIds }, ...dateCondition } }) : [],
+      tourIds.length > 0 ? ProgramIncome.findAll({ where: { tour_id: { [Op.in]: tourIds }, ...dateCondition } }) : [],
+      tourIds.length > 0 ? JoinRequest.findAll({ where: { tour_id: { [Op.in]: tourIds } } }) : [],
+      tourIds.length > 0 ? TourMember.findAll({ where: { tour_id: { [Op.in]: tourIds }, ...dateCondition }, include: [User] }) : [],
+      tourIds.length > 0 ? Tour.findAll({ where: { id: { [Op.in]: tourIds } }, raw: true }) : []
     ]);
 
     // Reconstruct nested structure
