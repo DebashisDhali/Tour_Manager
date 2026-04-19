@@ -64,14 +64,23 @@ User E paid: 0 ৳ → Net = 0 - 1000 = -1000 (debtor)
 ### 2.2 MESS Mode (Meal-Based)
 **When:** `purpose.toLowerCase() == 'mess' && hasMealData`
 **Logic:**
-- Fixed Costs = Rent, Utilities (divide ONLY among participants)
-- Meal Costs = Food (divide per meal count)
-- Share = (Fixed ÷ Participating Members) + (Meal Rate × Member's Meals)
+- Fixed Costs (Rent, Utilities) = Divided by ALL members equally
+  - Everyone occupies the space, so everyone shares rent
+  - Even if absent, they're still renting the accommodation
+- Meal Costs = Divided per actual meal consumed
+  - Only those who ate pay for food (by meal count)
+  - Non-participants don't get charged meal costs
+
+**Formula:**
+```
+Member Share = (Total Fixed ÷ All Members) + (Meal Rate × Member's Meals)
+```
 
 **Benefits:**
-- Fair allocation based on participation
-- Non-participants don't pay fixed costs
+- Fair rent allocation (everyone occupies space)
+- Fair meal allocation (only consumers pay)
 - Accounts for varying meal counts
+- Non-participants still contribute to rent
 
 **Example:**
 ```
@@ -80,27 +89,25 @@ Fixed Costs: 3000 ৳ (rent)
 Meal Costs: 9000 ৳ (food)
 Total Meals: 300
 
-Member A: 10 meals
-Member B: 10 meals  
-Member C: 10 meals
-Member D: 0 meals (on leave)
+Members: 4 people (A, B, C, D)
 
-Step 1: Distribute Fixed
-- Participants: 3 (A, B, C only)
-- Fixed per person: 3000 ÷ 3 = 1000 ৳
+Step 1: Distribute Rent among ALL members
+- Rent per person: 3000 ÷ 4 = 750 ৳
 
 Step 2: Calculate Meal Rate
 - Meal Rate: 9000 ÷ 300 = 30 ৳/meal
 
-Step 3: Calculate Shares
-- Member A: 1000 + (30 × 10) = 1300 ৳
-- Member B: 1000 + (30 × 10) = 1300 ৳
-- Member C: 1000 + (30 × 10) = 1300 ৳
-- Member D: 0 (not a participant)
+Step 3: Calculate Member Shares
+- Member A (10 meals): 750 + (30 × 10) = 1050 ৳
+- Member B (10 meals): 750 + (30 × 10) = 1050 ৳
+- Member C (10 meals): 750 + (30 × 10) = 1050 ৳
+- Member D (0 meals): 750 + (30 × 0) = 750 ৳ ✅
+  (D pays rent but NO meal cost)
 ```
 
-### 2.3 PROGRAM Mode (Income-Based)
-**When:** `purpose.toLowerCase() == 'program'`
+**Key Difference from v1:**
+- v1 (Wrong): Fixed ÷ 3 participants = 1000 (D pays 0)
+- v2 (Correct): Fixed ÷ 4 ALL members = 750 (D pays 750)
 **Logic:**
 - Tracks expenses AND income (donations/collections)
 - Income credited to collector
@@ -157,15 +164,30 @@ final remainder = _roundTo2Decimals(fixedAmount - (fixedPerMember * count));
 // Remainder goes to first member, ensuring total = original
 ```
 
-### 4.2 Zero Meal Participants (Mess Mode)
-**Issue (Fixed):** Non-participants were charged fixed costs
-**Before:** 1000 fixed ÷ 4 members = 250 each (wrong!)
-**After:** 1000 fixed ÷ 3 participants = 333.33 each (correct)
+### 4.2 Fixed Cost Allocation in Mess Mode (CORRECTED)
+**Issue (Fixed - v2):** Non-participants were incorrectly excluded from rent costs
+**Before (v1):** 1000 fixed ÷ 3 participants = 333.33 each (D pays 0)
+**After (v2):** 1000 fixed ÷ 4 ALL members = 250 each (D pays 250)
+
+**Real-Life Logic:**
+```
+- Rent is shared by everyone (occupying the house)
+- Meals are only for those who ate
+- Non-present members still "occupy" their room, so they pay rent
+- But they don't eat, so they pay 0 meal cost
+```
+
+**Code Fix:**
 ```dart
+// BEFORE (wrong):
 final usersWithMeals = mealCounts?.entries
     .where((e) => e.value > 0)
     .map((e) => e.key)
     .toList() ?? [];
+final perMemberFixed = fixedAmount / usersWithMeals.length;  // ❌
+
+// AFTER (correct):
+final perMemberFixed = fixedAmount / users.length;  // ✅ All members
 ```
 
 ### 4.3 Micro-transactions
@@ -240,16 +262,22 @@ Expected settlements:
 
 ### Test 2: Mess Mode with Non-Participant
 ```
-Expected: Non-participants have 0 balance
+Expected: Non-participants pay rent but NO meal cost
 Inputs:
-- 4 members, Member D has 0 meals
-- Fixed: 1000, Meals: 300 (30 each for A,B,C)
+- 4 members total, Member D has 0 meals
+- Fixed: 1000 (rent), Meals: 300 (30 each for A,B,C)
 
-Shares:
-- A: 1000/3 + 30 = 363.33
-- B: 363.33
-- C: 363.33  
-- D: 0 ✅ (not charged)
+Shares (CORRECT):
+- A: 1000/4 + 30 = 280 ✅
+- B: 280 ✅
+- C: 280 ✅
+- D: 250 ✅ (pays rent, 0 meal cost)
+
+Before fix (WRONG):
+- A: 1000/3 + 30 = 363.33 ❌
+- B: 363.33 ❌
+- C: 363.33 ❌
+- D: 0 ❌ (not charged at all)
 ```
 
 ### Test 3: Multi-Payer Expense

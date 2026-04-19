@@ -220,20 +220,20 @@ class SettlementCalculator {
               .toList() ??
           [];
 
-      // ===== DISTRIBUTE FIXED COSTS =====
-      // Only among participating members to avoid unfair charges
-      if (participatingMembers.isNotEmpty && totalFixedCost > 0) {
-        final fixedPerMember =
-            _roundTo2Decimals(totalFixedCost / participatingMembers.length);
+      // ===== DISTRIBUTE FIXED COSTS (RENT, UTILITIES) =====
+      // Fixed costs divided by ALL members (everyone occupies the space)
+      // Even if not present, they're still sharing the rent
+      if (users.isNotEmpty && totalFixedCost > 0) {
+        final fixedPerMember = _roundTo2Decimals(totalFixedCost / users.length);
 
         // Calculate remainder to distribute (avoid rounding losses)
         final totalDistributed =
-            _roundTo2Decimals(fixedPerMember * participatingMembers.length);
+            _roundTo2Decimals(fixedPerMember * users.length);
         final fixedRemainder =
             _roundTo2Decimals(totalFixedCost - totalDistributed);
 
-        for (int idx = 0; idx < participatingMembers.length; idx++) {
-          final userId = participatingMembers[idx];
+        for (int idx = 0; idx < users.length; idx++) {
+          final userId = users[idx].id;
           // Add remainder to first member to prevent rounding loss
           final extraAmount = idx == 0 ? fixedRemainder : 0.0;
           shareMap[userId] = _roundTo2Decimals(fixedPerMember + extraAmount);

@@ -96,6 +96,15 @@ class SettlementScreen extends ConsumerWidget {
         .where((e) => e.messCostType == 'meal')
         .fold(0.0, (s, e) => s + e.amount);
 
+    // Calculate fixed cost per person (divided by ALL members)
+    final totalFixedCost = expenses
+        .where((e) => e.messCostType == 'fixed')
+        .fold(0.0, (s, e) => s + e.amount);
+    final fixedCostPerPerson =
+        users.isNotEmpty && tour.purpose.toLowerCase() == 'mess'
+            ? totalFixedCost / users.length
+            : 0.0;
+
     // Only count members who actually participated (have meal count > 0)
     final participatingMembers =
         tourMembers.where((m) => m.mealCount > 0).toList();
@@ -159,12 +168,24 @@ class SettlementScreen extends ConsumerWidget {
                           .dividerColor
                           .withValues(alpha: 0.1)),
                   if (tour.purpose.toLowerCase() == 'mess')
-                    _buildStatItem(
-                        context,
-                        "Meal Rate",
-                        "৳${mealRate.toStringAsFixed(2)}",
-                        Icons.restaurant_menu_rounded,
-                        config.color)
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildStatItem(
+                            context,
+                            "Rent/Fixed",
+                            "৳${fixedCostPerPerson.toStringAsFixed(0)}",
+                            Icons.home_rounded,
+                            config.color),
+                        const SizedBox(height: 12),
+                        _buildStatItem(
+                            context,
+                            "Meal Rate",
+                            "৳${mealRate.toStringAsFixed(2)}/meal",
+                            Icons.restaurant_menu_rounded,
+                            config.color),
+                      ],
+                    )
                   else
                     _buildStatItem(context, "Members", "${users.length} people",
                         Icons.group_rounded, config.color),
@@ -192,6 +213,57 @@ class SettlementScreen extends ConsumerWidget {
                             fontSize: 11,
                             color: config.color.withValues(alpha: 0.8),
                             fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              ], // Show mess mode explanation
+              if (tour.purpose.toLowerCase() == 'mess') ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: config.color.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded,
+                              size: 13,
+                              color: config.color.withValues(alpha: 0.7)),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              "Rent shared by all members (even if absent)",
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: config.color.withValues(alpha: 0.8),
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Icon(Icons.restaurant_menu_rounded,
+                              size: 13,
+                              color: config.color.withValues(alpha: 0.7)),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              "Meals charged only for those who ate",
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: config.color.withValues(alpha: 0.8),
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
