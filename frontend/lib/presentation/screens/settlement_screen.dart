@@ -109,17 +109,27 @@ class SettlementScreen extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildSectionTitle("${config.label} Summary", config.color),
-            TextButton.icon(
-              onPressed: () {
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => FinalReceiptScreen(tourId: tourId)));
-              },
-              icon: const Icon(Icons.download_rounded, size: 18),
-              label: const Text("Export Report",
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-              style: TextButton.styleFrom(foregroundColor: config.color),
+            Tooltip(
+              message:
+                  myMember == null ? 'Only members can download receipts' : '',
+              child: TextButton.icon(
+                onPressed: myMember != null
+                    ? () {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) =>
+                                    FinalReceiptScreen(tourId: tourId)));
+                      }
+                    : null,
+                icon: const Icon(Icons.download_rounded, size: 18),
+                label: const Text("Export Report",
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                style: TextButton.styleFrom(
+                  foregroundColor:
+                      myMember != null ? config.color : Colors.grey,
+                ),
+              ),
             )
           ],
         ),
