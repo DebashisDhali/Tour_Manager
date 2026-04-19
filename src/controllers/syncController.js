@@ -75,7 +75,9 @@ exports.syncData = async (req, res) => {
                 if (creatorId) {
                   await TourMember.upsert({ 
                     tour_id: t.id.toLowerCase(), user_id: creatorId, 
-                    status: 'active', role: 'admin', joined_at: t.startDate || now
+                    status: 'active', role: 'admin', joined_at: t.startDate || now,
+                    created_at: now,
+                    updated_at: now,
                   });
                 }
               }
@@ -97,7 +99,10 @@ exports.syncData = async (req, res) => {
                   tour_id: m.tourId.toLowerCase(), user_id: m.userId.toLowerCase(),
                   status: m.status || (m.leftAt ? 'removed' : 'active'),
                   removed_at: m.leftAt || null, role: m.role || 'viewer',
-                  meal_count: m.mealCount || 0.0
+                  meal_count: m.mealCount || 0.0,
+                  joined_at: now,
+                  created_at: now,
+                  updated_at: now,
                 });
               }
             } catch (e) { console.error(`    ⚠️ Member [${m.tourId}-${m.userId}]:`, e.message); }
@@ -211,6 +216,8 @@ exports.syncData = async (req, res) => {
           role: 'admin',
           removed_at: null,
           joined_at: now,
+          created_at: now,
+          updated_at: now,
         });
       }
 

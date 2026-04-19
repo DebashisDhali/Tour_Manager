@@ -47,13 +47,16 @@ exports.checkTourAccess = (roles) => {
           tour.created_by.toString().toLowerCase() === normalizedUserId;
 
         if (isOwner) {
+          const now = new Date();
           await TourMember.upsert({
             tour_id: normalizedTourId,
             user_id: normalizedUserId,
             status: 'active',
             role: 'admin',
             removed_at: null,
-            joined_at: new Date(),
+            joined_at: now,
+            created_at: now,
+            updated_at: now,
           });
 
           member = await TourMember.findOne({

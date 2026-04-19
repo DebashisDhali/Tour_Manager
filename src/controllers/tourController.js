@@ -330,6 +330,9 @@ exports.removeMember = async (req, res) => {
 exports.addMember = async (req, res) => {
   const t = await sequelize.transaction();
   try {
+    const { tourId } = req.params;
+    const { userId } = req.body;
+
     // Normalize IDs to handle case sensitivity - backend stores everything lowercase
     const normalizedTourId = tourId?.toString().toLowerCase() || '';
     const normalizedUserId = userId?.toString().toLowerCase() || '';
@@ -366,13 +369,16 @@ exports.addMember = async (req, res) => {
         );
       }
     } else {
+      const now = new Date();
       await TourMember.create(
         {
           tour_id: normalizedTourId,
           user_id: normalizedUserId,
           role: 'viewer',
           status: 'pending',
-          joined_at: new Date(),
+          joined_at: now,
+          created_at: now,
+          updated_at: now,
         },
         { transaction: t }
       );

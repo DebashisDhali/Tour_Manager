@@ -84,12 +84,15 @@ exports.handleJoinRequest = async (req, res) => {
       }
 
       // Add as member
+      const now = new Date();
       await TourMember.upsert({
         tour_id: request.tour_id,
         user_id: request.user_id,
         role: normalizedRole,
         status: 'active',
-        joined_at: new Date()
+        joined_at: now,
+        created_at: now,
+        updated_at: now,
       }, { transaction: t });
 
       await request.update({ status: 'approved' }, { transaction: t });
