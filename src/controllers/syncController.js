@@ -263,16 +263,13 @@ exports.syncData = async (req, res) => {
     try {
       // Fetch ALL tour IDs where the user is an active member
       const activeTourRecords = await TourMember.findAll({
-      where: { 
-        user_id: sequelize.where(
-          sequelize.fn('LOWER', sequelize.cast(sequelize.col('user_id'), 'text')),
-          normalizedUserId
-        ), 
-        status: 'active' 
-      },
-      attributes: ['tour_id'],
-      raw: true
-    });
+        where: { 
+          user_id: normalizedUserId,
+          status: 'active' 
+        },
+        attributes: ['tour_id'],
+        raw: true
+      });
     const tourIds = activeTourRecords.map(r => r.tour_id);
     console.log(`📡 Pulling data for User: ${userId}. Involved Tours: [${tourIds.join(', ')}]`);
 
