@@ -4,63 +4,18 @@ const { Op } = require('sequelize');
 exports.syncData = async (req, res) => {
   let transaction;
   let pushPhaseError = null;
-  let inviteCodeRescueApplied = false;
-
-  const rescueTourUpserts = async (tours, now) => {
-    if (!Array.isArray(tours) || tours.length === 0) return false;
-
-    let rescuedAny = false;
-    for (const t of tours) {
-      if (!t || t.isDeleted || !t.id) continue;
-      try {
-        const normalizedTourId = t.id.toLowerCase();
-        const normalizedCreatorId = t.createdBy ? t.createdBy.toLowerCase() : null;
-
-        if (normalizedCreatorId) {
-          await User.findOrCreate({
-            where: { id: normalizedCreatorId },
-            defaults: { id: normalizedCreatorId, name: 'Cloud User' }
-          });
-        }
-
-        await Tour.upsert({
-          id: normalizedTourId,
-          name: t.name,
-          created_by: normalizedCreatorId,
-          invite_code: t.inviteCode || null,
-          start_date: t.startDate || null,
-          end_date: t.endDate || null,
-          purpose: t.purpose || 'tour'
-        });
-
-        if (normalizedCreatorId) {
-          await TourMember.upsert({
-            tour_id: normalizedTourId,
-            user_id: normalizedCreatorId,
-            status: 'active',
-            role: 'admin',
-            joined_at: t.startDate || now
-          });
-        }
-
-        rescuedAny = true;
-      } catch (rescueErr) {
-        console.error(`⚠️ Rescue upsert failed for tour [${t.id}]:`, rescueErr.message);
-      }
-    }
-
-    return rescuedAny;
-  };
 
   try {
+    console.log('=== 🚀 SYNC START ===');
     const { userId, unsyncedData, lastSync } = req.body;
     
     if (!userId) {
+      console.warn('⚠️ userId is missing from request');
       return res.status(400).json({ error: "userId is required" });
     }
 
-    // Normalize userId FIRST for consistent lookups throughout the function
     const normalizedUserId = userId.toLowerCase();
+    console.log(`📍 User ID normalized: ${normalizedUserId}`);
     
     // Validate lastSync date
     let lastSyncDate = new Date(0);
@@ -72,49 +27,62 @@ exports.syncData = async (req, res) => {
     }
     
     const now = new Date();
+    console.log(`🕐 Sync timestamp: ${now.toISOString()}`);
 
-    transaction = await sequelize.transaction();
-    
+    // ========== PUSH PHASE ==========
+    console.log('📤 Starting PUSH phase...');
     try {
-      
-      // Update user's last activity
-      await User.update({ is_registered: true }, { 
+      transaction = await sequelize.transaction();
+      console.log('✅ Transaction created');
+
+      // Verify user exists in database
+      const userExists = await User.findByPk(normalizedUserId);
+      if (!userExists) {
+        console.log(`👤 Creating new user record for: ${normalizedUserId}`);
+        await User.create({ id: normalizedUserId, name: 'Mobile User' }, { transaction });
+      }
+
+      // Update user's registration status
+      const updateResult = await User.update({ is_registered: true }, { 
         where: { id: normalizedUserId },
         transaction 
       });
+      console.log(`✅ User updated: ${updateResult[0]} rows affected`);
 
-      // 1. Process Unsynced Data from Client (Push)
+      // Process unsynced data
       if (unsyncedData) {
+        console.log('📦 Processing unsynced data...');
         const { tours, users, expenses, splits, payers, settlements, incomes, members, joinRequests } = unsyncedData;
 
-        // 1.1 Process Users
+        // Process users
         if (users?.length > 0) {
+          console.log(`  👥 Processing ${users.length} user(s)...`);
           for (const u of users) {
-             try {
-               if (u.isDeleted) {
-                 await User.destroy({ where: { id: u.id }, transaction });
-               } else {
-                  await User.upsert({
-                    id: u.id.toLowerCase(), name: u.name, phone: u.phone, email: u.email,
-                    avatar_url: u.avatarUrl, purpose: u.purpose
-                  }, { transaction });
-               }
-             } catch (e) { console.error(`⚠️ User Sync Fail [${u.id}]:`, e.message); }
+            try {
+              if (u.isDeleted) {
+                await User.destroy({ where: { id: u.id }, transaction });
+              } else {
+                await User.upsert({
+                  id: u.id.toLowerCase(), name: u.name, phone: u.phone, email: u.email,
+                  avatar_url: u.avatarUrl, purpose: u.purpose
+                }, { transaction });
+              }
+            } catch (e) { 
+              console.error(`  ⚠️ User sync failed [${u.id}]:`, e.message);
+            }
           }
+          console.log(`  ✅ Users processed`);
         }
 
-        // 1.2 Process Tours
+        // Process tours
         if (tours?.length > 0) {
-          console.log(`📦 Processing ${tours.length} tour(s) from client...`);
+          console.log(`  🏕️  Processing ${tours.length} tour(s)...`);
           for (const t of tours) {
-             if (t.isDeleted) {
-               await Tour.destroy({ where: { id: t.id }, transaction });
-             } else {
-               // Log exactly what we received
-               console.log(`🏕️ Tour sync: id=${t.id}, name=${t.name}, invite_code=${t.inviteCode ?? 'NULL'}, createdBy=${t.createdBy}`);
-               
-               // Ensure the creator exists on the server to avoid FK issues with TourMember
-               if (t.createdBy) {
+            try {
+              if (t.isDeleted) {
+                await Tour.destroy({ where: { id: t.id.toLowerCase() }, transaction });
+              } else {
+                if (t.createdBy) {
                   const creatorId = t.createdBy.toLowerCase();
                   await User.findOrCreate({
                     where: { id: creatorId },
@@ -123,30 +91,12 @@ exports.syncData = async (req, res) => {
                   });
                 }
 
-                const tourPayload = {
+                await Tour.upsert({
                   id: t.id.toLowerCase(), name: t.name, created_by: t.createdBy ? t.createdBy.toLowerCase() : null,
                   invite_code: t.inviteCode || null, start_date: t.startDate || null,
                   end_date: t.endDate || null, purpose: t.purpose || 'tour'
-                };
-                
-                // If invite_code is explicitly provided, force-update it
-                // (upsert may skip columns that aren't changed in some configs)
-                const [tourRecord] = await Tour.upsert(tourPayload, { 
-                  transaction,
-                  returning: true // get the saved record back
-                });
-                
-                // Double-check: if invite_code not saved (can happen with some PG upsert quirks), update explicitly
-                if (t.inviteCode && tourRecord) {
-                  const savedCode = tourRecord.invite_code || tourRecord.dataValues?.invite_code;
-                  if (!savedCode) {
-                    console.log(`⚠️ invite_code was not saved by upsert, forcing update for tour ${t.id}`);
-                    await Tour.update({ invite_code: t.inviteCode }, { where: { id: t.id.toLowerCase() }, transaction });
-                  } else {
-                    console.log(`✅ Tour saved with invite_code: ${savedCode}`);
-                  }
-                }
-                
+                }, { transaction });
+
                 if (t.createdBy) {
                   await TourMember.upsert({ 
                     tour_id: t.id.toLowerCase(), user_id: t.createdBy.toLowerCase(), 
@@ -154,35 +104,40 @@ exports.syncData = async (req, res) => {
                     joined_at: t.startDate || now
                   }, { transaction });
                 }
-             }
+              }
+            } catch (e) {
+              console.error(`  ⚠️ Tour sync failed [${t.id}]:`, e.message);
+            }
           }
+          console.log(`  ✅ Tours processed`);
         }
 
-        // 1.3 Process Tour Members
+        // Process members
         if (members?.length > 0) {
+          console.log(`  👫 Processing ${members.length} member(s)...`);
           for (const m of members) {
-             try {
-               // Members are more of status changes than hard deletes usually, 
-               // but we follow the flag if provided.
-               if (m.isDeleted) {
-                  await TourMember.destroy({ where: { tour_id: m.tourId, user_id: m.userId }, transaction });
-               } else {
-                  const mTourId = m.tourId.toLowerCase();
-                  const mUserId = m.userId.toLowerCase();
-                  await TourMember.upsert({
-                    tour_id: mTourId, user_id: mUserId,
-                    status: m.status || (m.leftAt ? 'removed' : 'active'),
-                    removed_at: m.leftAt || null,
-                    role: m.role || 'viewer',
-                    meal_count: m.mealCount || 0.0
-                  }, { transaction });
-               }
-             } catch (e) { console.error(`⚠️ Member Sync Fail [${m.tourId}-${m.userId}]:`, e.message); }
+            try {
+              if (m.isDeleted) {
+                await TourMember.destroy({ where: { tour_id: m.tourId.toLowerCase(), user_id: m.userId.toLowerCase() }, transaction });
+              } else {
+                await TourMember.upsert({
+                  tour_id: m.tourId.toLowerCase(), user_id: m.userId.toLowerCase(),
+                  status: m.status || (m.leftAt ? 'removed' : 'active'),
+                  removed_at: m.leftAt || null,
+                  role: m.role || 'viewer',
+                  meal_count: m.mealCount || 0.0
+                }, { transaction });
+              }
+            } catch (e) { 
+              console.error(`  ⚠️ Member sync failed [${m.tourId}-${m.userId}]:`, e.message);
+            }
           }
+          console.log(`  ✅ Members processed`);
         }
 
-        // 1.4 Bulk Operations with Delete Support
+        // Process expenses
         if (expenses?.length > 0) {
+          console.log(`  💰 Processing ${expenses.length} expense(s)...`);
           const toDelete = expenses.filter(e => e.isDeleted).map(e => e.id);
           const toUpsert = expenses.filter(e => !e.isDeleted);
           if (toDelete.length > 0) await Expense.destroy({ where: { id: toDelete }, transaction });
@@ -192,27 +147,36 @@ exports.syncData = async (req, res) => {
               title: e.title, category: e.category, mess_cost_type: e.messCostType, date: e.createdAt
             })), { transaction, updateOnDuplicate: ['amount', 'title', 'category', 'date', 'payer_id', 'mess_cost_type'], conflictAttributes: ['id'] });
           }
+          console.log(`  ✅ Expenses processed`);
         }
 
+        // Process splits
         if (splits?.length > 0) {
+          console.log(`  ✂️  Processing ${splits.length} split(s)...`);
           const toDelete = splits.filter(s => s.isDeleted).map(s => s.id);
           const toUpsert = splits.filter(s => !s.isDeleted);
           if (toDelete.length > 0) await ExpenseSplit.destroy({ where: { id: toDelete }, transaction });
           if (toUpsert.length > 0) {
             await ExpenseSplit.bulkCreate(toUpsert.map(s => ({ id: s.id, expense_id: s.expenseId, user_id: s.userId, amount: s.amount })), { transaction, updateOnDuplicate: ['amount'], conflictAttributes: ['id'] });
           }
+          console.log(`  ✅ Splits processed`);
         }
 
+        // Process payers
         if (payers?.length > 0) {
+          console.log(`  💳 Processing ${payers.length} payer(s)...`);
           const toDelete = payers.filter(p => p.isDeleted).map(p => p.id);
           const toUpsert = payers.filter(p => !p.isDeleted);
           if (toDelete.length > 0) await ExpensePayer.destroy({ where: { id: toDelete }, transaction });
           if (toUpsert.length > 0) {
             await ExpensePayer.bulkCreate(toUpsert.map(p => ({ id: p.id, expense_id: p.expenseId, user_id: p.userId, amount: p.amount })), { transaction, updateOnDuplicate: ['amount'], conflictAttributes: ['id'] });
           }
+          console.log(`  ✅ Payers processed`);
         }
 
+        // Process settlements
         if (settlements?.length > 0) {
+          console.log(`  🤝 Processing ${settlements.length} settlement(s)...`);
           const toDelete = settlements.filter(s => s.isDeleted).map(s => s.id);
           const toUpsert = settlements.filter(s => !s.isDeleted);
           if (toDelete.length > 0) await Settlement.destroy({ where: { id: toDelete }, transaction });
@@ -221,9 +185,12 @@ exports.syncData = async (req, res) => {
               id: s.id, tour_id: s.tourId, from_id: s.fromId, to_id: s.toId, amount: s.amount, date: s.date
             })), { transaction, updateOnDuplicate: ['amount', 'date'], conflictAttributes: ['id'] });
           }
+          console.log(`  ✅ Settlements processed`);
         }
-        
+
+        // Process incomes
         if (incomes?.length > 0) {
+          console.log(`  💵 Processing ${incomes.length} income(s)...`);
           const toDelete = incomes.filter(i => i.isDeleted).map(i => i.id);
           const toUpsert = incomes.filter(i => !i.isDeleted);
           if (toDelete.length > 0) await ProgramIncome.destroy({ where: { id: toDelete }, transaction });
@@ -233,9 +200,12 @@ exports.syncData = async (req, res) => {
               description: i.description, collected_by: i.collectedBy, date: i.date
             })), { transaction, updateOnDuplicate: ['amount', 'source', 'description', 'collected_by', 'date'], conflictAttributes: ['id'] });
           }
+          console.log(`  ✅ Incomes processed`);
         }
 
+        // Process join requests
         if (joinRequests?.length > 0) {
+          console.log(`  📋 Processing ${joinRequests.length} join request(s)...`);
           const toDelete = joinRequests.filter(jr => jr.isDeleted).map(jr => jr.id);
           const toUpsert = joinRequests.filter(jr => !jr.isDeleted);
           if (toDelete.length > 0) await JoinRequest.destroy({ where: { id: toDelete }, transaction });
@@ -244,26 +214,33 @@ exports.syncData = async (req, res) => {
               id: jr.id, tour_id: jr.tourId, user_id: jr.userId, user_name: jr.userName || 'Unknown', status: jr.status || 'pending'
             })), { transaction, updateOnDuplicate: ['status'], conflictAttributes: ['id'] });
           }
+          console.log(`  ✅ Join requests processed`);
         }
       }
 
       await transaction.commit();
+      console.log('✅ PUSH phase completed - transaction committed');
       transaction = null;
-      console.log('✅ Push phase completed successfully.');
+
     } catch (pushErr) {
-      console.error('⚠️ Push Sync Phase had errors (non-fatal, continuing to pull):', pushErr.message);
-      pushPhaseError = pushErr.message; // Store error to send to client
+      console.error('⚠️ PUSH phase error (continuing to PULL):', pushErr.message);
+      pushPhaseError = pushErr.message;
       if (transaction) {
-        try { await transaction.rollback(); } catch(rbErr) { /* ignore */ }
+        try { 
+          await transaction.rollback();
+          console.log('✅ Transaction rolled back');
+        } catch(rbErr) { 
+          console.error('⚠️ Rollback failed:', rbErr.message);
+        }
         transaction = null;
       }
     }
 
-    // Pull Phase: Use fresh database context (no transaction) to avoid connection state issues
+    // ========== PULL PHASE ==========
+    console.log('📥 Starting PULL phase...');
     try {
-      console.log('📡 Starting Pull Phase...');
-      // Fetch ALL tour IDs where the user is an active member
-      console.log(`🔍 Querying TourMember for user: ${normalizedUserId}`);
+      // Get all tours for this user
+      console.log(`🔍 Querying tours for user ${normalizedUserId}...`);
       const activeTourRecords = await TourMember.findAll({
         where: { 
           user_id: normalizedUserId,
@@ -272,83 +249,119 @@ exports.syncData = async (req, res) => {
         attributes: ['tour_id'],
         raw: true
       });
-      console.log(`✅ Found ${activeTourRecords.length} active tours for user`);
-      
+      console.log(`✅ Found ${activeTourRecords.length} active tours`);
+
       const tourIds = activeTourRecords.map(r => r.tour_id);
-      console.log(`📡 Pulling data for User: ${userId}. Involved Tours: [${tourIds.join(', ')}]`);
+      if (tourIds.length === 0) {
+        console.log('ℹ️  User has no active tours - returning empty dataset');
+        return res.json({
+          timestamp: now.toISOString(),
+          pushSuccess: pushPhaseError === null,
+          pushError: pushPhaseError,
+          tours: [],
+          allTourIds: []
+        });
+      }
 
-      // Fetch only tours and their updated children
-      // Note: Updated_at column doesn't exist in DB, so we fetch all records for now
-      const dateCondition = {};  // Removed date filtering since timestamps are disabled
+      console.log(`📡 Fetching data for tours: ${tourIds.slice(0, 3).join(', ')}${tourIds.length > 3 ? '...' : ''}`);
 
-      console.log('🔄 Executing parallel queries...');
-      // Parallel fetch for speed (Vercel has a 10s limit)
-      const [
-        updatedExpenses,
-        updatedSettlements,
-        updatedIncomes,
-        updatedJoinRequests,
-        updatedMembers,
-        allTours
-      ] = await Promise.all([
-        tourIds.length > 0 ? Expense.findAll({ where: { tour_id: { [Op.in]: tourIds }, ...dateCondition }, include: [ExpenseSplit, ExpensePayer] }) : [],
-        tourIds.length > 0 ? Settlement.findAll({ where: { tour_id: { [Op.in]: tourIds }, ...dateCondition } }) : [],
-        tourIds.length > 0 ? ProgramIncome.findAll({ where: { tour_id: { [Op.in]: tourIds }, ...dateCondition } }) : [],
-        tourIds.length > 0 ? JoinRequest.findAll({ where: { tour_id: { [Op.in]: tourIds } } }) : [],
-        tourIds.length > 0 ? TourMember.findAll({ where: { tour_id: { [Op.in]: tourIds }, ...dateCondition }, include: [User] }) : [],
-        tourIds.length > 0 ? Tour.findAll({ where: { id: { [Op.in]: tourIds } }, raw: true }) : []
+      // Fetch related data - using Op.in for array filtering
+      console.log('⏳ Querying expenses, settlements, incomes, members...');
+      const [expenses, settlements, incomes, joinRequests, members, tours] = await Promise.all([
+        Expense.findAll({ 
+          where: { tour_id: { [Op.in]: tourIds } },
+          raw: true
+        }),
+        Settlement.findAll({ 
+          where: { tour_id: { [Op.in]: tourIds } },
+          raw: true
+        }),
+        ProgramIncome.findAll({ 
+          where: { tour_id: { [Op.in]: tourIds } },
+          raw: true
+        }),
+        JoinRequest.findAll({ 
+          where: { tour_id: { [Op.in]: tourIds } },
+          raw: true
+        }),
+        TourMember.findAll({ 
+          where: { tour_id: { [Op.in]: tourIds } },
+          include: [{ model: User, attributes: { exclude: ['password'] } }],
+          raw: false
+        }),
+        Tour.findAll({ 
+          where: { id: { [Op.in]: tourIds } },
+          raw: true
+        })
       ]);
-      console.log(`✅ Queries completed: Expenses=${updatedExpenses.length}, Tours=${allTours.length}`);
+      console.log(`✅ Data fetched - Expenses: ${expenses.length}, Settlements: ${settlements.length}, Members: ${members.length}, Tours: ${tours.length}`);
 
-      console.log('🔄 Reconstructing nested structure...');
       // Reconstruct nested structure
-      const toursData = allTours.map(tour => {
+      console.log('🔄 Reconstructing tour data...');
+      const toursData = tours.map(tour => {
+        const tourExpenses = expenses.filter(e => e.tour_id === tour.id);
+        const tourMembers = members
+          .filter(m => m.tour_id === tour.id)
+          .map(m => {
+            const plain = m.get({ plain: true });
+            const userObj = plain.User;
+            delete plain.User;
+            return { ...userObj, TourMember: plain };
+          });
+
         return {
           ...tour,
-          Expenses: updatedExpenses.filter(e => e.tour_id === tour.id),
-          Settlements: updatedSettlements.filter(s => s.tour_id === tour.id),
-          ProgramIncomes: updatedIncomes.filter(i => i.tour_id === tour.id),
-          JoinRequests: updatedJoinRequests.filter(jr => jr.tour_id === tour.id),
-          Users: updatedMembers.filter(m => m.tour_id === tour.id).map(m => {
-             const member = m.get({ plain: true });
-             if (member.User) {
-               const user = member.User;
-               delete member.User;
-               return { ...user, TourMember: member };
-             }
-             return member;
-          })
+          Expenses: tourExpenses,
+          Settlements: settlements.filter(s => s.tour_id === tour.id),
+          ProgramIncomes: incomes.filter(i => i.tour_id === tour.id),
+          JoinRequests: joinRequests.filter(jr => jr.tour_id === tour.id),
+          Users: tourMembers
         };
       });
-      console.log(`✅ Reconstruction complete: ${toursData.length} tours with data`);
+      console.log(`✅ Reconstructed ${toursData.length} tours with nested data`);
 
-      console.log('📤 Sending sync response...');
+      console.log('📤 Sending response...');
       res.json({
         timestamp: now.toISOString(),
         pushSuccess: pushPhaseError === null,
         pushError: pushPhaseError,
-        inviteCodeRescueApplied,
         tours: toursData,
-        allTourIds: tourIds 
+        allTourIds: tourIds
       });
-      console.log('✅ Sync response sent successfully');
+      console.log('✅ Response sent - SYNC COMPLETE');
 
-    } catch (err) {
-    console.error('❌ Sync Error Details:', {
+    } catch (pullErr) {
+      console.error('❌ PULL phase error:', {
+        message: pullErr.message,
+        type: pullErr.constructor.name,
+        code: pullErr.code,
+        sql: pullErr.sql
+      });
+      throw pullErr; // Re-throw to outer catch
+    }
+
+  } catch (err) {
+    console.error('❌ SYNC FAILED - OUTER CATCH:', {
       message: err.message,
       stack: err.stack,
       code: err.code,
       sql: err.sql,
       type: err.constructor.name
     });
+    
     if (transaction) {
-      try { await transaction.rollback(); } catch(rbErr) { /* ignore */ }
+      try { 
+        await transaction.rollback();
+      } catch(rbErr) { 
+        console.error('⚠️ Final rollback failed:', rbErr.message);
+      }
     }
+
     res.status(500).json({ 
       error: "Sync failed", 
       message: err.message,
       details: err.sql || err.code || '',
-      stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined
+      type: err.constructor.name
     });
   }
 };
