@@ -36,6 +36,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
   int _unreadNotificationCount = 0;
   Set<String> _currentNotificationKeys = <String>{};
   Timer? _notificationTimer;
+  ProviderSubscription<AsyncValue<bool>>? _unsyncedSub;
   double? _edgeSwipeStartX;
   bool _edgeSwipeTracking = false;
 
@@ -53,23 +54,15 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
       _checkAndStartTour();
     });
 
-    // Aggressive Auto-Sync: Watch for unsynced changes and trigger sync
-    ref.listenManual(hasUnsyncedChangesProvider, (previous, next) {
-      if (next.value == true) {
-        final user = ref.read(currentUserProvider).value;
-        if (user != null) {
-          ref
-              .read(syncServiceProvider)
-              .startSync(user.id)
-              .catchError((e) => debugPrint("Aggressive Auto-sync failed: $e"));
-        }
-      }
-    });
+    // Keep a lightweight listener only for this screen lifecycle.
+    // Main auto-sync orchestration is handled by SyncHandler to avoid duplicate sync storms.
+    _unsyncedSub = ref.listenManual(hasUnsyncedChangesProvider, (_, __) {});
   }
 
   @override
   void dispose() {
     _notificationTimer?.cancel();
+    _unsyncedSub?.close();
     super.dispose();
   }
 
@@ -205,10 +198,17 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
           showSnackBar && mounted && nextUnreadCount > _unreadNotificationCount;
 
       if (!mounted) return;
-      setState(() {
-        _unreadNotificationCount = nextUnreadCount;
-        _currentNotificationKeys = notificationKeys;
-      });
+      final hasCountChanged = nextUnreadCount != _unreadNotificationCount;
+      final hasKeysChanged =
+          notificationKeys.length != _currentNotificationKeys.length ||
+              !notificationKeys.containsAll(_currentNotificationKeys);
+
+      if (hasCountChanged || hasKeysChanged) {
+        setState(() {
+          _unreadNotificationCount = nextUnreadCount;
+          _currentNotificationKeys = notificationKeys;
+        });
+      }
 
       if (shouldShowSnack) {
         ScaffoldMessenger.of(context).showSnackBar(

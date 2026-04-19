@@ -48,6 +48,13 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
   Set<String> _currentNotificationKeys = <String>{};
   Timer? _notificationTimer;
 
+  String _formatMealCount(double value) {
+    var text = value.toStringAsFixed(2);
+    text = text.replaceFirst(RegExp(r'0+$'), '');
+    text = text.replaceFirst(RegExp(r'\.$'), '');
+    return text;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -113,10 +120,17 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
           notificationKeys.where((key) => !seenKeys.contains(key)).length;
 
       if (!mounted) return;
-      setState(() {
-        _unreadNotificationCount = nextUnreadCount;
-        _currentNotificationKeys = notificationKeys;
-      });
+      final hasCountChanged = nextUnreadCount != _unreadNotificationCount;
+      final hasKeysChanged =
+          notificationKeys.length != _currentNotificationKeys.length ||
+              !notificationKeys.containsAll(_currentNotificationKeys);
+
+      if (hasCountChanged || hasKeysChanged) {
+        setState(() {
+          _unreadNotificationCount = nextUnreadCount;
+          _currentNotificationKeys = notificationKeys;
+        });
+      }
 
       if (showSnackBar && nextUnreadCount > 0) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1277,7 +1291,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                                     const SizedBox(width: 4),
                                     Expanded(
                                       child: Text(
-                                        "Meal Count: ${m.mealCount.toStringAsFixed(1)}",
+                                        "Meal Count: ${_formatMealCount(m.mealCount)}",
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(

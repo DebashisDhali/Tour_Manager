@@ -116,8 +116,25 @@ final tourListProvider = StreamProvider.autoDispose<List<Tour>>((ref) {
       uniqueTours[tour.id] = tour;
     }
     final deduped = uniqueTours.values.toList()
-      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      ..sort((a, b) {
+        final byTime = b.updatedAt.compareTo(a.updatedAt);
+        if (byTime != 0) return byTime;
+        return a.id.compareTo(b.id);
+      });
     return deduped;
+  }).distinct((previous, next) {
+    if (previous.length != next.length) return false;
+    for (int i = 0; i < previous.length; i++) {
+      final p = previous[i];
+      final n = next[i];
+      if (p.id != n.id ||
+          p.updatedAt != n.updatedAt ||
+          p.isSynced != n.isSynced ||
+          p.isDeleted != n.isDeleted) {
+        return false;
+      }
+    }
+    return true;
   });
 });
 
@@ -327,16 +344,30 @@ final tourUsersProvider =
   final query = db.select(db.users).join([
     innerJoin(db.tourMembers, db.tourMembers.userId.equalsExp(db.users.id)),
   ])
-    ..where(db.tourMembers.tourId.equals(tourId));
-  return query.watch().map((rows) => rows.map((row) {
-        try {
-          return row.readTable(db.users);
-        } catch (e) {
-          debugPrint(
-              "\n\n🧨 FATAL ERROR MAPPING TOUR USER: ${row.rawData.data}\n\n");
-          rethrow;
-        }
-      }).toList());
+    ..where(db.tourMembers.tourId.equals(tourId) &
+        db.tourMembers.status.equals('active') &
+        db.tourMembers.isDeleted.equals(false) &
+        db.users.isDeleted.equals(false));
+  return query
+      .watch()
+      .map((rows) => rows.map((row) {
+            try {
+              return row.readTable(db.users);
+            } catch (e) {
+              debugPrint(
+                  "\n\n🧨 FATAL ERROR MAPPING TOUR USER: ${row.rawData.data}\n\n");
+              rethrow;
+            }
+          }).toList())
+      .map((users) {
+    final unique = <String, User>{};
+    for (final u in users) {
+      unique[u.id] = u;
+    }
+    final deduped = unique.values.toList()
+      ..sort((a, b) => a.id.compareTo(b.id));
+    return deduped;
+  });
 });
 
 final tourExpensesProvider =
@@ -357,7 +388,9 @@ final tourSplitsProvider = StreamProvider.family
     innerJoin(
         db.expenses, db.expenses.id.equalsExp(db.expenseSplits.expenseId)),
   ])
-    ..where(db.expenses.tourId.equals(tourId));
+    ..where(db.expenses.tourId.equals(tourId) &
+        db.expenses.isDeleted.equals(false) &
+        db.expenseSplits.isDeleted.equals(false));
   return query.watch().map(
       (rows) => rows.map((row) => row.readTable(db.expenseSplits)).toList());
 });
@@ -369,7 +402,9 @@ final tourPayersProvider = StreamProvider.family
     innerJoin(
         db.expenses, db.expenses.id.equalsExp(db.expensePayers.expenseId)),
   ])
-    ..where(db.expenses.tourId.equals(tourId));
+    ..where(db.expenses.tourId.equals(tourId) &
+        db.expenses.isDeleted.equals(false) &
+        db.expensePayers.isDeleted.equals(false));
   return query.watch().map(
       (rows) => rows.map((row) => row.readTable(db.expensePayers)).toList());
 });

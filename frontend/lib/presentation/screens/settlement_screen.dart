@@ -66,7 +66,13 @@ class SettlementScreen extends ConsumerWidget {
     final totalCost = expenses.fold(0.0, (sum, e) => sum + e.amount);
     final equalShare = users.isEmpty ? 0.0 : totalCost / users.length;
 
-    final mealCounts = {for (var m in tourMembers) m.user.id: m.mealCount};
+    final activeUserIds = users.map((u) => u.id).toSet();
+    final activeTourMembers = tourMembers
+        .where((m) => m.status == 'active' && activeUserIds.contains(m.user.id))
+        .toList();
+    final mealCounts = {
+      for (var m in activeTourMembers) m.user.id: m.mealCount,
+    };
     final calculator = SettlementCalculator();
 
     final instructions = calculator.calculate(
@@ -107,7 +113,7 @@ class SettlementScreen extends ConsumerWidget {
 
     // Only count members who actually participated (have meal count > 0)
     final participatingMembers =
-        tourMembers.where((m) => m.mealCount > 0).toList();
+        activeTourMembers.where((m) => m.mealCount > 0).toList();
     final totalMeals =
         participatingMembers.fold(0.0, (s, m) => s + m.mealCount);
     final mealRate = totalMeals > 0 ? totalMealCost / totalMeals : 0.0;

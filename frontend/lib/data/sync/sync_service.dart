@@ -9,6 +9,7 @@ class SyncService {
   final AppDatabase db;
   final Dio dio;
   final String baseUrl;
+  bool _isSyncInProgress = false;
 
   SyncService(this.db, this.dio, this.baseUrl) {
     debugPrint("📡 SyncService initialized with BaseURL: $baseUrl");
@@ -43,6 +44,12 @@ class SyncService {
   }
 
   Future<void> startSync(String userId) async {
+    if (_isSyncInProgress) {
+      debugPrint('⏭️ Sync skipped: previous sync still in progress');
+      return;
+    }
+
+    _isSyncInProgress = true;
     try {
       debugPrint("Sync started for user: $userId");
 
@@ -566,6 +573,8 @@ class SyncService {
     } catch (e) {
       debugPrint("❌ Sync Engine Generic Error: $e");
       rethrow;
+    } finally {
+      _isSyncInProgress = false;
     }
   }
 
