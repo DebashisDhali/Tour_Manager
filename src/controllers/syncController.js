@@ -55,6 +55,13 @@ exports.syncData = async (req, res) => {
   try {
     const { userId, unsyncedData, lastSync } = req.body;
     
+    if (!userId) {
+      return res.status(400).json({ error: "userId is required" });
+    }
+
+    // Normalize userId FIRST for consistent lookups throughout the function
+    const normalizedUserId = userId.toLowerCase();
+    
     // Validate lastSync date
     let lastSyncDate = new Date(0);
     if (lastSync && lastSync !== 'null' && lastSync !== 'undefined') {
@@ -66,15 +73,9 @@ exports.syncData = async (req, res) => {
     
     const now = new Date();
 
-    if (!userId) {
-      return res.status(400).json({ error: "userId is required" });
-    }
-
     transaction = await sequelize.transaction();
     
     try {
-      // Normalize userId for consistent lookups
-      const normalizedUserId = userId ? userId.toLowerCase() : userId;
       
       // Update user's last activity
       await User.update({ is_registered: true }, { 
