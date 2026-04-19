@@ -258,22 +258,12 @@ exports.syncData = async (req, res) => {
         try { await transaction.rollback(); } catch(rbErr) { /* ignore */ }
         transaction = null;
       }
-
-      // Critical fallback: keep invite codes discoverable even if full push fails.
-      try {
-        inviteCodeRescueApplied = await rescueTourUpserts(unsyncedData?.tours, now);
-        if (inviteCodeRescueApplied) {
-          console.log('✅ Invite-code rescue upsert completed after push rollback.');
-        }
-      } catch (rescueErr) {
-        console.error('⚠️ Invite-code rescue upsert crashed:', rescueErr.message);
-      }
     }
 
-
-
-    // Fetch ALL tour IDs where the user is an active member
-    const activeTourRecords = await TourMember.findAll({
+    // Pull Phase: Use fresh database context (no transaction) to avoid connection state issues
+    try {
+      // Fetch ALL tour IDs where the user is an active member
+      const activeTourRecords = await TourMember.findAll({
       where: { 
         user_id: sequelize.where(
           sequelize.fn('LOWER', sequelize.cast(sequelize.col('user_id'), 'text')),
