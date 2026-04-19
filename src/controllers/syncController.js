@@ -261,7 +261,9 @@ exports.syncData = async (req, res) => {
 
     // Pull Phase: Use fresh database context (no transaction) to avoid connection state issues
     try {
+      console.log('📡 Starting Pull Phase...');
       // Fetch ALL tour IDs where the user is an active member
+      console.log(`🔍 Querying TourMember for user: ${normalizedUserId}`);
       const activeTourRecords = await TourMember.findAll({
         where: { 
           user_id: normalizedUserId,
@@ -270,65 +272,82 @@ exports.syncData = async (req, res) => {
         attributes: ['tour_id'],
         raw: true
       });
-    const tourIds = activeTourRecords.map(r => r.tour_id);
-    console.log(`📡 Pulling data for User: ${userId}. Involved Tours: [${tourIds.join(', ')}]`);
+      console.log(`✅ Found ${activeTourRecords.length} active tours for user`);
+      
+      const tourIds = activeTourRecords.map(r => r.tour_id);
+      console.log(`📡 Pulling data for User: ${userId}. Involved Tours: [${tourIds.join(', ')}]`);
 
-    // Fetch only tours and their updated children
-    // Note: Updated_at column doesn't exist in DB, so we fetch all records for now
-    const dateCondition = {};  // Removed date filtering since timestamps are disabled
+      // Fetch only tours and their updated children
+      // Note: Updated_at column doesn't exist in DB, so we fetch all records for now
+      const dateCondition = {};  // Removed date filtering since timestamps are disabled
 
-    // Parallel fetch for speed (Vercel has a 10s limit)
-    const [
-      updatedExpenses,
-      updatedSettlements,
-      updatedIncomes,
-      updatedJoinRequests,
-      updatedMembers,
-      allTours
-    ] = await Promise.all([
-      tourIds.length > 0 ? Expense.findAll({ where: { tour_id: { [Op.in]: tourIds }, ...dateCondition }, include: [ExpenseSplit, ExpensePayer] }) : [],
-      tourIds.length > 0 ? Settlement.findAll({ where: { tour_id: { [Op.in]: tourIds }, ...dateCondition } }) : [],
-      tourIds.length > 0 ? ProgramIncome.findAll({ where: { tour_id: { [Op.in]: tourIds }, ...dateCondition } }) : [],
-      tourIds.length > 0 ? JoinRequest.findAll({ where: { tour_id: { [Op.in]: tourIds } } }) : [],
-      tourIds.length > 0 ? TourMember.findAll({ where: { tour_id: { [Op.in]: tourIds }, ...dateCondition }, include: [User] }) : [],
-      tourIds.length > 0 ? Tour.findAll({ where: { id: { [Op.in]: tourIds } }, raw: true }) : []
-    ]);
+      console.log('🔄 Executing parallel queries...');
+      // Parallel fetch for speed (Vercel has a 10s limit)
+      const [
+        updatedExpenses,
+        updatedSettlements,
+        updatedIncomes,
+        updatedJoinRequests,
+        updatedMembers,
+        allTours
+      ] = await Promise.all([
+        tourIds.length > 0 ? Expense.findAll({ where: { tour_id: { [Op.in]: tourIds }, ...dateCondition }, include: [ExpenseSplit, ExpensePayer] }) : [],
+        tourIds.length > 0 ? Settlement.findAll({ where: { tour_id: { [Op.in]: tourIds }, ...dateCondition } }) : [],
+        tourIds.length > 0 ? ProgramIncome.findAll({ where: { tour_id: { [Op.in]: tourIds }, ...dateCondition } }) : [],
+        tourIds.length > 0 ? JoinRequest.findAll({ where: { tour_id: { [Op.in]: tourIds } } }) : [],
+        tourIds.length > 0 ? TourMember.findAll({ where: { tour_id: { [Op.in]: tourIds }, ...dateCondition }, include: [User] }) : [],
+        tourIds.length > 0 ? Tour.findAll({ where: { id: { [Op.in]: tourIds } }, raw: true }) : []
+      ]);
+      console.log(`✅ Queries completed: Expenses=${updatedExpenses.length}, Tours=${allTours.length}`);
 
-    // Reconstruct nested structure
-    const toursData = allTours.map(tour => {
-      return {
-        ...tour,
-        Expenses: updatedExpenses.filter(e => e.tour_id === tour.id),
-        Settlements: updatedSettlements.filter(s => s.tour_id === tour.id),
-        ProgramIncomes: updatedIncomes.filter(i => i.tour_id === tour.id),
-        JoinRequests: updatedJoinRequests.filter(jr => jr.tour_id === tour.id),
-        Users: updatedMembers.filter(m => m.tour_id === tour.id).map(m => {
-           const member = m.get({ plain: true });
-           if (member.User) {
-             const user = member.User;
-             delete member.User;
-             return { ...user, TourMember: member };
-           }
-           return member;
-        })
-      };
+      console.log('🔄 Reconstructing nested structure...');
+      // Reconstruct nested structure
+      const toursData = allTours.map(tour => {
+        return {
+          ...tour,
+          Expenses: updatedExpenses.filter(e => e.tour_id === tour.id),
+          Settlements: updatedSettlements.filter(s => s.tour_id === tour.id),
+          ProgramIncomes: updatedIncomes.filter(i => i.tour_id === tour.id),
+          JoinRequests: updatedJoinRequests.filter(jr => jr.tour_id === tour.id),
+          Users: updatedMembers.filter(m => m.tour_id === tour.id).map(m => {
+             const member = m.get({ plain: true });
+             if (member.User) {
+               const user = member.User;
+               delete member.User;
+               return { ...user, TourMember: member };
+             }
+             return member;
+          })
+        };
+      });
+      console.log(`✅ Reconstruction complete: ${toursData.length} tours with data`);
+
+      console.log('📤 Sending sync response...');
+      res.json({
+        timestamp: now.toISOString(),
+        pushSuccess: pushPhaseError === null,
+        pushError: pushPhaseError,
+        inviteCodeRescueApplied,
+        tours: toursData,
+        allTourIds: tourIds 
+      });
+      console.log('✅ Sync response sent successfully');
+
+    } catch (err) {
+    console.error('❌ Sync Error Details:', {
+      message: err.message,
+      stack: err.stack,
+      code: err.code,
+      sql: err.sql,
+      type: err.constructor.name
     });
-
-    res.json({
-      timestamp: now.toISOString(),
-      pushSuccess: pushPhaseError === null,
-      pushError: pushPhaseError,
-      inviteCodeRescueApplied,
-      tours: toursData,
-      allTourIds: tourIds 
-    });
-
-  } catch (err) {
-    console.error('❌ Sync Error Details:', err);
-    if (transaction) await transaction.rollback();
+    if (transaction) {
+      try { await transaction.rollback(); } catch(rbErr) { /* ignore */ }
+    }
     res.status(500).json({ 
       error: "Sync failed", 
       message: err.message,
+      details: err.sql || err.code || '',
       stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined
     });
   }
