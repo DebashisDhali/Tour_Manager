@@ -26,8 +26,16 @@ exports.checkTourAccess = (roles) => {
         return res.status(400).json({ error: 'Tour context not found' });
       }
 
+      // Normalize IDs to handle case sensitivity issues
+      const normalizedTourId = tId?.toString().toLowerCase() || '';
+      const normalizedUserId = req.user.id?.toString().toLowerCase() || '';
+      
+      if (!normalizedTourId || !normalizedUserId) {
+        return res.status(400).json({ error: 'Invalid tour or user context' });
+      }
+
       const member = await TourMember.findOne({
-        where: { tour_id: tId, user_id: req.user.id, status: 'active' }
+        where: { tour_id: normalizedTourId, user_id: normalizedUserId, status: 'active' }
       });
 
       if (!member) {
@@ -39,7 +47,7 @@ exports.checkTourAccess = (roles) => {
       }
 
       req.member = member;
-      req.currentTourId = tId;
+      req.currentTourId = normalizedTourId;
       next();
     } catch (err) {
       res.status(500).json({ error: err.message });

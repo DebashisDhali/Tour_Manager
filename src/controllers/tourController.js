@@ -76,7 +76,8 @@ exports.getAllTours = async (req, res) => {
 
 exports.getTourDetails = async (req, res) => {
     try {
-        const tour = await Tour.findByPk(req.params.id, {
+        const normalizedTourId = req.params.id?.toString().toLowerCase() || '';
+        const tour = await Tour.findByPk(normalizedTourId, {
             include: [
               { 
                 model: User,
@@ -122,7 +123,8 @@ exports.regenerateInviteCode = async (req, res) => {
 
   const t = await sequelize.transaction();
   try {
-    const tour = await Tour.findByPk(tourId, { transaction: t });
+    const normalizedTourId = tourId?.toString().toLowerCase() || '';
+    const tour = await Tour.findByPk(normalizedTourId, { transaction: t });
     if (!tour) {
       await t.rollback();
       return res.status(404).json({ error: 'Tour not found' });
@@ -291,8 +293,12 @@ exports.removeMember = async (req, res) => {
   try {
     const { tourId, userId } = req.body;
     
+    // Normalize IDs for case sensitivity
+    const normalizedTourId = tourId?.toString().toLowerCase() || '';
+    const normalizedUserId = userId?.toString().toLowerCase() || '';
+
     const connection = await TourMember.findOne({
-      where: { tour_id: tourId, user_id: userId },
+      where: { tour_id: normalizedTourId, user_id: normalizedUserId },
       transaction: t
     });
 
@@ -324,11 +330,17 @@ exports.removeMember = async (req, res) => {
 exports.addMember = async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { tourId } = req.params;
-    const { userId } = req.body;
+    // Normalize IDs to handle case sensitivity - backend stores everything lowercase
+    const normalizedTourId = tourId?.toString().toLowerCase() || '';
+    const normalizedUserId = userId?.toString().toLowerCase() || '';
     
-    const tour = await Tour.findByPk(tourId, { transaction: t });
-    const user = await User.findByPk(userId, { transaction: t });
+    if (!normalizedTourId || !normalizedUserId) {
+      await t.rollback();
+      return res.status(400).json({ error: 'Invalid tour or user ID' });
+    }
+    
+    const tour = await Tour.findByPk(normalizedTourId, { transaction: t });
+    const user = await User.findByPk(normalizedUserId, { transaction: t });
     
     if (!tour || !user) {
       await t.rollback();
@@ -336,7 +348,7 @@ exports.addMember = async (req, res) => {
     }
 
     const existingMember = await TourMember.findOne({
-      where: { tour_id: tourId, user_id: userId },
+      where: { tour_id: normalizedTourId, user_id: normalizedUserId },
       transaction: t
     });
 
@@ -356,8 +368,8 @@ exports.addMember = async (req, res) => {
     } else {
       await TourMember.create(
         {
-          tour_id: tourId,
-          user_id: userId,
+          tour_id: normalizedTourId,
+          user_id: normalizedUserId,
           role: 'viewer',
           status: 'pending',
           joined_at: new Date(),
@@ -406,10 +418,14 @@ exports.respondToInvitation = async (req, res) => {
       return res.status(400).json({ error: 'action must be accept or reject' });
     }
 
+    // Normalize IDs for case sensitivity
+    const normalizedTourId = tourId?.toString().toLowerCase() || '';
+    const normalizedUserId = req.user.id?.toString().toLowerCase() || '';
+
     const member = await TourMember.findOne({
       where: {
-        tour_id: tourId,
-        user_id: req.user.id,
+        tour_id: normalizedTourId,
+        user_id: normalizedUserId,
         status: 'pending'
       },
       transaction: t
@@ -456,8 +472,12 @@ exports.updateMemberRole = async (req, res) => {
     // Authorization check could be added here (e.g., only admin can change)
     // req.user has the current logged in user.
     
+    // Normalize IDs for case sensitivity
+    const normalizedTourId = tourId?.toString().toLowerCase() || '';
+    const normalizedUserId = userId?.toString().toLowerCase() || '';
+
     const member = await TourMember.findOne({
-      where: { tour_id: tourId, user_id: userId },
+      where: { tour_id: normalizedTourId, user_id: normalizedUserId },
       transaction: t
     });
 
@@ -481,8 +501,13 @@ exports.retroactiveSplit = async (req, res) => {
     const { tourId, userId } = req.params;
 
     // Check if member is active
+    // Normalize IDs for case sensitivity
+    const normalizedTourId = tourId?.toString().toLowerCase() || '';
+    const normalizedUserId = userId?.toString().toLowerCase() || '';
+
+    // Check if member is active
     const member = await TourMember.findOne({
-      where: { tour_id: tourId, user_id: userId, status: 'active' },
+      where: { tour_id: normalizedTourId, user_id: normalizedUserId, status: 'active' },
       transaction: t
     });
 
