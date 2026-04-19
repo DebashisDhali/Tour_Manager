@@ -134,14 +134,28 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
       final userId = user['id']?.toString() ?? '';
       if (userId.isEmpty) continue;
 
-      try {
-        await syncService.addMemberToTour(tourId, userId);
-        debugPrint('✅ Invited user ${user['name']} ($userId)');
-        successCount++;
-      } catch (e) {
-        final userName = user['name']?.toString() ?? 'Unknown';
-        debugPrint('❌ Failed to invite user $userName: $e');
-        failedUsers.add(userName);
+      final userName = user['name']?.toString() ?? 'Unknown';
+      int attemptCount = 0;
+      bool succeeded = false;
+
+      // Retry logic for invitations (403 might be temporary due to server state)
+      while (attemptCount < 3 && !succeeded) {
+        attemptCount++;
+        try {
+          await syncService.addMemberToTour(tourId, userId);
+          debugPrint(
+              '✅ Invited user $userName ($userId) on attempt $attemptCount');
+          successCount++;
+          succeeded = true;
+        } catch (e) {
+          debugPrint('❌ Attempt $attemptCount: Failed to invite $userName: $e');
+          if (attemptCount < 3) {
+            debugPrint('⏳ Waiting 2 seconds before retry...');
+            await Future.delayed(const Duration(seconds: 2));
+          } else {
+            failedUsers.add(userName);
+          }
+        }
       }
     }
 
@@ -158,14 +172,15 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
       if (failedUsers.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('⚠️ Failed to invite: ${failedUsers.join(", ")}'),
+            content: Text(
+                '⚠️ Failed to invite: ${failedUsers.join(", ")}. Try again after a moment.'),
             backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 4),
+            duration: const Duration(seconds: 5),
           ),
         );
       }
       if (successCount == 0 && _selectedProfiles.isNotEmpty) {
-        debugPrint('⚠️ No profiles were invited');
+        debugPrint('⚠️ No profiles were invited - all attempts failed');
       }
     }
 
@@ -356,8 +371,10 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                 '🔍 After sync: synced=$synced, selectedProfiles=${_selectedProfiles.length}');
             if (synced && _selectedProfiles.isNotEmpty) {
               debugPrint(
-                  '⏳ Waiting 1 second for server state to settle after sync...');
-              await Future.delayed(const Duration(seconds: 1));
+                  '⏳ Waiting 3 seconds for server state to fully settle after sync...');
+              await Future.delayed(const Duration(seconds: 3));
+              debugPrint(
+                  '🔄 Attempting to invite selected profiles to tour...');
               await _inviteSelectedProfiles(finalTourId);
             } else if (!synced) {
               debugPrint('⚠️ Skipping invites - sync failed');
