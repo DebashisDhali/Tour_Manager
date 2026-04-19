@@ -197,6 +197,23 @@ exports.syncData = async (req, res) => {
         }
       }
 
+      // Self-heal guard: creator must always be an active admin member in own tours.
+      const ownedTours = await Tour.findAll({
+        where: { created_by: normalizedUserId },
+        attributes: ['id'],
+        raw: true,
+      });
+      for (const ot of ownedTours) {
+        await TourMember.upsert({
+          tour_id: ot.id,
+          user_id: normalizedUserId,
+          status: 'active',
+          role: 'admin',
+          removed_at: null,
+          joined_at: now,
+        });
+      }
+
       console.log('✅ PUSH phase done');
     } catch (pushErr) {
       console.error('⚠️ PUSH error:', pushErr.message);
@@ -211,8 +228,19 @@ exports.syncData = async (req, res) => {
       attributes: ['tour_id'],
       raw: true
     });
-    
-    const tourIds = activeTourRecords.map(r => r.tour_id);
+
+    const ownerTourRecords = await Tour.findAll({
+      where: { created_by: normalizedUserId },
+      attributes: ['id'],
+      raw: true,
+    });
+
+    const tourIds = Array.from(
+      new Set([
+        ...activeTourRecords.map(r => r.tour_id),
+        ...ownerTourRecords.map(r => r.id),
+      ])
+    );
     console.log(`✅ Found ${tourIds.length} active tours`);
 
     if (tourIds.length === 0) {

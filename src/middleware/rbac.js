@@ -1,4 +1,4 @@
-const { TourMember, Expense, Settlement, ProgramIncome } = require('../models');
+const { Tour, TourMember, Expense, Settlement, ProgramIncome } = require('../models');
 
 exports.checkTourAccess = (roles) => {
   return async (req, res, next) => {
@@ -34,12 +34,40 @@ exports.checkTourAccess = (roles) => {
         return res.status(400).json({ error: 'Invalid tour or user context' });
       }
 
-      const member = await TourMember.findOne({
+      let member = await TourMember.findOne({
         where: { tour_id: normalizedTourId, user_id: normalizedUserId, status: 'active' }
       });
 
       if (!member) {
-        return res.status(403).json({ error: 'You are not a member of this tour' });
+        // Self-heal: if requester is the tour creator, restore admin membership.
+        const tour = await Tour.findByPk(normalizedTourId, { raw: true });
+        const isOwner =
+          tour &&
+          tour.created_by &&
+          tour.created_by.toString().toLowerCase() === normalizedUserId;
+
+        if (isOwner) {
+          await TourMember.upsert({
+            tour_id: normalizedTourId,
+            user_id: normalizedUserId,
+            status: 'active',
+            role: 'admin',
+            removed_at: null,
+            joined_at: new Date(),
+          });
+
+          member = await TourMember.findOne({
+            where: {
+              tour_id: normalizedTourId,
+              user_id: normalizedUserId,
+              status: 'active',
+            },
+          });
+        }
+
+        if (!member) {
+          return res.status(403).json({ error: 'You are not a member of this tour' });
+        }
       }
 
       if (roles && !roles.includes(member.role)) {
