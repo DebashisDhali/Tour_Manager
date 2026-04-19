@@ -6,6 +6,7 @@ import 'package:frontend/data/providers/app_providers.dart';
 import '../../domain/logic/purpose_config.dart';
 import '../widgets/action_help_text.dart';
 import '../widgets/premium_card.dart';
+import 'package:frontend/presentation/screens/receipt_scanner_screen.dart';
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
   final String tourId;
@@ -245,7 +246,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                   selectedBackgroundColor: config.color,
                                   selectedForegroundColor: Colors.white,
                                   side: BorderSide(
-                                      color: config.color.withValues(alpha: 0.2)),
+                                      color:
+                                          config.color.withValues(alpha: 0.2)),
                                   visualDensity: VisualDensity.compact,
                                 ),
                               ),
@@ -489,7 +491,47 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                               color: config.color),
                         ),
                       ),
-                      const SizedBox(height: 48),
+                      const SizedBox(height: 24),
+                      // Receipt Scanner Button (Premium Feature)
+                      if (widget.initialExpense == null)
+                        SizedBox(
+                          height: 56,
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final result = await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ReceiptScannerScreen(
+                                      tourId: widget.tourId),
+                                ),
+                              );
+
+                              if (result != null && mounted) {
+                                _titleController.text = result['title'] ?? '';
+                                _amountController.text =
+                                    result['amount']?.toString() ?? '';
+                                _category = result['category'] ?? _category;
+                                setState(() {});
+                              }
+                            },
+                            icon: const Icon(Icons.receipt_long_rounded),
+                            label: const Text(
+                              '📸 Or scan receipt',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              side: BorderSide(color: config.color, width: 2),
+                              foregroundColor: config.color,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 24),
                       SizedBox(
                         height: 64,
                         child: FilledButton.icon(
@@ -726,4 +768,3 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     }
   }
 }
-
