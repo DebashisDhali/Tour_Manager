@@ -151,7 +151,7 @@ exports.syncData = async (req, res) => {
                   await TourMember.upsert({ 
                     tour_id: t.id.toLowerCase(), user_id: t.createdBy.toLowerCase(), 
                     status: 'active', role: 'admin', 
-                    joined_at: t.startDate || now, updated_at: now 
+                    joined_at: t.startDate || now
                   }, { transaction });
                 }
              }
@@ -174,8 +174,7 @@ exports.syncData = async (req, res) => {
                     status: m.status || (m.leftAt ? 'removed' : 'active'),
                     removed_at: m.leftAt || null,
                     role: m.role || 'viewer',
-                    meal_count: m.mealCount || 0.0,
-                    updated_at: now
+                    meal_count: m.mealCount || 0.0
                   }, { transaction });
                }
              } catch (e) { console.error(`⚠️ Member Sync Fail [${m.tourId}-${m.userId}]:`, e.message); }

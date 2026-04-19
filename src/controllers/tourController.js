@@ -62,7 +62,6 @@ exports.getAllTours = async (req, res) => {
           attributes: ['role', 'status', 'joined_at']
         }
       ],
-      order: [['updated_at', 'DESC']],
       limit,
       offset
     });
@@ -379,8 +378,7 @@ exports.getMyInvitations = async (req, res) => {
   try {
     const invitations = await TourMember.findAll({
       where: { user_id: req.user.id, status: 'pending' },
-      include: [{ model: Tour, attributes: ['id', 'name', 'purpose', 'created_by'] }],
-      order: [['updated_at', 'DESC']]
+      include: [{ model: Tour, attributes: ['id', 'name', 'purpose', 'created_by'] }]
     });
 
     const payload = invitations.map((inv) => ({
