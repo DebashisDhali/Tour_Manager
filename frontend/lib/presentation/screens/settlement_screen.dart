@@ -91,11 +91,17 @@ class SettlementScreen extends ConsumerWidget {
       incomes: incomes,
     );
 
+    // Calculate meal rate for display (SINGLE SOURCE OF TRUTH)
     final totalMealCost = expenses
         .where((e) => e.messCostType == 'meal')
         .fold(0.0, (s, e) => s + e.amount);
-    final totalMeals = tourMembers.fold(0.0, (s, m) => s + m.mealCount);
-    final mealRate = totalMeals > 0 ? totalMealCost / totalMeals : 0;
+
+    // Only count members who actually participated (have meal count > 0)
+    final participatingMembers =
+        tourMembers.where((m) => m.mealCount > 0).toList();
+    final totalMeals =
+        participatingMembers.fold(0.0, (s, m) => s + m.mealCount);
+    final mealRate = totalMeals > 0 ? totalMealCost / totalMeals : 0.0;
 
     // Check permissions
     final myMember = tourMembers.where((m) => m.user.id == myId).firstOrNull;
