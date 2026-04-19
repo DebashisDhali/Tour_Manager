@@ -52,7 +52,7 @@ class _HelpTooltipState extends State<HelpTooltip> {
                 borderRadius: BorderRadius.circular(8),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
+                    color: Colors.black.withValues(alpha: 0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),
@@ -153,12 +153,12 @@ class InfoCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            (color ?? Colors.blue).withOpacity(0.1),
-            (color ?? Colors.blue).withOpacity(0.05),
+            (color ?? Colors.blue).withValues(alpha: 0.1),
+            (color ?? Colors.blue).withValues(alpha: 0.05),
           ],
         ),
         border: Border.all(
-          color: (color ?? Colors.blue).withOpacity(0.3),
+          color: (color ?? Colors.blue).withValues(alpha: 0.3),
         ),
         borderRadius: BorderRadius.circular(8),
       ),

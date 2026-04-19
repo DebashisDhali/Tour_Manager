@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'register_screen.dart';
 
@@ -205,7 +204,7 @@ class _GuidedOnboardingScreenState extends State<GuidedOnboardingScreen>
                             child: Container(
                               padding: const EdgeInsets.all(20),
                               decoration: BoxDecoration(
-                                color: s.color.withOpacity(0.1),
+                                color: s.color.withValues(alpha: 0.1),
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(

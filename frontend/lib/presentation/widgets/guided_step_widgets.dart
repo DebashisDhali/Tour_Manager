@@ -44,10 +44,10 @@ class GuidedStep extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.blue.withOpacity(0.05),
-              border: Border.left(
-                  side: BorderSide(
-                      color: Colors.blue.withOpacity(0.3), width: 3)),
+              color: Colors.blue.withValues(alpha: 0.05),
+              border: Border(
+                  left: BorderSide(
+                      color: Colors.blue.withValues(alpha: 0.3), width: 3)),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
