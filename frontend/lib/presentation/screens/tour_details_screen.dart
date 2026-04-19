@@ -47,6 +47,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
   int _unreadNotificationCount = 0;
   Set<String> _currentNotificationKeys = <String>{};
   Timer? _notificationTimer;
+  bool _isLocalOnlyTour = false;
+  bool _isSyncingTour = false;
 
   String _formatMealCount(double value) {
     var text = value.toStringAsFixed(2);
@@ -65,6 +67,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
       const Duration(seconds: 45),
       (_) => _refreshNotifications(showSnackBar: false),
     );
+    Future.microtask(_loadLocalOnlyState);
   }
 
   @override
@@ -72,6 +75,64 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
     _notificationTimer?.cancel();
     _tabController?.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadLocalOnlyState() async {
+    final db = ref.read(databaseProvider);
+    final isLocalOnly = await db.isTourLocalOnly(widget.tourId);
+    if (!mounted) return;
+    setState(() => _isLocalOnlyTour = isLocalOnly);
+  }
+
+  Future<bool> _syncTourNow({bool showSuccessSnack = true}) async {
+    if (_isSyncingTour) return false;
+
+    final user = ref.read(currentUserProvider).value;
+    if (user == null) return false;
+
+    if (mounted) {
+      setState(() => _isSyncingTour = true);
+    }
+
+    try {
+      await ref.read(syncServiceProvider).startSync(user.id);
+      await _loadLocalOnlyState();
+      if (showSuccessSnack && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Sync completed. Invite code is now usable.')),
+        );
+      }
+      return true;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(
+                  'Sync failed: ${e.toString().replaceAll('Exception: ', '')}')),
+        );
+      }
+      return false;
+    } finally {
+      if (mounted) {
+        setState(() => _isSyncingTour = false);
+      }
+    }
+  }
+
+  Future<void> _makeCloudAndSync() async {
+    final db = ref.read(databaseProvider);
+    await db.setTourLocalOnly(widget.tourId, false);
+    await (db.update(db.tours)..where((t) => t.id.equals(widget.tourId))).write(
+      ToursCompanion(
+        isSynced: const drift.Value(false),
+        updatedAt: drift.Value(DateTime.now()),
+      ),
+    );
+    if (mounted) {
+      setState(() => _isLocalOnlyTour = false);
+    }
+    await _syncTourNow();
   }
 
   Future<void> _refreshNotifications({bool showSnackBar = false}) async {
@@ -407,18 +468,50 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 10),
-                      color: Colors.red.shade50,
+                      color: _isLocalOnlyTour
+                          ? Colors.orange.shade50
+                          : Colors.red.shade50,
                       child: Row(
                         children: [
-                          const Icon(Icons.lock_outline,
-                              color: Colors.red, size: 18),
+                          Icon(
+                            _isLocalOnlyTour
+                                ? Icons.cloud_off_rounded
+                                : Icons.lock_outline,
+                            color:
+                                _isLocalOnlyTour ? Colors.orange : Colors.red,
+                            size: 18,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'This tour is not yet synced to the server. Invite code is not valid until sync completes.',
+                              _isLocalOnlyTour
+                                  ? 'This tour is in Local Only mode. Invite code will not work until you make it cloud-synced.'
+                                  : 'This tour is not yet synced to the server. Invite code is not valid until sync completes.',
                               style: TextStyle(
-                                  color: Colors.red.shade700, fontSize: 12),
+                                  color: _isLocalOnlyTour
+                                      ? Colors.orange.shade800
+                                      : Colors.red.shade700,
+                                  fontSize: 12),
                             ),
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton(
+                            onPressed: _isSyncingTour
+                                ? null
+                                : () async {
+                                    if (_isLocalOnlyTour) {
+                                      await _makeCloudAndSync();
+                                    } else {
+                                      await _syncTourNow();
+                                    }
+                                  },
+                            style: OutlinedButton.styleFrom(
+                                visualDensity: VisualDensity.compact),
+                            child: Text(_isSyncingTour
+                                ? 'Syncing...'
+                                : (_isLocalOnlyTour
+                                    ? 'Make Cloud & Sync'
+                                    : 'Sync Now')),
                           ),
                         ],
                       ),
@@ -591,13 +684,34 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
 
   void _generateAndShowCode(BuildContext context, Tour tour) async {
     if (!tour.isSynced) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Sync first to publish this tour to the server.')),
-        );
+      if (_isLocalOnlyTour) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    'This tour is Local Only. Use Make Cloud & Sync first.')),
+          );
+        }
+        return;
       }
-      return;
+
+      final ok = await _syncTourNow(showSuccessSnack: false);
+      if (!ok) return;
+
+      final db = ref.read(databaseProvider);
+      final latestTour = await (db.select(db.tours)
+            ..where((t) => t.id.equals(tour.id)))
+          .getSingleOrNull();
+      if (latestTour == null || !latestTour.isSynced) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    'Tour is still pending sync. Please try again shortly.')),
+          );
+        }
+        return;
+      }
     }
 
     final me = ref.read(currentUserProvider).value;
