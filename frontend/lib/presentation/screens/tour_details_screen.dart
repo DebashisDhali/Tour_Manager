@@ -1251,222 +1251,231 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
 
   Widget _buildMembersTab(Tour tour) {
     final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
+    final mealRecordsAsync = ref.watch(tourMealRecordsProvider(widget.tourId));
     final config = PurposeConfig.getConfig(tour.purpose);
     final me = ref.watch(currentUserProvider).value;
 
     return membersAsync.when(
-      data: (members) => Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: config.color.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: config.color.withValues(alpha: 0.1)),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, color: config.color, size: 20),
-                const SizedBox(width: 12),
-                const Expanded(
-                    child: Text(
-                        "Invite others via shared code to manage costs together.",
-                        style: TextStyle(fontSize: 12))),
-                TextButton(
-                    onPressed: _showMemberSystemInfo,
-                    child: const Text("How it works?",
-                        style: TextStyle(fontSize: 11))),
-              ],
-            ),
-          ),
-          _buildJoinRequests(tour),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: members.length,
-              itemBuilder: (context, index) {
-                final m = members[index];
-                final isMe = me?.id == m.user.id;
-                final isRemoved = m.status.toLowerCase().trim() == 'removed';
-                final roleNormalized = m.role.toLowerCase().trim();
-                final effectiveRole =
-                    m.user.id == tour.createdBy ? 'admin' : roleNormalized;
+      data: (members) {
+        final mealRecords = mealRecordsAsync.value ?? [];
+        final mealTotalsByUser = <String, double>{};
+        for (final record in mealRecords) {
+          mealTotalsByUser[record.userId] =
+              (mealTotalsByUser[record.userId] ?? 0.0) + record.count;
+        }
 
-                final isEditor = me?.id == tour.createdBy ||
-                    members.any((x) =>
-                        x.user.id == me?.id &&
-                        (x.role == 'admin' || x.role == 'editor'));
-                final isAdmin = me?.id == tour.createdBy ||
-                    members
-                        .any((x) => x.user.id == me?.id && x.role == 'admin');
+        return Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: config.color.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: config.color.withValues(alpha: 0.1)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: config.color, size: 20),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                      child: Text(
+                          "Invite others via shared code to manage costs together.",
+                          style: TextStyle(fontSize: 12))),
+                  TextButton(
+                      onPressed: _showMemberSystemInfo,
+                      child: const Text("How it works?",
+                          style: TextStyle(fontSize: 11))),
+                ],
+              ),
+            ),
+            _buildJoinRequests(tour),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: members.length,
+                itemBuilder: (context, index) {
+                  final m = members[index];
+                  final isMe = me?.id == m.user.id;
+                  final isRemoved = m.status.toLowerCase().trim() == 'removed';
+                  final roleNormalized = m.role.toLowerCase().trim();
+                  final effectiveRole =
+                      m.user.id == tour.createdBy ? 'admin' : roleNormalized;
 
-                Widget? trailingWidget;
-                if (isEditor && !isMe) {
-                  trailingWidget = Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (!isRemoved) ...[
-                        IconButton(
-                          icon: Icon(Icons.history_rounded,
-                              color: config.color, size: 18),
-                          tooltip: "Include in Past Expenses",
-                          onPressed: () => _confirmRetroactiveSplit(m.user),
-                        ),
-                        if (isAdmin)
-                          DropdownButton<String>(
-                            value: effectiveRole,
-                            icon: const Icon(Icons.arrow_drop_down, size: 16),
-                            style: TextStyle(
-                                fontSize: 11,
-                                color: Theme.of(context).colorScheme.onSurface,
-                                fontWeight: FontWeight.bold),
-                            items: const [
-                              DropdownMenuItem(
-                                  value: 'viewer', child: Text('Viewer')),
-                              DropdownMenuItem(
-                                  value: 'editor', child: Text('Editor')),
-                              DropdownMenuItem(
-                                  value: 'admin', child: Text('Admin')),
-                            ],
-                            onChanged: (val) {
-                              if (val != null) {
-                                ref.read(databaseProvider).updateMemberRole(
-                                    widget.tourId, m.user.id, val);
-                                ref
-                                    .read(syncServiceProvider)
-                                    .updateMemberRole(
-                                        widget.tourId, m.user.id, val)
-                                    .catchError(
-                                        (e) => debugPrint(e.toString()));
-                              }
-                            },
-                            underline: const SizedBox(),
+                  final isEditor = me?.id == tour.createdBy ||
+                      members.any((x) =>
+                          x.user.id == me?.id &&
+                          (x.role == 'admin' || x.role == 'editor'));
+                  final isAdmin = me?.id == tour.createdBy ||
+                      members
+                          .any((x) => x.user.id == me?.id && x.role == 'admin');
+
+                  Widget? trailingWidget;
+                  if (isEditor && !isMe) {
+                    trailingWidget = Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!isRemoved) ...[
+                          IconButton(
+                            icon: Icon(Icons.history_rounded,
+                                color: config.color, size: 18),
+                            tooltip: "Include in Past Expenses",
+                            onPressed: () => _confirmRetroactiveSplit(m.user),
                           ),
-                      ],
-                      isRemoved
-                          ? IconButton(
-                              onPressed: () => _showRestoreConfirmation(m.user),
-                              icon: const Icon(Icons.settings_backup_restore,
-                                  size: 20),
-                              color: config.color,
-                              tooltip: "Restore",
-                            )
-                          : IconButton(
-                              icon: const Icon(Icons.person_remove,
-                                  color: Colors.red, size: 18),
-                              onPressed: () => _showLeaveConfirmation(m.user,
-                                  isRemoval: true)),
-                    ],
-                  );
-                } else {
-                  if (!isRemoved) {
-                    trailingWidget = Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                            color: Colors.grey.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8)),
-                        child: Text(effectiveRole.toUpperCase(),
-                            style: const TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey)));
-                  }
-                }
-
-                return Card(
-                  elevation: isRemoved ? 0 : 1,
-                  color: isRemoved ? Colors.grey.shade50 : null,
-                  child: Opacity(
-                    opacity: isRemoved ? 0.6 : 1.0,
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: isRemoved
-                            ? Colors.grey.shade200
-                            : config.color.withValues(alpha: 0.1),
-                        child: Text(m.user.name[0],
-                            style: TextStyle(
-                                color: isRemoved ? Colors.grey : config.color,
-                                fontWeight: FontWeight.bold)),
-                      ),
-                      title: Text(
-                        isMe ? "${m.user.name} (You)" : m.user.name,
-                        style: TextStyle(
-                          decoration:
-                              isRemoved ? TextDecoration.lineThrough : null,
-                          color: isRemoved ? Colors.grey : null,
-                        ),
-                      ),
-                      subtitle: tour.purpose.toLowerCase() == 'mess'
-                          ? Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(m.user.phone ?? "No phone",
-                                    style: const TextStyle(fontSize: 10)),
-                                const SizedBox(height: 4),
-                                Row(
-                                  children: [
-                                    Icon(Icons.restaurant_menu,
-                                        size: 14,
-                                        color: isRemoved
-                                            ? Colors.grey
-                                            : config.color
-                                                .withValues(alpha: 0.7)),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: Text(
-                                        "Meal Count: ${_formatMealCount(m.mealCount)}",
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 13,
-                                            color: isRemoved
-                                                ? Colors.grey
-                                                : Theme.of(context)
-                                                    .colorScheme
-                                                    .onSurface
-                                                    .withValues(alpha: 0.8)),
-                                      ),
-                                    ),
-                                    if (isRemoved) ...[
-                                      const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 4, vertical: 2),
-                                        decoration: BoxDecoration(
-                                            color: Colors.grey.shade200,
-                                            borderRadius:
-                                                BorderRadius.circular(4)),
-                                        child: const Text("REMOVED",
-                                            style: TextStyle(
-                                                fontSize: 8,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.grey)),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                              ],
-                            )
-                          : Text(m.user.phone ?? "No phone",
+                          if (isAdmin)
+                            DropdownButton<String>(
+                              value: effectiveRole,
+                              icon: const Icon(Icons.arrow_drop_down, size: 16),
                               style: TextStyle(
-                                  color: isRemoved ? Colors.grey : null)),
-                      onTap: !isRemoved &&
-                              tour.purpose.toLowerCase() == 'mess' &&
-                              (isMe || me?.id == tour.createdBy)
-                          ? () => _showEditMealCountDialog(m)
-                          : null,
-                      trailing: trailingWidget,
+                                  fontSize: 11,
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
+                                  fontWeight: FontWeight.bold),
+                              items: const [
+                                DropdownMenuItem(
+                                    value: 'viewer', child: Text('Viewer')),
+                                DropdownMenuItem(
+                                    value: 'editor', child: Text('Editor')),
+                                DropdownMenuItem(
+                                    value: 'admin', child: Text('Admin')),
+                              ],
+                              onChanged: (val) {
+                                if (val != null) {
+                                  ref.read(databaseProvider).updateMemberRole(
+                                      widget.tourId, m.user.id, val);
+                                  ref
+                                      .read(syncServiceProvider)
+                                      .updateMemberRole(
+                                          widget.tourId, m.user.id, val)
+                                      .catchError(
+                                          (e) => debugPrint(e.toString()));
+                                }
+                              },
+                              underline: const SizedBox(),
+                            ),
+                        ],
+                        isRemoved
+                            ? IconButton(
+                                onPressed: () =>
+                                    _showRestoreConfirmation(m.user),
+                                icon: const Icon(Icons.settings_backup_restore,
+                                    size: 20),
+                                color: config.color,
+                                tooltip: "Restore",
+                              )
+                            : IconButton(
+                                icon: const Icon(Icons.person_remove,
+                                    color: Colors.red, size: 18),
+                                onPressed: () => _showLeaveConfirmation(m.user,
+                                    isRemoval: true)),
+                      ],
+                    );
+                  } else {
+                    if (!isRemoved) {
+                      trailingWidget = Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                              color: Colors.grey.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8)),
+                          child: Text(effectiveRole.toUpperCase(),
+                              style: const TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey)));
+                    }
+                  }
+
+                  return Card(
+                    elevation: isRemoved ? 0 : 1,
+                    color: isRemoved ? Colors.grey.shade50 : null,
+                    child: Opacity(
+                      opacity: isRemoved ? 0.6 : 1.0,
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: isRemoved
+                              ? Colors.grey.shade200
+                              : config.color.withValues(alpha: 0.1),
+                          child: Text(m.user.name[0],
+                              style: TextStyle(
+                                  color: isRemoved ? Colors.grey : config.color,
+                                  fontWeight: FontWeight.bold)),
+                        ),
+                        title: Text(
+                          isMe ? "${m.user.name} (You)" : m.user.name,
+                          style: TextStyle(
+                            decoration:
+                                isRemoved ? TextDecoration.lineThrough : null,
+                            color: isRemoved ? Colors.grey : null,
+                          ),
+                        ),
+                        subtitle: tour.purpose.toLowerCase() == 'mess'
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(m.user.phone ?? "No phone",
+                                      style: const TextStyle(fontSize: 10)),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.restaurant_menu,
+                                          size: 14,
+                                          color: isRemoved
+                                              ? Colors.grey
+                                              : config.color
+                                                  .withValues(alpha: 0.7)),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          "Meal Count: ${_formatMealCount(mealTotalsByUser[m.user.id] ?? m.mealCount)}",
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              color: isRemoved
+                                                  ? Colors.grey
+                                                  : Theme.of(context)
+                                                      .colorScheme
+                                                      .onSurface
+                                                      .withValues(alpha: 0.8)),
+                                        ),
+                                      ),
+                                      if (isRemoved) ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 4, vertical: 2),
+                                          decoration: BoxDecoration(
+                                              color: Colors.grey.shade200,
+                                              borderRadius:
+                                                  BorderRadius.circular(4)),
+                                          child: const Text("REMOVED",
+                                              style: TextStyle(
+                                                  fontSize: 8,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.grey)),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ],
+                              )
+                            : Text(m.user.phone ?? "No phone",
+                                style: TextStyle(
+                                    color: isRemoved ? Colors.grey : null)),
+                        // Meal count is read-only in MessMates list; edits happen via Daily Meal Entry screen.
+                        onTap: null,
+                        trailing: trailingWidget,
+                      ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, s) => Center(child: Text("Error: $e")),
     );
@@ -2638,40 +2647,6 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
               },
               style: FilledButton.styleFrom(backgroundColor: config.color),
               child: const Text("Restore")),
-        ],
-      ),
-    );
-  }
-
-  void _showEditMealCountDialog(MemberWithStatus m) {
-    final controller =
-        TextEditingController(text: m.mealCount.toStringAsFixed(1));
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Edit Meals for ${m.user.name}"),
-        content: TextFormField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-              labelText: "Total Meals", suffixText: "meals"),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel")),
-          FilledButton(
-            onPressed: () async {
-              final val = double.tryParse(controller.text) ?? 0.0;
-              await ref
-                  .read(databaseProvider)
-                  .updateMealCount(widget.tourId, m.user.id, val);
-              if (mounted) Navigator.pop(context);
-              ref.invalidate(tourMembersProvider(widget.tourId));
-            },
-            child: const Text("Update"),
-          ),
         ],
       ),
     );
