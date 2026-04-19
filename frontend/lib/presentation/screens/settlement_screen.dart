@@ -26,6 +26,7 @@ class SettlementScreen extends ConsumerWidget {
     final settlementsAsync = ref.watch(tourSettlementsProvider(tourId));
     final payersAsync = ref.watch(tourPayersProvider(tourId));
     final membersAsync = ref.watch(tourMembersProvider(tourId));
+    final mealRecordsAsync = ref.watch(tourMealRecordsProvider(tourId));
     final incomesAsync = ref.watch(tourIncomesProvider(tourId));
 
     if (usersAsync.isLoading ||
@@ -35,6 +36,7 @@ class SettlementScreen extends ConsumerWidget {
         settlementsAsync.isLoading ||
         payersAsync.isLoading ||
         membersAsync.isLoading ||
+        mealRecordsAsync.isLoading ||
         incomesAsync.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -46,6 +48,7 @@ class SettlementScreen extends ConsumerWidget {
         settlementsAsync.hasError ||
         payersAsync.hasError ||
         membersAsync.hasError ||
+        mealRecordsAsync.hasError ||
         incomesAsync.hasError) {
       return const Center(
           child: Text("Error loading settlement data",
@@ -59,27 +62,41 @@ class SettlementScreen extends ConsumerWidget {
     final previousSettlements = (settlementsAsync.value ?? []).toList();
     final tourPayers = payersAsync.value ?? [];
     final tourMembers = membersAsync.value ?? [];
+    final mealRecords = mealRecordsAsync.value ?? [];
     final incomes = incomesAsync.value ?? [];
 
     if (tour == null) return const Center(child: Text("Data not found"));
 
-    final totalCost = expenses.fold(0.0, (sum, e) => sum + e.amount);
-    final equalShare = users.isEmpty ? 0.0 : totalCost / users.length;
+    final fallbackUsers = tourMembers.map((m) => m.user).toList();
+    final settlementUsers = users.isNotEmpty ? users : fallbackUsers;
 
-    final activeUserIds = users.map((u) => u.id).toSet();
+    final totalCost = expenses.fold(0.0, (sum, e) => sum + e.amount);
+    final equalShare =
+        settlementUsers.isEmpty ? 0.0 : totalCost / settlementUsers.length;
+
+    final activeUserIds = settlementUsers.map((u) => u.id).toSet();
     final activeTourMembers = tourMembers
         .where((m) => m.status == 'active' && activeUserIds.contains(m.user.id))
         .toList();
-    final mealCounts = {
-      for (var m in activeTourMembers) m.user.id: m.mealCount,
-    };
+    final mealCounts = <String, double>{};
+    for (final record in mealRecords) {
+      if (activeUserIds.contains(record.userId)) {
+        mealCounts[record.userId] =
+            (mealCounts[record.userId] ?? 0.0) + record.count;
+      }
+    }
+    if (mealCounts.isEmpty) {
+      for (var m in activeTourMembers) {
+        mealCounts[m.user.id] = m.mealCount;
+      }
+    }
     final calculator = SettlementCalculator();
 
     final instructions = calculator.calculate(
       expenses,
       tourSplits,
       tourPayers,
-      users,
+      settlementUsers,
       previousSettlements,
       purpose: tour.purpose,
       mealCounts: mealCounts,
@@ -90,7 +107,7 @@ class SettlementScreen extends ConsumerWidget {
       expenses: expenses,
       splits: tourSplits,
       expensePayers: tourPayers,
-      users: users,
+      users: settlementUsers,
       previousSettlements: previousSettlements,
       purpose: tour.purpose,
       mealCounts: mealCounts,
@@ -108,14 +125,11 @@ class SettlementScreen extends ConsumerWidget {
         .fold(0.0, (s, e) => s + e.amount);
     final fixedCostPerPerson =
         users.isNotEmpty && tour.purpose.toLowerCase() == 'mess'
-            ? totalFixedCost / users.length
+            ? totalFixedCost / settlementUsers.length
             : 0.0;
 
     // Only count members who actually participated (have meal count > 0)
-    final participatingMembers =
-        activeTourMembers.where((m) => m.mealCount > 0).toList();
-    final totalMeals =
-        participatingMembers.fold(0.0, (s, m) => s + m.mealCount);
+    final totalMeals = mealCounts.values.fold(0.0, (s, c) => s + c);
     final mealRate = totalMeals > 0 ? totalMealCost / totalMeals : 0.0;
 
     // Check permissions
