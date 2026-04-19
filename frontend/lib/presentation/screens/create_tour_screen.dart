@@ -251,177 +251,213 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
     });
   }
 
+  Future<void> _handleCreatePressed() async {
+    if (_isLoading) return;
+
+    FocusScope.of(context).unfocus();
+    final isValid = _formKey.currentState?.validate() ?? false;
+    if (!isValid) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please enter a valid title to continue.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!_isLocalOnly &&
+        _selectedProfiles.isEmpty &&
+        _searchController.text.trim().isNotEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('Select a profile from search results or clear search.'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+      return;
+    }
+
+    await _createTour();
+  }
+
   Future<void> _createTour() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-      try {
-        final db = ref.read(databaseProvider);
-        User? currentUser = await ref.read(currentUserProvider.future);
+    if (_isLoading) return;
 
-        if (currentUser == null) throw Exception("Profile not found.");
+    setState(() => _isLoading = true);
+    try {
+      final db = ref.read(databaseProvider);
+      User? currentUser = await ref.read(currentUserProvider.future);
 
-        debugPrint(
-            '🎬 Creating tour in ${_isLocalOnly ? 'LOCAL' : 'GLOBAL'} mode');
-        debugPrint(
-            '📋 Selected profiles: ${_selectedProfiles.length}, Additional members: ${_additionalMembers.length}');
+      if (currentUser == null) throw Exception("Profile not found.");
 
-        final String finalTourId;
+      debugPrint(
+          '🎬 Creating tour in ${_isLocalOnly ? 'LOCAL' : 'GLOBAL'} mode');
+      debugPrint(
+          '📋 Selected profiles: ${_selectedProfiles.length}, Additional members: ${_additionalMembers.length}');
 
-        if (widget.initialTour == null) {
-          finalTourId = const Uuid().v4();
-          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-          final inviteCode =
-              List.generate(6, (index) => chars[Random().nextInt(chars.length)])
-                  .join();
+      final String finalTourId;
 
-          await db.createTour(Tour(
-              id: finalTourId,
-              name: _nameController.text.trim(),
-              startDate: _selectedDateRange?.start,
-              endDate: _selectedDateRange?.end,
-              inviteCode: inviteCode,
-              createdBy: currentUser.id,
-              purpose: _selectedPurpose,
-              isSynced: false,
-              isDeleted: false,
-              updatedAt: DateTime.now()));
+      if (widget.initialTour == null) {
+        finalTourId = const Uuid().v4();
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        final inviteCode =
+            List.generate(6, (index) => chars[Random().nextInt(chars.length)])
+                .join();
 
-          await db.setTourLocalOnly(finalTourId, _isLocalOnly);
-
-          await db.into(db.tourMembers).insert(TourMember(
-              tourId: finalTourId,
-              userId: currentUser.id,
-              status: 'active',
-              role: 'admin',
-              mealCount: 0.0,
-              isSynced: false,
-              isDeleted: false));
-
-          if (_isLocalOnly) {
-            for (final memberName in _additionalMembers) {
-              final memberId = const Uuid().v4();
-              await db.createUser(User(
-                id: memberId,
-                name: memberName,
-                phone: null,
-                isMe: false,
-                isSynced: false,
-                isDeleted: false,
-                createdAt: DateTime.now(),
-                updatedAt: DateTime.now(),
-              ));
-              await db.into(db.tourMembers).insert(TourMember(
-                    tourId: finalTourId,
-                    userId: memberId,
-                    status: 'active',
-                    role: 'viewer',
-                    mealCount: 0.0,
-                    isSynced: false,
-                    isDeleted: false,
-                  ));
-            }
-          }
-        } else {
-          finalTourId = widget.initialTour!.id;
-          await db.createTour(widget.initialTour!.copyWith(
+        await db.createTour(Tour(
+            id: finalTourId,
             name: _nameController.text.trim(),
+            startDate: _selectedDateRange?.start,
+            endDate: _selectedDateRange?.end,
+            inviteCode: inviteCode,
+            createdBy: currentUser.id,
             purpose: _selectedPurpose,
-            startDate: drift.Value(_selectedDateRange?.start),
-            endDate: drift.Value(_selectedDateRange?.end),
             isSynced: false,
             isDeleted: false,
-            updatedAt: DateTime.now(),
-          ));
+            updatedAt: DateTime.now()));
 
-          await db.setTourLocalOnly(finalTourId, _isLocalOnly);
+        await db.setTourLocalOnly(finalTourId, _isLocalOnly);
 
-          if (_isLocalOnly) {
-            for (final memberName in _additionalMembers) {
-              final memberId = const Uuid().v4();
-              await db.createUser(User(
-                id: memberId,
-                name: memberName,
-                phone: null,
-                isMe: false,
-                isSynced: false,
-                isDeleted: false,
-                createdAt: DateTime.now(),
-                updatedAt: DateTime.now(),
-              ));
-              await db.into(db.tourMembers).insert(TourMember(
-                    tourId: finalTourId,
-                    userId: memberId,
-                    status: 'active',
-                    role: 'viewer',
-                    mealCount: 0.0,
-                    isSynced: false,
-                    isDeleted: false,
-                  ));
-            }
+        await db.into(db.tourMembers).insert(TourMember(
+            tourId: finalTourId,
+            userId: currentUser.id,
+            status: 'active',
+            role: 'admin',
+            mealCount: 0.0,
+            isSynced: false,
+            isDeleted: false));
+
+        if (_isLocalOnly) {
+          for (final memberName in _additionalMembers) {
+            final memberId = const Uuid().v4();
+            await db.createUser(User(
+              id: memberId,
+              name: memberName,
+              phone: null,
+              isMe: false,
+              isSynced: false,
+              isDeleted: false,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            ));
+            await db.into(db.tourMembers).insert(TourMember(
+                  tourId: finalTourId,
+                  userId: memberId,
+                  status: 'active',
+                  role: 'viewer',
+                  mealCount: 0.0,
+                  isSynced: false,
+                  isDeleted: false,
+                ));
           }
         }
+      } else {
+        finalTourId = widget.initialTour!.id;
+        await db.createTour(widget.initialTour!.copyWith(
+          name: _nameController.text.trim(),
+          purpose: _selectedPurpose,
+          startDate: drift.Value(_selectedDateRange?.start),
+          endDate: drift.Value(_selectedDateRange?.end),
+          isSynced: false,
+          isDeleted: false,
+          updatedAt: DateTime.now(),
+        ));
 
-        if (mounted) {
-          if (_isLocalOnly) {
+        await db.setTourLocalOnly(finalTourId, _isLocalOnly);
+
+        if (_isLocalOnly) {
+          for (final memberName in _additionalMembers) {
+            final memberId = const Uuid().v4();
+            await db.createUser(User(
+              id: memberId,
+              name: memberName,
+              phone: null,
+              isMe: false,
+              isSynced: false,
+              isDeleted: false,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            ));
+            await db.into(db.tourMembers).insert(TourMember(
+                  tourId: finalTourId,
+                  userId: memberId,
+                  status: 'active',
+                  role: 'viewer',
+                  mealCount: 0.0,
+                  isSynced: false,
+                  isDeleted: false,
+                ));
+          }
+        }
+      }
+
+      if (mounted) {
+        if (_isLocalOnly) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Saved as local-only. This event will stay on this device.'),
+              backgroundColor: Colors.blueGrey,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        } else {
+          bool synced = false;
+          for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+              await ref.read(syncServiceProvider).startSync(currentUser.id);
+              synced = true;
+              debugPrint("✅ Tour synced on attempt $attempt");
+              break;
+            } catch (syncErr) {
+              debugPrint("⚠️ Sync attempt $attempt failed: $syncErr");
+              if (attempt < 3) {
+                await Future.delayed(const Duration(seconds: 2));
+              }
+            }
+          }
+          debugPrint(
+              '🔍 After sync: synced=$synced, selectedProfiles=${_selectedProfiles.length}');
+          if (synced && _selectedProfiles.isNotEmpty) {
+            debugPrint(
+                '⏳ Waiting 3 seconds for server state to fully settle after sync...');
+            await Future.delayed(const Duration(seconds: 3));
+            debugPrint('🔄 Attempting to invite selected profiles to tour...');
+            await _inviteSelectedProfiles(finalTourId);
+          } else if (!synced) {
+            debugPrint('⚠️ Skipping invites - sync failed');
+          } else if (_selectedProfiles.isEmpty) {
+            debugPrint('ℹ️ No profiles selected for invitation');
+          }
+          if (!synced && mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(
-                    'Saved as local-only. This event will stay on this device.'),
-                backgroundColor: Colors.blueGrey,
+                    "Saved locally. Sync pending — share code when online."),
+                backgroundColor: Colors.orange,
                 duration: Duration(seconds: 4),
               ),
             );
-          } else {
-            bool synced = false;
-            for (int attempt = 1; attempt <= 3; attempt++) {
-              try {
-                await ref.read(syncServiceProvider).startSync(currentUser.id);
-                synced = true;
-                debugPrint("✅ Tour synced on attempt $attempt");
-                break;
-              } catch (syncErr) {
-                debugPrint("⚠️ Sync attempt $attempt failed: $syncErr");
-                if (attempt < 3) {
-                  await Future.delayed(const Duration(seconds: 2));
-                }
-              }
-            }
-            debugPrint(
-                '🔍 After sync: synced=$synced, selectedProfiles=${_selectedProfiles.length}');
-            if (synced && _selectedProfiles.isNotEmpty) {
-              debugPrint(
-                  '⏳ Waiting 3 seconds for server state to fully settle after sync...');
-              await Future.delayed(const Duration(seconds: 3));
-              debugPrint(
-                  '🔄 Attempting to invite selected profiles to tour...');
-              await _inviteSelectedProfiles(finalTourId);
-            } else if (!synced) {
-              debugPrint('⚠️ Skipping invites - sync failed');
-            } else if (_selectedProfiles.isEmpty) {
-              debugPrint('ℹ️ No profiles selected for invitation');
-            }
-            if (!synced && mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                      "Saved locally. Sync pending — share code when online."),
-                  backgroundColor: Colors.orange,
-                  duration: Duration(seconds: 4),
-                ),
-              );
-            }
           }
-          if (mounted) Navigator.pop(context);
         }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
-          );
-        }
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
+        if (mounted) Navigator.pop(context);
       }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -767,7 +803,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
               SizedBox(
                 height: 64,
                 child: FilledButton(
-                    onPressed: _isLoading ? null : _createTour,
+                    onPressed: _isLoading ? null : _handleCreatePressed,
                     style: FilledButton.styleFrom(
                         backgroundColor: config.color,
                         shape: RoundedRectangleBorder(
