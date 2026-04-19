@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'data/providers/theme_provider.dart';
-import 'data/providers/providers.dart';
+import 'data/providers/app_providers.dart';
 import 'presentation/theme/app_theme.dart';
 import 'presentation/screens/login_screen.dart';
-import 'presentation/screens/onboarding_screen.dart';
+import 'presentation/screens/guided_onboarding_screen.dart';
 import 'presentation/screens/tour_list_screen.dart';
 
 void main() async {
@@ -53,7 +53,6 @@ class _HomeRouter extends StatefulWidget {
 
 class _HomeRouterState extends State<_HomeRouter> {
   bool? _showOnboarding;
-  bool? _isLoggedIn;
 
   @override
   void initState() {
@@ -93,7 +92,7 @@ class _HomeRouterState extends State<_HomeRouter> {
     }
 
     if (_showOnboarding!) {
-      return const OnboardingScreen();
+      return const GuidedOnboardingScreen();
     }
 
     // Check for auto-login
@@ -108,7 +107,7 @@ class _AutoLoginWrapper extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return FutureBuilder<User?>(
+    return FutureBuilder(
       future: ref.read(authServiceProvider).restoreSession(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -129,7 +128,7 @@ class _AutoLoginWrapper extends ConsumerWidget {
         // If user session restored, go to TourListScreen
         if (snapshot.hasData && snapshot.data != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            debugPrint('✅ Auto-login successful: ${snapshot.data!.name}');
+            debugPrint('✅ Auto-login successful: ${snapshot.data?.name}');
             Navigator.of(context).pushAndRemoveUntil(
               MaterialPageRoute(builder: (_) => const TourListScreen()),
               (route) => false,

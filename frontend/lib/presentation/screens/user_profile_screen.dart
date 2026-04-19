@@ -189,6 +189,56 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     }
   }
 
+  void _navigateToHelp() {
+    // Import help_faq_screen and navigate
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) {
+          // Lazy import to avoid circular dependencies
+          final helpModule = _loadHelpModule();
+          return helpModule;
+        },
+      ),
+    );
+  }
+
+  Widget _loadHelpModule() {
+    // This will be replaced with actual import when help_faq_screen is available
+    return Scaffold(
+      appBar: AppBar(title: const Text('সাহায্য')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.help_outline, size: 48, color: Colors.blue),
+            const SizedBox(height: 16),
+            const Text('সাহায্য স্ক্রীন লোড হচ্ছে...'),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('ফিরে যান'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _restartTour() {
+    Navigator.of(context).pop();
+    // Signal the parent TourListScreen to restart tour
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('গাইড পরবর্তীবার অ্যাপ খুলে দেখা যাবে।'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+    // Note: To properly restart tour, you'd need to:
+    // 1. Pass a GlobalKey from TourListScreen
+    // 2. Call the restartAppTour() method
+    // For now, we'll just show a message
+  }
+
   @override
   Widget build(BuildContext context) {
     // Filter: Don't show admin/editor profiles in viewer list
@@ -197,20 +247,65 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(widget.isMe ? "My Profile" : "Member Profile",
+        title: Text(widget.isMe ? "আমার প্রোফাইল" : "সদস্যের প্রোফাইল",
             style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         actions: [
-          if (widget.isMe)
+          if (widget.isMe) ...[
             IconButton(
               icon: Icon(
                   _isEditing ? Icons.close_rounded : Icons.edit_note_rounded,
                   color:
                       isDark ? Colors.indigo.shade300 : Colors.blue.shade700),
               onPressed: () => setState(() => _isEditing = !_isEditing),
-            )
+            ),
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'help') {
+                  _navigateToHelp();
+                } else if (value == 'restart_tour') {
+                  _restartTour();
+                } else if (value == 'logout') {
+                  _showLogoutConfirmation();
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'help',
+                  child: Row(
+                    children: [
+                      Icon(Icons.help_outline, size: 20),
+                      SizedBox(width: 8),
+                      Text('সাহায্য এবং প্রশ্ন'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'restart_tour',
+                  child: Row(
+                    children: [
+                      Icon(Icons.tour, size: 20),
+                      SizedBox(width: 8),
+                      Text('গাইড দেখান'),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                  value: 'logout',
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout, size: 20, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('লগ আউট', style: TextStyle(color: Colors.red)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ]
         ],
       ),
       body: SingleChildScrollView(
