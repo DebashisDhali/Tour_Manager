@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,12 +23,17 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _memberController = TextEditingController();
+  final _searchController = TextEditingController();
 
   DateTimeRange? _selectedDateRange;
   final List<String> _additionalMembers = [];
+  final List<Map<String, dynamic>> _selectedProfiles = [];
   bool _isLoading = false;
+  bool _isSearching = false;
   String _selectedPurpose = 'project';
   bool _isLocalOnly = false;
+  List<dynamic> _searchResults = [];
+  Timer? _searchDebounce;
 
   @override
   void initState() {
@@ -56,9 +62,91 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _nameController.dispose();
     _memberController.dispose();
+    _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _searchUsers(String query) async {
+    final normalized = query.trim();
+    if (normalized.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _searchResults = [];
+          _isSearching = false;
+        });
+      }
+      return;
+    }
+
+    setState(() => _isSearching = true);
+    try {
+      final results =
+          await ref.read(syncServiceProvider).searchUsers(normalized);
+      if (!mounted) return;
+      setState(() {
+        _searchResults = results;
+        _isSearching = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isSearching = false);
+      }
+    }
+  }
+
+  void _scheduleUserSearch(String query) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      _searchUsers(query);
+    });
+  }
+
+  void _toggleProfileSelection(Map<String, dynamic> user) {
+    final userId = user['id']?.toString() ?? '';
+    if (userId.isEmpty) return;
+
+    setState(() {
+      final existingIndex = _selectedProfiles.indexWhere(
+        (selected) => selected['id']?.toString() == userId,
+      );
+      if (existingIndex != -1) {
+        _selectedProfiles.removeAt(existingIndex);
+      } else {
+        _selectedProfiles.add(user);
+      }
+    });
+  }
+
+  Future<void> _inviteSelectedProfiles(String tourId) async {
+    if (_selectedProfiles.isEmpty) return;
+
+    final syncService = ref.read(syncServiceProvider);
+    int successCount = 0;
+
+    for (final user in _selectedProfiles) {
+      final userId = user['id']?.toString() ?? '';
+      if (userId.isEmpty) continue;
+
+      try {
+        await syncService.addMemberToTour(tourId, userId);
+        successCount++;
+      } catch (e) {
+        debugPrint('Failed to invite user ${user['name']}: $e');
+      }
+    }
+
+    if (successCount > 0 && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Invitation sent to $successCount ${successCount == 1 ? 'profile' : 'profiles'}.'),
+        ),
+      );
+    }
   }
 
   Future<void> _selectDateRange() async {
@@ -146,27 +234,29 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
               isSynced: false,
               isDeleted: false));
 
-          for (final memberName in _additionalMembers) {
-            final memberId = const Uuid().v4();
-            await db.createUser(User(
-              id: memberId,
-              name: memberName,
-              phone: null,
-              isMe: false,
-              isSynced: false,
-              isDeleted: false,
-              createdAt: DateTime.now(),
-              updatedAt: DateTime.now(),
-            ));
-            await db.into(db.tourMembers).insert(TourMember(
-                  tourId: finalTourId,
-                  userId: memberId,
-                  status: 'active',
-                  role: 'viewer',
-                  mealCount: 0.0,
-                  isSynced: false,
-                  isDeleted: false,
-                ));
+          if (_isLocalOnly) {
+            for (final memberName in _additionalMembers) {
+              final memberId = const Uuid().v4();
+              await db.createUser(User(
+                id: memberId,
+                name: memberName,
+                phone: null,
+                isMe: false,
+                isSynced: false,
+                isDeleted: false,
+                createdAt: DateTime.now(),
+                updatedAt: DateTime.now(),
+              ));
+              await db.into(db.tourMembers).insert(TourMember(
+                    tourId: finalTourId,
+                    userId: memberId,
+                    status: 'active',
+                    role: 'viewer',
+                    mealCount: 0.0,
+                    isSynced: false,
+                    isDeleted: false,
+                  ));
+            }
           }
         } else {
           finalTourId = widget.initialTour!.id;
@@ -182,27 +272,29 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
 
           await db.setTourLocalOnly(finalTourId, _isLocalOnly);
 
-          for (final memberName in _additionalMembers) {
-            final memberId = const Uuid().v4();
-            await db.createUser(User(
-              id: memberId,
-              name: memberName,
-              phone: null,
-              isMe: false,
-              isSynced: false,
-              isDeleted: false,
-              createdAt: DateTime.now(),
-              updatedAt: DateTime.now(),
-            ));
-            await db.into(db.tourMembers).insert(TourMember(
-                  tourId: finalTourId,
-                  userId: memberId,
-                  status: 'active',
-                  role: 'viewer',
-                  mealCount: 0.0,
-                  isSynced: false,
-                  isDeleted: false,
-                ));
+          if (_isLocalOnly) {
+            for (final memberName in _additionalMembers) {
+              final memberId = const Uuid().v4();
+              await db.createUser(User(
+                id: memberId,
+                name: memberName,
+                phone: null,
+                isMe: false,
+                isSynced: false,
+                isDeleted: false,
+                createdAt: DateTime.now(),
+                updatedAt: DateTime.now(),
+              ));
+              await db.into(db.tourMembers).insert(TourMember(
+                    tourId: finalTourId,
+                    userId: memberId,
+                    status: 'active',
+                    role: 'viewer',
+                    mealCount: 0.0,
+                    isSynced: false,
+                    isDeleted: false,
+                  ));
+            }
           }
         }
 
@@ -230,6 +322,9 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                   await Future.delayed(const Duration(seconds: 2));
                 }
               }
+            }
+            if (synced && _selectedProfiles.isNotEmpty) {
+              await _inviteSelectedProfiles(finalTourId);
             }
             if (!synced && mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -390,66 +485,198 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
               ),
               const SizedBox(height: 24),
               const ActionHelpText(
-                  'Choose category and title, set dates, then add members. Keep it local-only if this should stay private on your device.'),
+                  'Choose category and title, set dates, then add members. Local-only accepts any name. Global mode searches real profiles to invite.'),
               _buildInputLabel("Add Members", config.color),
               PremiumCard(
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _memberController,
-                            decoration: _getInputDecoration(
-                                hint: 'Names (comma separated)',
-                                icon: Icons.person_add_rounded,
-                                color: config.color,
-                                dense: true),
-                            onFieldSubmitted: (_) => _addMember(),
+                    if (_isLocalOnly) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _memberController,
+                              decoration: _getInputDecoration(
+                                  hint: 'Any name allowed, comma separated',
+                                  icon: Icons.person_add_rounded,
+                                  color: config.color,
+                                  dense: true),
+                              onFieldSubmitted: (_) => _addMember(),
+                            ),
                           ),
+                          const SizedBox(width: 12),
+                          IconButton.filled(
+                            onPressed: _addMember,
+                            icon: const Icon(Icons.add),
+                            style: IconButton.styleFrom(
+                              backgroundColor: config.color,
+                              minimumSize: const Size(48, 48),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Local-only mode lets you add custom names that stay on this device.',
+                        style: TextStyle(fontSize: 11, color: Colors.black54),
+                      ),
+                      if (_additionalMembers.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children:
+                              _additionalMembers.asMap().entries.map((entry) {
+                            return Chip(
+                              label: Text(entry.value,
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold)),
+                              onDeleted: () => setState(
+                                  () => _additionalMembers.removeAt(entry.key)),
+                              backgroundColor:
+                                  config.color.withValues(alpha: 0.1),
+                              side: BorderSide(
+                                  color: config.color.withValues(alpha: 0.1)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            );
+                          }).toList(),
                         ),
-                        const SizedBox(width: 12),
-                        IconButton.filled(
-                          onPressed: _addMember,
-                          icon: const Icon(Icons.add),
-                          style: IconButton.styleFrom(
-                            backgroundColor: config.color,
-                            minimumSize: const Size(48, 48),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
+                      ],
+                    ] else ...[
+                      TextField(
+                        controller: _searchController,
+                        decoration: _getInputDecoration(
+                            hint: 'Search real profiles by name or phone',
+                            icon: Icons.search_rounded,
+                            color: config.color,
+                            dense: true),
+                        onChanged: _scheduleUserSearch,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _isSearching
+                            ? 'Searching profiles...'
+                            : 'Select existing profiles to send invitation requests after save.',
+                        style: const TextStyle(
+                            fontSize: 11, color: Colors.black54),
+                      ),
+                      if (_searchResults.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                                color: Theme.of(context)
+                                    .dividerColor
+                                    .withValues(alpha: 0.1)),
+                          ),
+                          child: Column(
+                            children: _searchResults.map((item) {
+                              try {
+                                if (item == null || item is! Map) {
+                                  return const SizedBox.shrink();
+                                }
+
+                                final profile = Map<String, dynamic>.from(item);
+                                final profileId =
+                                    profile['id']?.toString() ?? '';
+                                if (profileId.isEmpty) {
+                                  return const SizedBox.shrink();
+                                }
+
+                                final isSelected = _selectedProfiles.any(
+                                  (selected) =>
+                                      selected['id']?.toString() == profileId,
+                                );
+                                final rawName =
+                                    profile['name']?.toString() ?? 'Member';
+                                final name = rawName.trim().isEmpty
+                                    ? 'Member'
+                                    : rawName.trim();
+                                final phone = profile['phone']?.toString() ??
+                                    profile['email']?.toString() ??
+                                    'No contact';
+
+                                return ListTile(
+                                  onTap: () => _toggleProfileSelection(profile),
+                                  dense: true,
+                                  leading: CircleAvatar(
+                                    backgroundColor: isSelected
+                                        ? config.color
+                                        : config.color.withValues(alpha: 0.1),
+                                    child: isSelected
+                                        ? const Icon(Icons.check,
+                                            color: Colors.white, size: 16)
+                                        : Text(name[0].toUpperCase(),
+                                            style: TextStyle(
+                                                color: config.color,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold)),
+                                  ),
+                                  title: Text(name,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13)),
+                                  subtitle: Text(phone,
+                                      style: TextStyle(
+                                          fontSize: 10,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurface
+                                              .withValues(alpha: 0.6))),
+                                  trailing: Checkbox(
+                                    value: isSelected,
+                                    activeColor: config.color,
+                                    shape: const CircleBorder(),
+                                    onChanged: (_) =>
+                                        _toggleProfileSelection(profile),
+                                  ),
+                                );
+                              } catch (e) {
+                                return const SizedBox.shrink();
+                              }
+                            }).toList(),
                           ),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Example: Rahim, Karim, Selim',
-                      style: TextStyle(fontSize: 11, color: Colors.black54),
-                    ),
-                    if (_additionalMembers.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children:
-                            _additionalMembers.asMap().entries.map((entry) {
-                          return Chip(
-                            label: Text(entry.value,
+                      if (_selectedProfiles.isNotEmpty) ...[
+                        const SizedBox(height: 16),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children:
+                              _selectedProfiles.asMap().entries.map((entry) {
+                            final profile = entry.value;
+                            final name =
+                                (profile['name']?.toString() ?? 'Member')
+                                    .trim();
+                            return Chip(
+                              label: Text(
+                                name.isEmpty ? 'Member' : name,
                                 style: const TextStyle(
-                                    fontSize: 12, fontWeight: FontWeight.bold)),
-                            onDeleted: () => setState(
-                                () => _additionalMembers.removeAt(entry.key)),
-                            backgroundColor:
-                                config.color.withValues(alpha: 0.1),
-                            side: BorderSide(
-                                color: config.color.withValues(alpha: 0.1)),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                          );
-                        }).toList(),
-                      ),
+                                    fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                              onDeleted: () => setState(
+                                () => _selectedProfiles.removeAt(entry.key),
+                              ),
+                              backgroundColor:
+                                  config.color.withValues(alpha: 0.1),
+                              side: BorderSide(
+                                  color: config.color.withValues(alpha: 0.1)),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            );
+                          }).toList(),
+                        ),
+                      ],
                     ],
                   ],
                 ),
