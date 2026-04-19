@@ -148,8 +148,27 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
           successCount++;
           succeeded = true;
         } catch (e) {
+          final errorMsg = e.toString().toLowerCase();
           debugPrint('❌ Attempt $attemptCount: Failed to invite $userName: $e');
-          if (attemptCount < 3) {
+
+          // If we get "not a member" error, try syncing and retrying
+          if (errorMsg.contains('403') &&
+              errorMsg.contains('not a member') &&
+              attemptCount < 3) {
+            debugPrint(
+                '⚠️ Creator not recognized on server - triggering sync...');
+            try {
+              final currentUser = await ref.read(currentUserProvider.future);
+              if (currentUser != null && mounted) {
+                await syncService.startSync(currentUser.id);
+                debugPrint('✅ Sync completed, retrying invitation...');
+              }
+            } catch (syncErr) {
+              debugPrint('⚠️ Sync failed during 403 recovery: $syncErr');
+            }
+            debugPrint('⏳ Waiting 3 seconds before retry...');
+            await Future.delayed(const Duration(seconds: 3));
+          } else if (attemptCount < 3) {
             debugPrint('⏳ Waiting 2 seconds before retry...');
             await Future.delayed(const Duration(seconds: 2));
           } else {
