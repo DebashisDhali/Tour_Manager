@@ -73,9 +73,12 @@ exports.syncData = async (req, res) => {
     transaction = await sequelize.transaction();
     
     try {
+      // Normalize userId for consistent lookups
+      const normalizedUserId = userId ? userId.toLowerCase() : userId;
+      
       // Update user's last activity
       await User.update({ is_registered: true }, { 
-        where: { id: userId },
+        where: { id: normalizedUserId },
         transaction 
       });
 
@@ -273,7 +276,7 @@ exports.syncData = async (req, res) => {
       where: { 
         user_id: sequelize.where(
           sequelize.fn('LOWER', sequelize.cast(sequelize.col('user_id'), 'text')),
-          userId.toLowerCase()
+          normalizedUserId
         ), 
         status: 'active' 
       },
