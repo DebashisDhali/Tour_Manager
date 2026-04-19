@@ -10,6 +10,7 @@ import '../widgets/add_member_dialog.dart';
 import '../widgets/add_income_dialog.dart';
 import '../widgets/allocate_fund_dialog.dart';
 import 'add_expense_screen.dart';
+import 'create_tour_screen.dart';
 import 'settlement_screen.dart';
 import 'meal_entry_screen.dart';
 import 'package:intl/intl.dart';
@@ -120,19 +121,20 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
     }
   }
 
-  Future<void> _makeCloudAndSync() async {
-    final db = ref.read(databaseProvider);
-    await db.setTourLocalOnly(widget.tourId, false);
-    await (db.update(db.tours)..where((t) => t.id.equals(widget.tourId))).write(
-      ToursCompanion(
-        isSynced: const drift.Value(false),
-        updatedAt: drift.Value(DateTime.now()),
+  Future<void> _openEditForCloudSync(Tour tour) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CreateTourScreen(initialTour: tour),
       ),
     );
-    if (mounted) {
-      setState(() => _isLocalOnlyTour = false);
+
+    if (!mounted) return;
+    await _loadLocalOnlyState();
+
+    // If user turned off Local Only on edit screen, sync right away.
+    if (!_isLocalOnlyTour) {
+      await _syncTourNow(showSuccessSnack: false);
     }
-    await _syncTourNow();
   }
 
   Future<void> _refreshNotifications({bool showSnackBar = false}) async {
@@ -415,7 +417,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                 ),
             ],
             bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(70),
+              preferredSize: Size.fromHeight(!tour.isSynced ? 126 : 70),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -471,42 +473,51 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                       color: _isLocalOnlyTour
                           ? Colors.orange.shade50
                           : Colors.red.shade50,
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            _isLocalOnlyTour
-                                ? Icons.cloud_off_rounded
-                                : Icons.lock_outline,
-                            color:
-                                _isLocalOnlyTour ? Colors.orange : Colors.red,
-                            size: 18,
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                _isLocalOnlyTour
+                                    ? Icons.cloud_off_rounded
+                                    : Icons.lock_outline,
+                                color: _isLocalOnlyTour
+                                    ? Colors.orange
+                                    : Colors.red,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _isLocalOnlyTour
+                                      ? 'This tour is in Local Only mode. Invite code will not work until you make it cloud-synced.'
+                                      : 'This tour is not yet synced to the server. Invite code is not valid until sync completes.',
+                                  style: TextStyle(
+                                      color: _isLocalOnlyTour
+                                          ? Colors.orange.shade800
+                                          : Colors.red.shade700,
+                                      fontSize: 12),
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _isLocalOnlyTour
-                                  ? 'This tour is in Local Only mode. Invite code will not work until you make it cloud-synced.'
-                                  : 'This tour is not yet synced to the server. Invite code is not valid until sync completes.',
-                              style: TextStyle(
-                                  color: _isLocalOnlyTour
-                                      ? Colors.orange.shade800
-                                      : Colors.red.shade700,
-                                  fontSize: 12),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
+                          const SizedBox(height: 8),
                           OutlinedButton(
                             onPressed: _isSyncingTour
                                 ? null
                                 : () async {
                                     if (_isLocalOnlyTour) {
-                                      await _makeCloudAndSync();
+                                      await _openEditForCloudSync(tour);
                                     } else {
                                       await _syncTourNow();
                                     }
                                   },
                             style: OutlinedButton.styleFrom(
-                                visualDensity: VisualDensity.compact),
+                              visualDensity: VisualDensity.compact,
+                              alignment: Alignment.center,
+                            ),
                             child: Text(_isSyncingTour
                                 ? 'Syncing...'
                                 : (_isLocalOnlyTour
