@@ -843,7 +843,18 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                         ),
                         if (!tour.isSynced)
                           GestureDetector(
-                            onTap: () => _syncData(context),
+                            onTap: () async {
+                              final db = ref.read(databaseProvider);
+                              final isLocalOnly =
+                                  await db.isTourLocalOnly(tour.id);
+                              if (!mounted) return;
+
+                              if (isLocalOnly) {
+                                _showLocalOnlySyncHelp(tour);
+                              } else {
+                                _syncTourFromList();
+                              }
+                            },
                             child: Container(
                               margin: const EdgeInsets.only(left: 8),
                               padding: const EdgeInsets.symmetric(
@@ -1124,6 +1135,157 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
     );
   }
 
+  Future<void> _syncTourFromList() => _syncData(context);
+
+  void _showLocalOnlySyncHelp(models.Tour tour) {
+    final tourConfig = PurposeConfig.getConfig(tour.purpose);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+        ),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+          decoration: BoxDecoration(
+            color: Theme.of(sheetContext).colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 42,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Theme.of(sheetContext)
+                          .dividerColor
+                          .withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: Colors.orange.withValues(alpha: 0.12),
+                      child: const Icon(Icons.cloud_off_rounded,
+                          color: Colors.orange),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Local Only ${tourConfig.label}',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  'To sync this ${tourConfig.label.toLowerCase()}, do these steps:',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(sheetContext)
+                        .colorScheme
+                        .onSurface
+                        .withValues(alpha: 0.75),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildSyncStep('1',
+                    'Open the edit screen for this ${tourConfig.label.toLowerCase()}.'),
+                _buildSyncStep('2', 'Turn off the Local Only toggle.'),
+                _buildSyncStep(
+                    '3', 'Save the tour, then sync it to the cloud.'),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: FilledButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      navigateWithTransition(
+                        context,
+                        builder: () => CreateTourScreen(initialTour: tour),
+                      );
+                    },
+                    icon: const Icon(Icons.edit_rounded),
+                    label: const Text('Open Edit Screen'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.orange.shade700,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSyncStep(String step, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 22,
+            height: 22,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              step,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                color: Colors.orange,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.35,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurface
+                    .withValues(alpha: 0.8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showJoinDialog(BuildContext context, PurposeConfig config) {
     final controller = TextEditingController();
     bool isLoading = false;
@@ -1332,43 +1494,41 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                                     ? "Request Needed"
                                     : e.toString();
                                 if (msg.contains("Request Needed")) {
-                                  if (context.mounted) {
-                                    final tourRes = await ref
-                                        .read(syncServiceProvider)
-                                        .findTourByCode(code);
-                                    if (tourRes != null) {
-                                      final req = await showDialog<bool>(
-                                        context: context,
-                                        builder: (c) => AlertDialog(
-                                          title: Text(
-                                              "Restricted ${config.label}"),
-                                          content: Text(
-                                              "'${tourRes['name']}' is private. Send a join request?"),
-                                          actions: [
-                                            TextButton(
-                                                onPressed: () =>
-                                                    Navigator.pop(c, false),
-                                                child: const Text("No")),
-                                            FilledButton(
-                                                onPressed: () =>
-                                                    Navigator.pop(c, true),
-                                                child:
-                                                    const Text("Send Request")),
-                                          ],
-                                        ),
-                                      );
-                                      if (req == true) {
-                                        await ref
-                                            .read(syncServiceProvider)
-                                            .requestToJoin(tourRes['id']);
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(const SnackBar(
-                                                  content: Text(
-                                                      "Request sent to Admin")));
-                                          Navigator.pop(context);
-                                        }
-                                      }
+                                  if (!mounted) return;
+                                  final tourRes = await ref
+                                      .read(syncServiceProvider)
+                                      .findTourByCode(code);
+                                  if (tourRes != null) {
+                                    final req = await showDialog<bool>(
+                                      context: context,
+                                      builder: (c) => AlertDialog(
+                                        title:
+                                            Text("Restricted ${config.label}"),
+                                        content: Text(
+                                            "'${tourRes['name']}' is private. Send a join request?"),
+                                        actions: [
+                                          TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(c, false),
+                                              child: const Text("No")),
+                                          FilledButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(c, true),
+                                              child:
+                                                  const Text("Send Request")),
+                                        ],
+                                      ),
+                                    );
+                                    if (req == true) {
+                                      await ref
+                                          .read(syncServiceProvider)
+                                          .requestToJoin(tourRes['id']);
+                                      if (!mounted) return;
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(const SnackBar(
+                                              content: Text(
+                                                  "Request sent to Admin")));
+                                      Navigator.pop(context);
                                     }
                                   }
                                 } else {
