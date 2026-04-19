@@ -32,11 +32,10 @@ class UserBalanceDetails {
 }
 
 class SettlementCalculator {
-  
   /// Calculates the optimized settlement plan
   List<SettlementInstruction> calculate(
-    List<Expense> expenses, 
-    List<ExpenseSplit> splits, 
+    List<Expense> expenses,
+    List<ExpenseSplit> splits,
     List<ExpensePayer> expensePayers,
     List<User> users,
     List<Settlement> previousSettlements, {
@@ -70,8 +69,10 @@ class SettlementCalculator {
     });
 
     // Sort to optimize (Greedy)
-    debtors.sort((a, b) => a.amount.compareTo(b.amount)); // Ascending (most negative first)
-    creditors.sort((a, b) => b.amount.compareTo(a.amount)); // Descending (most positive first)
+    debtors.sort((a, b) =>
+        a.amount.compareTo(b.amount)); // Ascending (most negative first)
+    creditors.sort((a, b) =>
+        b.amount.compareTo(a.amount)); // Descending (most positive first)
 
     final userMap = {for (var u in users) u.id: u};
 
@@ -90,7 +91,8 @@ class SettlementCalculator {
       final creditorUser = userMap[creditor.userId];
 
       if (debtorUser == null || creditorUser == null) {
-        i++; j++; // Skip if user missing
+        i++;
+        j++; // Skip if user missing
         continue;
       }
 
@@ -113,8 +115,8 @@ class SettlementCalculator {
   }
 
   Map<String, UserBalanceDetails> getFullBalances({
-    required List<Expense> expenses, 
-    required List<ExpenseSplit> splits, 
+    required List<Expense> expenses,
+    required List<ExpenseSplit> splits,
     required List<ExpensePayer> expensePayers,
     required List<User> users,
     required List<Settlement> previousSettlements,
@@ -134,39 +136,63 @@ class SettlementCalculator {
 
     // Credits (Paid)
     // 1. Explicit expense payer records
-    final expensesWithPayerRecords = expensePayers.map((p) => p.expenseId).toSet();
+    final expensesWithPayerRecords =
+        expensePayers.map((p) => p.expenseId).toSet();
     for (var ep in expensePayers) {
       paidMap[ep.userId] = (paidMap[ep.userId] ?? 0) + ep.amount;
     }
     // 2. Fallback payer matching
     for (var e in expenses) {
-       if (!expensesWithPayerRecords.contains(e.id) && e.payerId != null) {
-          paidMap[e.payerId!] = (paidMap[e.payerId!] ?? 0) + e.amount;
-       }
+      if (!expensesWithPayerRecords.contains(e.id) && e.payerId != null) {
+        paidMap[e.payerId!] = (paidMap[e.payerId!] ?? 0) + e.amount;
+      }
     }
     // 3. Program Incomes (Deposits/Collected Funds)
     if (incomes != null) {
       for (var income in incomes) {
-        paidMap[income.collectedBy] = (paidMap[income.collectedBy] ?? 0) + income.amount;
+        paidMap[income.collectedBy] =
+            (paidMap[income.collectedBy] ?? 0) + income.amount;
       }
     }
 
     // Debits (Share)
-    bool hasMealData = purpose?.toLowerCase() == 'mess' && mealCounts != null && mealCounts.values.any((v) => v > 0);
-    bool hasMealExpenses = purpose?.toLowerCase() == 'mess' && expenses.any((e) => e.messCostType == 'meal');
-    
+    bool hasMealData = purpose?.toLowerCase() == 'mess' &&
+        mealCounts != null &&
+        mealCounts.values.any((v) => v > 0);
+    bool hasMealExpenses = purpose?.toLowerCase() == 'mess' &&
+        expenses.any((e) => e.messCostType == 'meal');
+
     if (hasMealData || hasMealExpenses) {
-      final fixedAmount = expenses.where((e) => e.messCostType == 'fixed').fold(0.0, (s, e) => s + e.amount);
-      final perMemberFixed = users.isNotEmpty ? fixedAmount / users.length : 0.0;
-      final totalMealCost = expenses.where((e) => e.messCostType == 'meal').fold(0.0, (s, e) => s + e.amount);
+      final fixedAmount = expenses
+          .where((e) => e.messCostType == 'fixed')
+          .fold(0.0, (s, e) => s + e.amount);
+
+      // Only divide fixed costs among users who have meal counts > 0
+      final usersWithMeals = mealCounts?.entries
+              .where((e) => e.value > 0)
+              .map((e) => e.key)
+              .toList() ??
+          [];
+      final perMemberFixed =
+          usersWithMeals.isNotEmpty ? fixedAmount / usersWithMeals.length : 0.0;
+
+      final totalMealCost = expenses
+          .where((e) => e.messCostType == 'meal')
+          .fold(0.0, (s, e) => s + e.amount);
       final totalMeals = mealCounts?.values.fold(0.0, (s, c) => s + c) ?? 0.0;
       final mealRate = totalMeals > 0 ? totalMealCost / totalMeals : 0.0;
 
-      final messManagedIds = expenses.where((e) => e.messCostType != null).map((e) => e.id).toSet();
+      final messManagedIds = expenses
+          .where((e) => e.messCostType != null)
+          .map((e) => e.id)
+          .toSet();
 
       for (var u in users) {
         final count = mealCounts?[u.id] ?? 0.0;
-        shareMap[u.id] = perMemberFixed + (mealRate * count);
+        // Only add share if user has meal count > 0
+        if (count > 0) {
+          shareMap[u.id] = perMemberFixed + (mealRate * count);
+        }
       }
 
       for (var s in splits) {
@@ -176,7 +202,7 @@ class SettlementCalculator {
       }
     } else {
       for (var s in splits) {
-         shareMap[s.userId] = (shareMap[s.userId] ?? 0) + s.amount;
+        shareMap[s.userId] = (shareMap[s.userId] ?? 0) + s.amount;
       }
     }
 
