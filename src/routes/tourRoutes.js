@@ -27,7 +27,7 @@ router.get('/:tourId/requests', auth, rbac.checkTourAccess(['admin', 'editor']),
 router.patch('/requests/:requestId', auth, rbac.checkTourAccess(['admin', 'editor']), joinRequestController.handleJoinRequest);
 
 router.get('/:id', auth, rbac.checkTourAccess(['admin', 'editor', 'viewer']), tourController.getTourDetails);
-router.post('/:tourId/add-member', auth, rbac.checkTourAccess(['admin', 'editor']), tourController.addMember);
+router.post('/:tourId/add-member', auth, tourController.addMember);
 router.post('/delete', auth, rbac.checkTourAccess(['admin']), tourController.deleteTour);
 router.post('/remove-member', auth, rbac.checkTourAccess(['admin', 'editor']), tourController.removeMember);
 router.patch('/:tourId/members/:userId/role', auth, rbac.checkTourAccess(['admin']), tourController.updateMemberRole);

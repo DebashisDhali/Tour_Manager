@@ -336,8 +336,9 @@ exports.addMember = async (req, res) => {
     // Normalize IDs to handle case sensitivity - backend stores everything lowercase
     const normalizedTourId = tourId?.toString().toLowerCase() || '';
     const normalizedUserId = userId?.toString().toLowerCase() || '';
+    const requesterId = req.user?.id?.toString().toLowerCase() || '';
     
-    if (!normalizedTourId || !normalizedUserId) {
+    if (!normalizedTourId || !normalizedUserId || !requesterId) {
       await t.rollback();
       return res.status(400).json({ error: 'Invalid tour or user ID' });
     }
@@ -348,6 +349,44 @@ exports.addMember = async (req, res) => {
     if (!tour || !user) {
       await t.rollback();
       return res.status(404).json({ error: 'Tour or User not found' });
+    }
+
+    // Authorization for inviter: active admin/editor member OR owner (self-heal owner membership if missing)
+    let requesterMember = await TourMember.findOne({
+      where: { tour_id: normalizedTourId, user_id: requesterId, status: 'active' },
+      transaction: t,
+    });
+
+    const isOwner =
+      tour.created_by &&
+      tour.created_by.toString().toLowerCase() === requesterId;
+
+    if (!requesterMember && isOwner) {
+      const now = new Date();
+      await TourMember.upsert(
+        {
+          tour_id: normalizedTourId,
+          user_id: requesterId,
+          status: 'active',
+          role: 'admin',
+          removed_at: null,
+          joined_at: now,
+          created_at: now,
+          updated_at: now,
+        },
+        { transaction: t }
+      );
+
+      requesterMember = await TourMember.findOne({
+        where: { tour_id: normalizedTourId, user_id: requesterId, status: 'active' },
+        transaction: t,
+      });
+    }
+
+    const inviterRole = requesterMember?.role?.toString().toLowerCase() || '';
+    if (!requesterMember || !['admin', 'editor'].includes(inviterRole)) {
+      await t.rollback();
+      return res.status(403).json({ error: 'You are not a member of this tour' });
     }
 
     const existingMember = await TourMember.findOne({
