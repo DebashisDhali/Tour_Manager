@@ -104,12 +104,21 @@ final tourListProvider = StreamProvider.autoDispose<List<Tour>>((ref) {
     innerJoin(db.tourMembers, db.tourMembers.tourId.equalsExp(db.tours.id)),
   ])
     ..where(db.tourMembers.userId.lower().equals(currentUser.id.toLowerCase()) &
+        db.tourMembers.status.equals('active') &
+        db.tourMembers.isDeleted.equals(false) &
         db.tours.isDeleted.equals(false))
     ..orderBy([OrderingTerm.desc(db.tours.updatedAt)]);
 
-  return query
-      .watch()
-      .map((rows) => rows.map((row) => row.readTable(db.tours)).toList());
+  return query.watch().map((rows) {
+    final uniqueTours = <String, Tour>{};
+    for (final row in rows) {
+      final tour = row.readTable(db.tours);
+      uniqueTours[tour.id] = tour;
+    }
+    final deduped = uniqueTours.values.toList()
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    return deduped;
+  });
 });
 
 final userListProvider = StreamProvider.autoDispose<List<User>>((ref) {
@@ -141,7 +150,9 @@ final tourMembersProvider = StreamProvider.family
   final query = db.select(db.users).join([
     innerJoin(db.tourMembers, db.tourMembers.userId.equalsExp(db.users.id)),
   ])
-    ..where(db.tourMembers.tourId.equals(tourId));
+    ..where(db.tourMembers.tourId.equals(tourId) &
+        db.tourMembers.isDeleted.equals(false) &
+        db.users.isDeleted.equals(false));
 
   return query.watch().map((rows) => rows.map((row) {
         final m = row.readTable(db.tourMembers);

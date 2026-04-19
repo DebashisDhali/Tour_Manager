@@ -668,7 +668,10 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> _recalculateTotalMeals(String tourId, String userId) async {
     final records = await (select(mealRecords)
-          ..where((t) => t.tourId.equals(tourId) & t.userId.equals(userId)))
+          ..where((t) =>
+              t.tourId.equals(tourId) &
+              t.userId.equals(userId) &
+              t.isDeleted.equals(false)))
         .get();
     final total = records.fold(0.0, (sum, r) => sum + r.count);
     await (update(tourMembers)
@@ -679,7 +682,7 @@ class AppDatabase extends _$AppDatabase {
 
   Stream<List<MealRecord>> watchMealRecords(String tourId) =>
       (select(mealRecords)
-            ..where((t) => t.tourId.equals(tourId))
+            ..where((t) => t.tourId.equals(tourId) & t.isDeleted.equals(false))
             ..orderBy([(t) => OrderingTerm.desc(t.date)]))
           .watch();
 
@@ -688,7 +691,9 @@ class AppDatabase extends _$AppDatabase {
     final end = start.add(const Duration(days: 1));
     return (select(mealRecords)
           ..where((t) =>
-              t.tourId.equals(tourId) & t.date.isBetweenValues(start, end)))
+              t.tourId.equals(tourId) &
+              t.date.isBetweenValues(start, end) &
+              t.isDeleted.equals(false)))
         .get();
   }
 
