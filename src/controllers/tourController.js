@@ -343,12 +343,29 @@ exports.addMember = async (req, res) => {
       return res.status(400).json({ error: 'Invalid tour or user ID' });
     }
     
-    const tour = await Tour.findByPk(normalizedTourId, { transaction: t });
-    const user = await User.findByPk(normalizedUserId, { transaction: t });
-    
-    if (!tour || !user) {
+    let tour = await Tour.findByPk(normalizedTourId, { transaction: t });
+    if (!tour) {
+      tour = await Tour.findOne({
+        where: { id: { [Op.iLike]: normalizedTourId } },
+        transaction: t,
+      });
+    }
+
+    let user = await User.findByPk(normalizedUserId, { transaction: t });
+    if (!user) {
+      user = await User.findOne({
+        where: { id: { [Op.iLike]: normalizedUserId } },
+        transaction: t,
+      });
+    }
+
+    if (!tour) {
       await t.rollback();
-      return res.status(404).json({ error: 'Tour or User not found' });
+      return res.status(404).json({ error: 'Tour not found' });
+    }
+    if (!user) {
+      await t.rollback();
+      return res.status(404).json({ error: 'User not found' });
     }
 
     // Authorization for inviter: active admin/editor member OR owner (self-heal owner membership if missing)
@@ -433,8 +450,9 @@ exports.addMember = async (req, res) => {
 
 exports.getMyInvitations = async (req, res) => {
   try {
+    const normalizedUserId = req.user?.id?.toString().toLowerCase() || '';
     const invitations = await TourMember.findAll({
-      where: { user_id: req.user.id, status: 'pending' },
+      where: { user_id: normalizedUserId, status: 'pending' },
       include: [{ model: Tour, attributes: ['id', 'name', 'purpose', 'created_by'] }]
     });
 

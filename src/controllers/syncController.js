@@ -30,6 +30,12 @@ exports.syncData = async (req, res) => {
       }
 
       if (unsyncedData) {
+        const pushItemErrors = [];
+        const recordPushError = (scope, id, error) => {
+          const msg = `${scope}[${id}]: ${error?.message || error}`;
+          pushItemErrors.push(msg);
+          console.error(`    ⚠️ ${msg}`);
+        };
         const { tours, users, expenses, splits, payers, settlements, incomes, members, joinRequests } = unsyncedData;
 
         // Process users
@@ -45,7 +51,7 @@ exports.syncData = async (req, res) => {
                   avatar_url: u.avatarUrl
                 });
               }
-            } catch (e) { console.error(`    ⚠️ User [${u.id}]:`, e.message); }
+            } catch (e) { recordPushError('User', u.id, e); }
           }
         }
 
@@ -81,7 +87,7 @@ exports.syncData = async (req, res) => {
                   });
                 }
               }
-            } catch (e) { console.error(`    ⚠️ Tour [${t.id}]:`, e.message); }
+            } catch (e) { recordPushError('Tour', t.id, e); }
           }
         }
 
@@ -105,7 +111,7 @@ exports.syncData = async (req, res) => {
                   updated_at: now,
                 });
               }
-            } catch (e) { console.error(`    ⚠️ Member [${m.tourId}-${m.userId}]:`, e.message); }
+            } catch (e) { recordPushError('Member', `${m.tourId}-${m.userId}`, e); }
           }
         }
 
@@ -121,7 +127,7 @@ exports.syncData = async (req, res) => {
                 id: e.id, tour_id: e.tourId, payer_id: e.payerId || null, amount: e.amount,
                 title: e.title, category: e.category, mess_cost_type: e.messCostType, date: e.createdAt || now
               });
-            } catch (err) { console.error(`    ⚠️ Expense [${e.id}]:`, err.message); }
+            } catch (err) { recordPushError('Expense', e.id, err); }
           }
         }
 
@@ -136,7 +142,7 @@ exports.syncData = async (req, res) => {
               await ExpenseSplit.upsert({
                 id: s.id, expense_id: s.expenseId, user_id: s.userId, amount: s.amount
               });
-            } catch (err) { console.error(`    ⚠️ Split [${s.id}]:`, err.message); }
+            } catch (err) { recordPushError('Split', s.id, err); }
           }
         }
 
@@ -151,7 +157,7 @@ exports.syncData = async (req, res) => {
               await ExpensePayer.upsert({
                 id: p.id, expense_id: p.expenseId, user_id: p.userId, amount: p.amount
               });
-            } catch (err) { console.error(`    ⚠️ Payer [${p.id}]:`, err.message); }
+            } catch (err) { recordPushError('Payer', p.id, err); }
           }
         }
 
@@ -166,7 +172,7 @@ exports.syncData = async (req, res) => {
               await Settlement.upsert({
                 id: s.id, tour_id: s.tourId, from_id: s.fromId, to_id: s.toId, amount: s.amount, date: s.date || now
               });
-            } catch (err) { console.error(`    ⚠️ Settlement [${s.id}]:`, err.message); }
+            } catch (err) { recordPushError('Settlement', s.id, err); }
           }
         }
 
@@ -182,7 +188,7 @@ exports.syncData = async (req, res) => {
                 id: i.id, tour_id: i.tourId, amount: i.amount, source: i.source,
                 description: i.description, collected_by: i.collectedBy, date: i.date || now
               });
-            } catch (err) { console.error(`    ⚠️ Income [${i.id}]:`, err.message); }
+            } catch (err) { recordPushError('Income', i.id, err); }
           }
         }
 
@@ -197,8 +203,12 @@ exports.syncData = async (req, res) => {
               await JoinRequest.upsert({
                 id: jr.id, tour_id: jr.tourId, user_id: jr.userId, user_name: jr.userName || 'Unknown', status: jr.status || 'pending'
               });
-            } catch (err) { console.error(`    ⚠️ JoinRequest [${jr.id}]:`, err.message); }
+            } catch (err) { recordPushError('JoinRequest', jr.id, err); }
           }
+        }
+
+        if (pushItemErrors.length > 0) {
+          throw new Error(`Push item failures: ${pushItemErrors.slice(0, 3).join(' | ')}`);
         }
       }
 
