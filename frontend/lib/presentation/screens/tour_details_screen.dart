@@ -1416,49 +1416,34 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                                   Text(m.user.phone ?? "No phone",
                                       style: const TextStyle(fontSize: 10)),
                                   const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      Icon(Icons.restaurant_menu,
-                                          size: 14,
-                                          color: isRemoved
-                                              ? Colors.grey
-                                              : config.color
-                                                  .withValues(alpha: 0.7)),
-                                      const SizedBox(width: 4),
-                                      Expanded(
-                                        child: Text(
-                                          "Meal Count: ${_formatMealCount(mealTotalsByUser[m.user.id] ?? m.mealCount)}",
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                              color: isRemoved
-                                                  ? Colors.grey
-                                                  : Theme.of(context)
-                                                      .colorScheme
-                                                      .onSurface
-                                                      .withValues(alpha: 0.8)),
-                                        ),
-                                      ),
-                                      if (isRemoved) ...[
-                                        const SizedBox(width: 6),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 4, vertical: 2),
-                                          decoration: BoxDecoration(
-                                              color: Colors.grey.shade200,
-                                              borderRadius:
-                                                  BorderRadius.circular(4)),
-                                          child: const Text("REMOVED",
-                                              style: TextStyle(
-                                                  fontSize: 8,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.grey)),
-                                        ),
-                                      ],
-                                    ],
+                                  Text(
+                                    "Meals: ${_formatMealCount(mealTotalsByUser[m.user.id] ?? m.mealCount)}",
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: isRemoved
+                                            ? Colors.grey
+                                            : Theme.of(context)
+                                                .colorScheme
+                                                .onSurface
+                                                .withValues(alpha: 0.8)),
                                   ),
+                                  if (isRemoved) ...[
+                                    const SizedBox(height: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 4, vertical: 2),
+                                      decoration: BoxDecoration(
+                                          color: Colors.grey.shade200,
+                                          borderRadius:
+                                              BorderRadius.circular(4)),
+                                      child: const Text("REMOVED",
+                                          style: TextStyle(
+                                              fontSize: 8,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.grey)),
+                                    ),
+                                  ],
                                 ],
                               )
                             : Text(m.user.phone ?? "No phone",
