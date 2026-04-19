@@ -124,8 +124,11 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
   Future<void> _inviteSelectedProfiles(String tourId) async {
     if (_selectedProfiles.isEmpty) return;
 
+    debugPrint(
+        '🔄 Inviting ${_selectedProfiles.length} selected profiles to tour $tourId');
     final syncService = ref.read(syncServiceProvider);
     int successCount = 0;
+    final failedUsers = <String>[];
 
     for (final user in _selectedProfiles) {
       final userId = user['id']?.toString() ?? '';
@@ -133,20 +136,41 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
 
       try {
         await syncService.addMemberToTour(tourId, userId);
+        debugPrint('✅ Invited user ${user['name']} ($userId)');
         successCount++;
       } catch (e) {
-        debugPrint('Failed to invite user ${user['name']}: $e');
+        final userName = user['name']?.toString() ?? 'Unknown';
+        debugPrint('❌ Failed to invite user $userName: $e');
+        failedUsers.add(userName);
       }
     }
 
-    if (successCount > 0 && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Invitation sent to $successCount ${successCount == 1 ? 'profile' : 'profiles'}.'),
-        ),
-      );
+    if (mounted) {
+      if (successCount > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                '✅ Invitation sent to $successCount ${successCount == 1 ? 'profile' : 'profiles'}.'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      if (failedUsers.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⚠️ Failed to invite: ${failedUsers.join(", ")}'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+      if (successCount == 0 && _selectedProfiles.isNotEmpty) {
+        debugPrint('⚠️ No profiles were invited');
+      }
     }
+
+    debugPrint(
+        '📊 Invitation summary: $successCount/${_selectedProfiles.length} succeeded');
   }
 
   Future<void> _selectDateRange() async {
@@ -201,6 +225,11 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
         User? currentUser = await ref.read(currentUserProvider.future);
 
         if (currentUser == null) throw Exception("Profile not found.");
+
+        debugPrint(
+            '🎬 Creating tour in ${_isLocalOnly ? 'LOCAL' : 'GLOBAL'} mode');
+        debugPrint(
+            '📋 Selected profiles: ${_selectedProfiles.length}, Additional members: ${_additionalMembers.length}');
 
         final String finalTourId;
 
@@ -323,8 +352,17 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                 }
               }
             }
+            debugPrint(
+                '🔍 After sync: synced=$synced, selectedProfiles=${_selectedProfiles.length}');
             if (synced && _selectedProfiles.isNotEmpty) {
+              debugPrint(
+                  '⏳ Waiting 1 second for server state to settle after sync...');
+              await Future.delayed(const Duration(seconds: 1));
               await _inviteSelectedProfiles(finalTourId);
+            } else if (!synced) {
+              debugPrint('⚠️ Skipping invites - sync failed');
+            } else if (_selectedProfiles.isEmpty) {
+              debugPrint('ℹ️ No profiles selected for invitation');
             }
             if (!synced && mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -462,7 +500,15 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
                       child: SwitchListTile.adaptive(
                         value: _isLocalOnly,
                         onChanged: (value) {
-                          setState(() => _isLocalOnly = value);
+                          setState(() {
+                            _isLocalOnly = value;
+                            // Clear search state when toggling mode
+                            _searchController.clear();
+                            _searchResults.clear();
+                            _selectedProfiles.clear();
+                            _memberController.clear();
+                            _additionalMembers.clear();
+                          });
                         },
                         activeColor: config.color,
                         title: Text(
