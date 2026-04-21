@@ -344,12 +344,42 @@ class SettlementCalculator {
         }
         
         // Also handle cases where a split exists for a removed user (orphaned share)
-        final orphanedAmount = splits
-            .where((s) => s.expenseId == e.id && !shareMap.containsKey(s.userId.toLowerCase()))
-            .fold(0.0, (sum, s) => sum + s.amount);
+        final Map<String, double> userSplits = dedupedSplits[e.id] ?? {};
+        double orphanedAmount = 0.0;
+        
+        for (var uid in userSplits.keys) {
+          if (!shareMap.containsKey(uid.toLowerCase())) {
+            orphanedAmount += userSplits[uid]!;
+          }
+        }
             
-        if (orphanedAmount > 0.01 && pNid != null && shareMap.containsKey(pNid)) {
-           shareMap[pNid] = _roundTo2Decimals((shareMap[pNid] ?? 0.0) + orphanedAmount);
+        // COMBINED RECOVERY: Missing amounts + Orphaned shares
+        final totalRecovery = missingAmount + orphanedAmount;
+        
+        if (totalRecovery.abs() > 0.01) {
+          // Redistribute the recovery amount among all active members in shareMap
+          final activeMemberNids = shareMap.keys.toList();
+          if (activeMemberNids.isNotEmpty) {
+            final shareOfRecovery = _roundTo2Decimals(totalRecovery / activeMemberNids.length);
+            
+            for (int i = 0; i < activeMemberNids.length; i++) {
+              final nid = activeMemberNids[i];
+              // Add the share of recovery to each member
+              double adjustedAmount = shareOfRecovery;
+              
+              // Handle rounding remainders by giving the last bit to the First member
+              if (i == 0) {
+                final totalRedistributed = shareOfRecovery * activeMemberNids.length;
+                final remainder = _roundTo2Decimals(totalRecovery - totalRedistributed);
+                adjustedAmount = _roundTo2Decimals(adjustedAmount + remainder);
+              }
+              
+              shareMap[nid] = _roundTo2Decimals((shareMap[nid] ?? 0.0) + adjustedAmount);
+            }
+          } else if (pNid != null && shareMap.containsKey(pNid)) {
+            // Fallback to payer if no active members (shouldn't happen)
+            shareMap[pNid] = _roundTo2Decimals((shareMap[pNid] ?? 0.0) + totalRecovery);
+          }
         }
       }
     }
