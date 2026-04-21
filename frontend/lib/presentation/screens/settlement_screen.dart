@@ -383,8 +383,7 @@ class SettlementScreen extends ConsumerWidget {
                                     .withValues(alpha: 0.25)),
                           ],
                         ),
-                      ),
-                      // Net balance badge
+                                   // Net balance badge
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 5),
@@ -405,7 +404,7 @@ class SettlementScreen extends ConsumerWidget {
                             Text(
                               isSettled
                                   ? "Settled ✓"
-                                  : (isCreditor ? "Will receive" : "Will pay"),
+                                  : (isCreditor ? "Surplus (Receive)" : "Due (Pay)"),
                               style: TextStyle(
                                   fontSize: 9,
                                   fontWeight: FontWeight.bold,
@@ -416,6 +415,54 @@ class SettlementScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
+
+                  if (tour.purpose.toLowerCase() == 'mess') ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).dividerColor.withValues(alpha: 0.03),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.05)),
+                      ),
+                      child: Column(
+                        children: [
+                          _buildBreakdownRow(
+                            context,
+                            "Meals (${mealCounts[u.id]?.toStringAsFixed(1) ?? '0'})",
+                            "৳${( (mealCounts[u.id] ?? 0) * mealRate).toStringAsFixed(2)}",
+                            Icons.restaurant_rounded,
+                            Colors.orange,
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 4),
+                            child: Divider(height: 1),
+                          ),
+                          _buildBreakdownRow(
+                            context,
+                            "Shared Fixed Costs",
+                            "৳${fixedCostPerPerson.toStringAsFixed(2)}",
+                            Icons.home_rounded,
+                            Colors.blue,
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 2),
+                            child: DottedLine(height: 1),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text("Total Share", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                Text("৳${details.share.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
 
                   const SizedBox(height: 12),
 
@@ -616,6 +663,18 @@ class SettlementScreen extends ConsumerWidget {
             ),
           ),
         const SizedBox(height: 100),
+      ],
+    );
+  }
+
+  Widget _buildBreakdownRow(BuildContext context, String label, String value, IconData icon, Color color) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: color.withValues(alpha: 0.7)),
+        const SizedBox(width: 8),
+        Text(label, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
+        const Spacer(),
+        Text(value, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
       ],
     );
   }

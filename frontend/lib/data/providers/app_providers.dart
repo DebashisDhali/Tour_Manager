@@ -358,7 +358,6 @@ final tourUsersProvider =
     innerJoin(db.tourMembers, db.tourMembers.userId.lower().equalsExp(db.users.id.lower())),
   ])
     ..where(db.tourMembers.tourId.equals(tourId) &
-        db.tourMembers.status.equals('active') &
         db.tourMembers.isDeleted.equals(false) &
         db.users.isDeleted.equals(false));
   return query

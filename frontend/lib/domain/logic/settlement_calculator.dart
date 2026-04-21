@@ -208,26 +208,21 @@ class SettlementCalculator {
     if (hasMealData || hasMealExpenses) {
       // ===== MESS MODE: Meal-based + Fixed Costs =====
 
-      // Separate meal and fixed expenses
-      final mealExpenses =
-          expenses.where((e) => e.messCostType == 'meal').toList();
-      final fixedExpenses =
-          expenses.where((e) => e.messCostType == 'fixed').toList();
-
-      final totalMealCost = mealExpenses.fold(0.0, (sum, e) => sum + e.amount);
-      final totalFixedCost =
-          fixedExpenses.fold(0.0, (sum, e) => sum + e.amount);
-
-      // Identify participating members (those with meal count > 0)
-      final participatingMembers = mealCounts?.entries
-              .where((e) => e.value > 0)
-              .map((e) => e.key.toLowerCase())
-              .toList() ??
-          [];
-
       // ===== DISTRIBUTE FIXED COSTS (RENT, UTILITIES) =====
       // Fixed costs divided by ALL members (everyone occupies the space)
       // Even if not present, they're still sharing the rent
+      
+      // Fallback: any expense in mess mode that is NOT marked as 'meal' 
+      // and has no explicit splits should be treated as shared fixed cost.
+      final expensesWithSplits = splits.map((s) => s.expenseId).toSet();
+      
+      final actualFixedExpenses = expenses.where((e) => 
+        e.messCostType == 'fixed' || 
+        (e.messCostType == null && !expensesWithSplits.contains(e.id))
+      ).toList();
+      
+      final totalFixedCost = actualFixedExpenses.fold(0.0, (sum, e) => sum + e.amount);
+
       if (users.isNotEmpty && totalFixedCost > 0) {
         final fixedPerMember = _roundTo2Decimals(totalFixedCost / users.length);
 
@@ -247,34 +242,36 @@ class SettlementCalculator {
 
       // ===== DISTRIBUTE MEAL COSTS =====
       // Based on meal count per person
+      final mealExpenses =
+          expenses.where((e) => e.messCostType == 'meal').toList();
+      final totalMealCost = mealExpenses.fold(0.0, (sum, e) => sum + e.amount);
+      
       final totalMeals =
           mealCounts?.values.fold(0.0, (sum, count) => sum + count) ?? 0.0;
 
       if (totalMeals > 0 && totalMealCost > 0) {
-        final mealRate = _roundTo2Decimals(totalMealCost / totalMeals);
-
-        // Calculate remainder for rounding error compensation
-        final totalMealDistributed = _roundTo2Decimals(mealRate * totalMeals);
-        final mealRemainder =
-            _roundTo2Decimals(totalMealCost - totalMealDistributed);
+        final mealRate = totalMealCost / totalMeals; // Keep precision for now
 
         // Distribute meal costs proportional to meal count
-        bool remainderAdded = false;
+        double totalDistributedMeal = 0.0;
+        final participatingNids = <String>[];
+        
         for (var u in users) {
           final nid = u.id.toLowerCase();
           final count = mealCounts?[u.id] ?? mealCounts?[nid] ?? 0.0;
           if (count > 0) {
+            participatingNids.add(nid);
             final mealShare = _roundTo2Decimals(mealRate * count);
-            // Add remainder to first participant
-            final extraAmount = !remainderAdded && mealRemainder.abs() > 0.001
-                ? mealRemainder
-                : 0.0;
-            if (extraAmount != 0) remainderAdded = true;
-
-            shareMap[nid] = _roundTo2Decimals(
-              (shareMap[nid] ?? 0.0) + mealShare + extraAmount,
-            );
+            totalDistributedMeal += mealShare;
+            shareMap[nid] = _roundTo2Decimals((shareMap[nid] ?? 0.0) + mealShare);
           }
+        }
+        
+        // Rounding compensation for meals
+        final mealRemainder = _roundTo2Decimals(totalMealCost - totalDistributedMeal);
+        if (mealRemainder.abs() > 0.001 && participatingNids.isNotEmpty) {
+          final pNid = participatingNids.first;
+          shareMap[pNid] = _roundTo2Decimals((shareMap[pNid] ?? 0.0) + mealRemainder);
         }
       }
 
