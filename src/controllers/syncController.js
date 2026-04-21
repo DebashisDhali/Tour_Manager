@@ -38,6 +38,16 @@ exports.syncData = async (req, res) => {
           console.error(`    ⚠️ ${msg}`);
         };
         const { tours, users, expenses, splits, payers, settlements, incomes, members, joinRequests } = unsyncedData;
+        
+        // --- SECURE SYNC: Fetch User Roles ---
+        const myMemberships = await TourMember.findAll({
+          where: { user_id: normalizedUserId, status: 'active' },
+          attributes: ['tour_id', 'role'],
+          raw: true
+        });
+        const roleMap = {};
+        myMemberships.forEach(m => roleMap[m.tour_id.toLowerCase()] = m.role.toLowerCase());
+        // ------------------------------------
 
         // Process users
         if (users?.length > 0) {
@@ -61,22 +71,31 @@ exports.syncData = async (req, res) => {
           console.log(`  🏕️  ${tours.length} tour(s)`);
           for (const t of tours) {
             try {
+              const tourId = t.id.toLowerCase();
+              const role = roleMap[tourId] || 'none';
+
               if (t.isDeleted) {
                 // Security Guard: Only the creator can destroy the actual tour record
-                const existingTour = await Tour.findByPk(t.id.toLowerCase());
+                const existingTour = await Tour.findByPk(tourId);
                 if (existingTour && existingTour.created_by.toLowerCase() === normalizedUserId) {
-                  await Tour.destroy({ where: { id: t.id.toLowerCase() } });
+                  await Tour.destroy({ where: { id: tourId } });
                   console.log(`    🗑️  Tour ${t.id} destroyed by creator`);
                 } else {
                   // If not creator, just remove this user's membership (Left the tour)
                   await TourMember.destroy({ 
-                    where: { tour_id: t.id.toLowerCase(), user_id: normalizedUserId } 
+                    where: { tour_id: tourId, user_id: normalizedUserId } 
                   });
                   console.log(`    🚶 User ${normalizedUserId} left tour ${t.id}`);
                 }
               } else {
                 const creatorId = t.createdBy ? t.createdBy.toLowerCase() : null;
                 
+                // If tour exists and user is not Admin/Editor, block update
+                const existingTour = await Tour.findByPk(tourId);
+                if (existingTour && role !== 'admin' && role !== 'editor') {
+                  throw new Error("Permission denied: Viewer cannot edit tour details");
+                }
+
                 if (creatorId) {
                   await User.findOrCreate({
                     where: { id: creatorId },
@@ -85,14 +104,14 @@ exports.syncData = async (req, res) => {
                 }
 
                 await Tour.upsert({
-                  id: t.id.toLowerCase(), name: t.name, created_by: creatorId,
+                  id: tourId, name: t.name, created_by: creatorId,
                   invite_code: t.inviteCode || null, start_date: t.startDate || null,
                   end_date: t.endDate || null, purpose: t.purpose || 'tour',
                 });
 
                 if (creatorId) {
                   await TourMember.upsert({ 
-                    tour_id: t.id.toLowerCase(), user_id: creatorId, 
+                    tour_id: tourId, user_id: creatorId, 
                     status: 'active', role: 'admin', joined_at: t.startDate || now,
                   });
                 }
@@ -126,19 +145,24 @@ exports.syncData = async (req, res) => {
           // Process expenses
           if (expenses?.length > 0) {
             console.log(`  💰 ${expenses.length} expense(s)`);
-            const toDelete = expenses.filter(e => e.isDeleted).map(e => e.id.toLowerCase());
-            if (toDelete.length > 0) await Expense.destroy({ where: { id: toDelete } });
-            
-            for (const e of expenses.filter(e => !e.isDeleted)) {
+            for (const e of expenses) {
               try {
-                await Expense.upsert({
-                  id: e.id.toLowerCase(), 
-                  tour_id: e.tourId.toLowerCase(), 
-                  payer_id: e.payerId ? e.payerId.toLowerCase() : null, 
-                  amount: e.amount,
-                  title: e.title, category: e.category, mess_cost_type: e.messCostType, 
-                  date: e.createdAt || now
-                });
+                const tourId = e.tourId.toLowerCase();
+                const role = roleMap[tourId] || 'none';
+                if (role !== 'admin' && role !== 'editor') throw new Error("Permission Denied: Only Admin or Editor can modify expenses");
+
+                if (e.isDeleted) {
+                  await Expense.destroy({ where: { id: e.id.toLowerCase() } });
+                } else {
+                  await Expense.upsert({
+                    id: e.id.toLowerCase(), 
+                    tour_id: tourId, 
+                    payer_id: e.payerId ? e.payerId.toLowerCase() : null, 
+                    amount: e.amount,
+                    title: e.title, category: e.category, mess_cost_type: e.messCostType, 
+                    date: e.createdAt || now
+                  });
+                }
               } catch (err) { recordPushError('Expense', e.id, err); }
             }
           }
@@ -182,18 +206,23 @@ exports.syncData = async (req, res) => {
           // Process settlements
           if (settlements?.length > 0) {
             console.log(`  🤝 ${settlements.length} settlement(s)`);
-            const toDelete = settlements.filter(s => s.isDeleted).map(s => s.id.toLowerCase());
-            if (toDelete.length > 0) await Settlement.destroy({ where: { id: toDelete } });
-            
-            for (const s of settlements.filter(s => !s.isDeleted)) {
+            for (const s of settlements) {
               try {
-                await Settlement.upsert({
-                  id: s.id.toLowerCase(), 
-                  tour_id: s.tourId.toLowerCase(), 
-                  from_id: s.fromId.toLowerCase(), 
-                  to_id: s.toId.toLowerCase(), 
-                  amount: s.amount, date: s.date || now
-                });
+                const tourId = s.tourId.toLowerCase();
+                const role = roleMap[tourId] || 'none';
+                if (role !== 'admin' && role !== 'editor') throw new Error("Permission Denied");
+
+                if (s.isDeleted) {
+                  await Settlement.destroy({ where: { id: s.id.toLowerCase() } });
+                } else {
+                  await Settlement.upsert({
+                    id: s.id.toLowerCase(), 
+                    tour_id: tourId, 
+                    from_id: s.fromId.toLowerCase(), 
+                    to_id: s.toId.toLowerCase(), 
+                    amount: s.amount, date: s.date || now
+                  });
+                }
               } catch (err) { recordPushError('Settlement', s.id, err); }
             }
           }
@@ -201,19 +230,24 @@ exports.syncData = async (req, res) => {
           // Process incomes
           if (incomes?.length > 0) {
             console.log(`  💵 ${incomes.length} income(s)`);
-            const toDelete = incomes.filter(i => i.isDeleted).map(i => i.id.toLowerCase());
-            if (toDelete.length > 0) await ProgramIncome.destroy({ where: { id: toDelete } });
-            
-            for (const i of incomes.filter(i => !i.isDeleted)) {
+            for (const i of incomes) {
               try {
-                await ProgramIncome.upsert({
-                  id: i.id.toLowerCase(), 
-                  tour_id: i.tourId.toLowerCase(), 
-                  amount: i.amount, source: i.source,
-                  description: i.description, 
-                  collected_by: i.collectedBy.toLowerCase(), 
-                  date: i.date || now
-                });
+                const tourId = i.tourId.toLowerCase();
+                const role = roleMap[tourId] || 'none';
+                if (role !== 'admin' && role !== 'editor') throw new Error("Permission Denied");
+
+                if (i.isDeleted) {
+                  await ProgramIncome.destroy({ where: { id: i.id.toLowerCase() } });
+                } else {
+                  await ProgramIncome.upsert({
+                    id: i.id.toLowerCase(), 
+                    tour_id: tourId, 
+                    amount: i.amount, source: i.source,
+                    description: i.description, 
+                    collected_by: i.collectedBy.toLowerCase(), 
+                    date: i.date || now
+                  });
+                }
               } catch (err) { recordPushError('Income', i.id, err); }
             }
           }

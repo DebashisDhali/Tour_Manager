@@ -806,7 +806,9 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
           itemCount: tours.length + 1,
           itemBuilder: (context, index) {
             if (index == 0) return _buildMyJoinRequestsSection(config);
-            final tour = tours[index - 1];
+            final tourWithRole = tours[index - 1];
+            final tour = tourWithRole.tour;
+            final role = tourWithRole.role;
             final tourConfig = PurposeConfig.getConfig(tour.purpose);
 
             return PremiumCard(
@@ -956,23 +958,30 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                         }
                       },
                       itemBuilder: (context) => [
-                        const PopupMenuItem(
-                          value: 'edit',
-                          child: Row(children: [
-                            Icon(Icons.edit_rounded, size: 18),
-                            SizedBox(width: 12),
-                            Text('Edit Details')
-                          ]),
-                        ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Row(children: [
-                            Icon(Icons.delete_outline_rounded,
-                                color: Colors.red, size: 18),
-                            SizedBox(width: 12),
-                            Text('Remove', style: TextStyle(color: Colors.red))
-                          ]),
-                        ),
+                        if (role == 'admin' || role == 'editor')
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Row(children: [
+                              Icon(Icons.edit_rounded, size: 18),
+                              SizedBox(width: 12),
+                              Text('Edit Details')
+                            ]),
+                          ),
+                        if (role == 'admin')
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Row(children: [
+                              Icon(Icons.delete_outline_rounded,
+                                  color: Colors.red, size: 18),
+                              SizedBox(width: 12),
+                              Text('Remove', style: TextStyle(color: Colors.red))
+                            ]),
+                          ),
+                        if (role != 'admin' && role != 'editor')
+                           const PopupMenuItem(
+                            enabled: false,
+                            child: Text('Viewing Only', style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
+                          ),
                       ],
                     ),
                   ),

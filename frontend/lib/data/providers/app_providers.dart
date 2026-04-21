@@ -93,7 +93,13 @@ final currentUserProvider = StreamProvider<User?>((ref) {
       .watchSingleOrNull();
 });
 
-final tourListProvider = StreamProvider.autoDispose<List<Tour>>((ref) {
+class TourWithRole {
+  final Tour tour;
+  final String role;
+  TourWithRole(this.tour, this.role);
+}
+
+final tourListProvider = StreamProvider.autoDispose<List<TourWithRole>>((ref) {
   final db = ref.watch(databaseProvider);
   final currentUser = ref.watch(currentUserProvider).value;
 
@@ -108,19 +114,20 @@ final tourListProvider = StreamProvider.autoDispose<List<Tour>>((ref) {
         db.tours.isDeleted.equals(false));
 
   return query.watch().map((rows) {
-    final uniqueTours = <String, Tour>{};
+    final uniqueTours = <String, TourWithRole>{};
     for (final row in rows) {
       final tour = row.readTable(db.tours);
-      uniqueTours[tour.id] = tour;
+      final member = row.readTable(db.tourMembers);
+      uniqueTours[tour.id] = TourWithRole(tour, member.role.toLowerCase().trim());
     }
     final deduped = uniqueTours.values.toList()
       ..sort((a, b) {
         // Sort by startDate descending (newer first), then by ID
-        if (a.startDate != null && b.startDate != null) {
-          final byTime = b.startDate!.compareTo(a.startDate!);
+        if (a.tour.startDate != null && b.tour.startDate != null) {
+          final byTime = b.tour.startDate!.compareTo(a.tour.startDate!);
           if (byTime != 0) return byTime;
         }
-        return a.id.compareTo(b.id);
+        return a.tour.id.compareTo(b.tour.id);
       });
     return deduped;
   }).distinct((previous, next) {
@@ -128,9 +135,10 @@ final tourListProvider = StreamProvider.autoDispose<List<Tour>>((ref) {
     for (int i = 0; i < previous.length; i++) {
       final p = previous[i];
       final n = next[i];
-      if (p.id != n.id ||
-          p.isSynced != n.isSynced ||
-          p.isDeleted != n.isDeleted) {
+      if (p.tour.id != n.tour.id ||
+          p.role != n.role ||
+          p.tour.isSynced != n.tour.isSynced ||
+          p.tour.isDeleted != n.tour.isDeleted) {
         return false;
       }
     }

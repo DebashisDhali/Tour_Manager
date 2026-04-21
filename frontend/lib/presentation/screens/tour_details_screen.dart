@@ -883,6 +883,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
     final myRole = myMember?.role ?? 'viewer';
     final isEditor =
         me?.id == tour.createdBy || myRole == 'admin' || myRole == 'editor';
+    final isAdmin = me?.id == tour.createdBy || myRole == 'admin';
 
     return expensesAsync.when(
       data: (allExpenses) {
@@ -1148,7 +1149,11 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
     final isEditor = me?.id == tour.createdBy ||
         (membersAsync.value?.any((m) =>
                 m.user.id == me?.id &&
-                (m.role == 'admin' || m.role == 'editor')) ??
+                (m.role == 'admin')) ??
+            false);
+    final isAdmin = me?.id == tour.createdBy ||
+        (membersAsync.value?.any((m) =>
+                m.user.id == me?.id && (m.role == 'admin')) ??
             false);
 
     if (!isEditor) return const SizedBox.shrink();
@@ -2787,6 +2792,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
     final myRole = myMember?.role ?? 'viewer';
     final isEditor =
         me?.id == tour.createdBy || myRole == 'admin' || myRole == 'editor';
+    final isAdmin = me?.id == tour.createdBy || myRole == 'admin';
 
     return mealRecordsAsync.when(
       data: (records) {

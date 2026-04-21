@@ -6,7 +6,7 @@ const rbac = require('../middleware/rbac');
 // Assuming you have tourId in req.body for create/delete, or need to verify inside controller.
 // rbac checks req.params.tourId or req.body.tourId
 router.post('/', rbac.checkTourAccess(['admin', 'editor']), controller.createProgramIncome);
-router.post('/delete', controller.deleteProgramIncome); // Needs tourId in body or handled manually in controller
+router.post('/delete', rbac.checkTourAccess(['admin', 'editor']), controller.deleteProgramIncome); 
 router.get('/:tourId', rbac.checkTourAccess(['admin', 'editor', 'viewer']), controller.getIncomesByTour);
 
 module.exports = router;
