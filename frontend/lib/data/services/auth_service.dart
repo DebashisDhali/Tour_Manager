@@ -145,7 +145,6 @@ class AuthService {
       isSynced: true,
       isDeleted: false,
       createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
     );
 
     // Save to local DB with isMe = true

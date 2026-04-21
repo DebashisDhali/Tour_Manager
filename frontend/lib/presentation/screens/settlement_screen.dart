@@ -551,7 +551,6 @@ class SettlementScreen extends ConsumerWidget {
                     id: '',
                     name: 'Deleted User',
                     phone: '',
-                    updatedAt: DateTime.now(),
                     createdAt: DateTime.now(),
                     purpose: '',
                     isSynced: false,
@@ -562,7 +561,6 @@ class SettlementScreen extends ConsumerWidget {
                     id: '',
                     name: 'Deleted User',
                     phone: '',
-                    updatedAt: DateTime.now(),
                     createdAt: DateTime.now(),
                     purpose: '',
                     isSynced: false,
@@ -705,7 +703,6 @@ class SettlementScreen extends ConsumerWidget {
       startDate: tour.endDate?.add(const Duration(days: 1)) ?? DateTime.now(),
       isSynced: false,
       isDeleted: false,
-      updatedAt: DateTime.now(),
     ));
 
     // 2. Add Members & Carry Forward Balances

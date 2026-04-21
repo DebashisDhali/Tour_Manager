@@ -9,14 +9,9 @@ class GuidedOnboardingScreen extends StatefulWidget {
   State<GuidedOnboardingScreen> createState() => _GuidedOnboardingScreenState();
 }
 
-class _GuidedOnboardingScreenState extends State<GuidedOnboardingScreen>
-    with TickerProviderStateMixin {
+class _GuidedOnboardingScreenState extends State<GuidedOnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
-  late AnimationController _fadeController;
-  late AnimationController _slideController;
-  late Animation<double> _fadeAnim;
-  late Animation<Offset> _slideAnim;
 
   final List<_GuideStep> _steps = [
     _GuideStep(
@@ -96,33 +91,16 @@ class _GuidedOnboardingScreenState extends State<GuidedOnboardingScreen>
   @override
   void initState() {
     super.initState();
-    _fadeController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
-    _slideController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 600));
-    _fadeAnim =
-        CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut);
-    _slideAnim = Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero)
-        .animate(
-            CurvedAnimation(parent: _slideController, curve: Curves.easeOut));
-    _fadeController.forward();
-    _slideController.forward();
   }
 
   @override
   void dispose() {
     _pageController.dispose();
-    _fadeController.dispose();
-    _slideController.dispose();
     super.dispose();
   }
 
   void _onPageChanged(int page) {
     setState(() => _currentPage = page);
-    _fadeController.reset();
-    _slideController.reset();
-    _fadeController.forward();
-    _slideController.forward();
   }
 
   Future<void> _completeOnboarding() async {
@@ -183,7 +161,7 @@ class _GuidedOnboardingScreenState extends State<GuidedOnboardingScreen>
               ),
             ),
 
-            // Main content
+            // Main content area
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
@@ -192,15 +170,14 @@ class _GuidedOnboardingScreenState extends State<GuidedOnboardingScreen>
                 itemBuilder: (context, index) {
                   final s = _steps[index];
                   return SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Icon
-                        Center(
-                          child: FadeTransition(
-                            opacity: _fadeAnim,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Icon
+                          Center(
                             child: Container(
                               padding: const EdgeInsets.all(20),
                               decoration: BoxDecoration(
@@ -214,29 +191,20 @@ class _GuidedOnboardingScreenState extends State<GuidedOnboardingScreen>
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 24),
+                          const SizedBox(height: 24),
 
-                        // Title
-                        FadeTransition(
-                          opacity: _fadeAnim,
-                          child: SlideTransition(
-                            position: _slideAnim,
-                            child: Text(
-                              s.title,
-                              style: const TextStyle(
-                                fontSize: 26,
-                                fontWeight: FontWeight.bold,
-                              ),
+                          // Title
+                          Text(
+                            s.title,
+                            style: const TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 12),
+                          const SizedBox(height: 12),
 
-                        // Description
-                        FadeTransition(
-                          opacity: _fadeAnim,
-                          child: Text(
+                          // Description
+                          Text(
                             s.description,
                             style: TextStyle(
                               fontSize: 16,
@@ -244,89 +212,98 @@ class _GuidedOnboardingScreenState extends State<GuidedOnboardingScreen>
                               height: 1.5,
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 24),
+                          const SizedBox(height: 24),
 
-                        // Tips
-                        ...s.tips.map((tip) => Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Icon(
-                                    Icons.check_circle_rounded,
-                                    color: s.color,
-                                    size: 24,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      tip,
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        height: 1.4,
+                          // Tips
+                          ...s.tips.map((tip) => Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 10),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(
+                                      Icons.check_circle_rounded,
+                                      color: s.color,
+                                      size: 24,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        tip,
+                                        style: const TextStyle(
+                                          fontSize: 15,
+                                          height: 1.4,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            )),
-                        const SizedBox(height: 32),
-                      ],
+                                  ],
+                                ),
+                              )),
+                          const SizedBox(height: 48),
+                        ],
+                      ),
                     ),
                   );
                 },
               ),
             ),
 
-            // Navigation buttons
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            // Navigation buttons - Bottom section
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Previous button
-                  if (_currentPage > 0)
-                    TextButton.icon(
-                      onPressed: _previousPage,
-                      icon: const Icon(Icons.arrow_back),
-                      label: const Text('পিছনে'),
-                    )
-                  else
-                    const SizedBox(width: 80),
-
                   // Page counter
                   Text(
                     '${_currentPage + 1}/${_steps.length}',
                     style: TextStyle(
                       color: Colors.grey[600],
                       fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Previous button
+                  if (_currentPage > 0)
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton.icon(
+                        onPressed: _previousPage,
+                        icon: const Icon(Icons.arrow_back),
+                        label: const Text('পিছনে'),
+                      ),
+                    ),
+
+                  // Next/Finish button
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: _nextPage,
+                      icon: Icon(_currentPage == _steps.length - 1
+                          ? Icons.check
+                          : Icons.arrow_forward),
+                      label: Text(_currentPage == _steps.length - 1
+                          ? 'শুরু করুন'
+                          : 'পরবর্তী'),
                     ),
                   ),
 
-                  // Next/Finish button
-                  FilledButton.icon(
-                    onPressed: _nextPage,
-                    icon: Icon(_currentPage == _steps.length - 1
-                        ? Icons.check
-                        : Icons.arrow_forward),
-                    label: Text(_currentPage == _steps.length - 1
-                        ? 'শুরু করুন'
-                        : 'পরবর্তী'),
-                  ),
+                  // Skip button
+                  if (_currentPage < _steps.length - 1) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: _completeOnboarding,
+                        child: const Text('স্কিপ করুন'),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
-
-            // Skip button
-            if (_currentPage < _steps.length - 1)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: TextButton(
-                  onPressed: _completeOnboarding,
-                  child: const Text('স্কিপ করুন'),
-                ),
-              ),
           ],
         ),
       ),

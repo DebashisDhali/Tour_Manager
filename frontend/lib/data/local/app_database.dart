@@ -16,8 +16,7 @@ class Users extends Table {
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
   BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
-
-  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -34,7 +33,7 @@ class Tours extends Table {
       const Constant('tour'))(); // 'tour', 'event', 'project', etc.
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
   BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
-  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -200,10 +199,6 @@ class AppDatabase extends _$AppDatabase {
 
           await safePatch(
               'UPDATE users SET created_at = $now WHERE created_at IS NULL');
-          await safePatch(
-              'UPDATE users SET updated_at = $now WHERE updated_at IS NULL');
-          await safePatch(
-              'UPDATE tours SET updated_at = $now WHERE updated_at IS NULL');
           await safePatch(
               'UPDATE tours SET purpose = "tour" WHERE purpose IS NULL');
           await safePatch(

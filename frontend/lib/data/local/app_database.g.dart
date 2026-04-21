@@ -81,10 +81,8 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
       const VerificationMeta('updatedAt');
   @override
   late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-      'updated_at', aliasedName, false,
-      type: DriftSqlType.dateTime,
-      requiredDuringInsert: false,
-      defaultValue: currentDateAndTime);
+      'updated_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -186,7 +184,7 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at']),
     );
   }
 
@@ -207,7 +205,7 @@ class User extends DataClass implements Insertable<User> {
   final bool isSynced;
   final bool isDeleted;
   final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? updatedAt;
   const User(
       {required this.id,
       required this.name,
@@ -219,7 +217,7 @@ class User extends DataClass implements Insertable<User> {
       required this.isSynced,
       required this.isDeleted,
       required this.createdAt,
-      required this.updatedAt});
+      this.updatedAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -241,7 +239,9 @@ class User extends DataClass implements Insertable<User> {
     map['is_synced'] = Variable<bool>(isSynced);
     map['is_deleted'] = Variable<bool>(isDeleted);
     map['created_at'] = Variable<DateTime>(createdAt);
-    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
     return map;
   }
 
@@ -263,7 +263,9 @@ class User extends DataClass implements Insertable<User> {
       isSynced: Value(isSynced),
       isDeleted: Value(isDeleted),
       createdAt: Value(createdAt),
-      updatedAt: Value(updatedAt),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
     );
   }
 
@@ -281,7 +283,7 @@ class User extends DataClass implements Insertable<User> {
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       isDeleted: serializer.fromJson<bool>(json['isDeleted']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
-      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
     );
   }
   @override
@@ -298,7 +300,7 @@ class User extends DataClass implements Insertable<User> {
       'isSynced': serializer.toJson<bool>(isSynced),
       'isDeleted': serializer.toJson<bool>(isDeleted),
       'createdAt': serializer.toJson<DateTime>(createdAt),
-      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
     };
   }
 
@@ -313,7 +315,7 @@ class User extends DataClass implements Insertable<User> {
           bool? isSynced,
           bool? isDeleted,
           DateTime? createdAt,
-          DateTime? updatedAt}) =>
+          Value<DateTime?> updatedAt = const Value.absent()}) =>
       User(
         id: id ?? this.id,
         name: name ?? this.name,
@@ -325,7 +327,7 @@ class User extends DataClass implements Insertable<User> {
         isSynced: isSynced ?? this.isSynced,
         isDeleted: isDeleted ?? this.isDeleted,
         createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
+        updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
       );
   User copyWithCompanion(UsersCompanion data) {
     return User(
@@ -392,7 +394,7 @@ class UsersCompanion extends UpdateCompanion<User> {
   final Value<bool> isSynced;
   final Value<bool> isDeleted;
   final Value<DateTime> createdAt;
-  final Value<DateTime> updatedAt;
+  final Value<DateTime?> updatedAt;
   final Value<int> rowid;
   const UsersCompanion({
     this.id = const Value.absent(),
@@ -464,7 +466,7 @@ class UsersCompanion extends UpdateCompanion<User> {
       Value<bool>? isSynced,
       Value<bool>? isDeleted,
       Value<DateTime>? createdAt,
-      Value<DateTime>? updatedAt,
+      Value<DateTime?>? updatedAt,
       Value<int>? rowid}) {
     return UsersCompanion(
       id: id ?? this.id,
@@ -615,10 +617,8 @@ class $ToursTable extends Tours with TableInfo<$ToursTable, Tour> {
       const VerificationMeta('updatedAt');
   @override
   late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-      'updated_at', aliasedName, false,
-      type: DriftSqlType.dateTime,
-      requiredDuringInsert: false,
-      defaultValue: currentDateAndTime);
+      'updated_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
   @override
   List<GeneratedColumn> get $columns => [
         id,
@@ -717,7 +717,7 @@ class $ToursTable extends Tours with TableInfo<$ToursTable, Tour> {
       isDeleted: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_deleted'])!,
       updatedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at']),
     );
   }
 
@@ -737,7 +737,7 @@ class Tour extends DataClass implements Insertable<Tour> {
   final String purpose;
   final bool isSynced;
   final bool isDeleted;
-  final DateTime updatedAt;
+  final DateTime? updatedAt;
   const Tour(
       {required this.id,
       required this.name,
@@ -748,7 +748,7 @@ class Tour extends DataClass implements Insertable<Tour> {
       required this.purpose,
       required this.isSynced,
       required this.isDeleted,
-      required this.updatedAt});
+      this.updatedAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -767,7 +767,9 @@ class Tour extends DataClass implements Insertable<Tour> {
     map['purpose'] = Variable<String>(purpose);
     map['is_synced'] = Variable<bool>(isSynced);
     map['is_deleted'] = Variable<bool>(isDeleted);
-    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
     return map;
   }
 
@@ -788,7 +790,9 @@ class Tour extends DataClass implements Insertable<Tour> {
       purpose: Value(purpose),
       isSynced: Value(isSynced),
       isDeleted: Value(isDeleted),
-      updatedAt: Value(updatedAt),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
     );
   }
 
@@ -805,7 +809,7 @@ class Tour extends DataClass implements Insertable<Tour> {
       purpose: serializer.fromJson<String>(json['purpose']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       isDeleted: serializer.fromJson<bool>(json['isDeleted']),
-      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
     );
   }
   @override
@@ -821,7 +825,7 @@ class Tour extends DataClass implements Insertable<Tour> {
       'purpose': serializer.toJson<String>(purpose),
       'isSynced': serializer.toJson<bool>(isSynced),
       'isDeleted': serializer.toJson<bool>(isDeleted),
-      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
     };
   }
 
@@ -835,7 +839,7 @@ class Tour extends DataClass implements Insertable<Tour> {
           String? purpose,
           bool? isSynced,
           bool? isDeleted,
-          DateTime? updatedAt}) =>
+          Value<DateTime?> updatedAt = const Value.absent()}) =>
       Tour(
         id: id ?? this.id,
         name: name ?? this.name,
@@ -846,7 +850,7 @@ class Tour extends DataClass implements Insertable<Tour> {
         purpose: purpose ?? this.purpose,
         isSynced: isSynced ?? this.isSynced,
         isDeleted: isDeleted ?? this.isDeleted,
-        updatedAt: updatedAt ?? this.updatedAt,
+        updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
       );
   Tour copyWithCompanion(ToursCompanion data) {
     return Tour(
@@ -910,7 +914,7 @@ class ToursCompanion extends UpdateCompanion<Tour> {
   final Value<String> purpose;
   final Value<bool> isSynced;
   final Value<bool> isDeleted;
-  final Value<DateTime> updatedAt;
+  final Value<DateTime?> updatedAt;
   final Value<int> rowid;
   const ToursCompanion({
     this.id = const Value.absent(),
@@ -978,7 +982,7 @@ class ToursCompanion extends UpdateCompanion<Tour> {
       Value<String>? purpose,
       Value<bool>? isSynced,
       Value<bool>? isDeleted,
-      Value<DateTime>? updatedAt,
+      Value<DateTime?>? updatedAt,
       Value<int>? rowid}) {
     return ToursCompanion(
       id: id ?? this.id,
@@ -4611,7 +4615,7 @@ typedef $$UsersTableCreateCompanionBuilder = UsersCompanion Function({
   Value<bool> isSynced,
   Value<bool> isDeleted,
   Value<DateTime> createdAt,
-  Value<DateTime> updatedAt,
+  Value<DateTime?> updatedAt,
   Value<int> rowid,
 });
 typedef $$UsersTableUpdateCompanionBuilder = UsersCompanion Function({
@@ -4625,7 +4629,7 @@ typedef $$UsersTableUpdateCompanionBuilder = UsersCompanion Function({
   Value<bool> isSynced,
   Value<bool> isDeleted,
   Value<DateTime> createdAt,
-  Value<DateTime> updatedAt,
+  Value<DateTime?> updatedAt,
   Value<int> rowid,
 });
 
@@ -5197,7 +5201,7 @@ class $$UsersTableTableManager extends RootTableManager<
             Value<bool> isSynced = const Value.absent(),
             Value<bool> isDeleted = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
-            Value<DateTime> updatedAt = const Value.absent(),
+            Value<DateTime?> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               UsersCompanion(
@@ -5225,7 +5229,7 @@ class $$UsersTableTableManager extends RootTableManager<
             Value<bool> isSynced = const Value.absent(),
             Value<bool> isDeleted = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
-            Value<DateTime> updatedAt = const Value.absent(),
+            Value<DateTime?> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               UsersCompanion.insert(
@@ -5387,7 +5391,7 @@ typedef $$ToursTableCreateCompanionBuilder = ToursCompanion Function({
   Value<String> purpose,
   Value<bool> isSynced,
   Value<bool> isDeleted,
-  Value<DateTime> updatedAt,
+  Value<DateTime?> updatedAt,
   Value<int> rowid,
 });
 typedef $$ToursTableUpdateCompanionBuilder = ToursCompanion Function({
@@ -5400,7 +5404,7 @@ typedef $$ToursTableUpdateCompanionBuilder = ToursCompanion Function({
   Value<String> purpose,
   Value<bool> isSynced,
   Value<bool> isDeleted,
-  Value<DateTime> updatedAt,
+  Value<DateTime?> updatedAt,
   Value<int> rowid,
 });
 
@@ -5903,7 +5907,7 @@ class $$ToursTableTableManager extends RootTableManager<
             Value<String> purpose = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<bool> isDeleted = const Value.absent(),
-            Value<DateTime> updatedAt = const Value.absent(),
+            Value<DateTime?> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ToursCompanion(
@@ -5929,7 +5933,7 @@ class $$ToursTableTableManager extends RootTableManager<
             Value<String> purpose = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<bool> isDeleted = const Value.absent(),
-            Value<DateTime> updatedAt = const Value.absent(),
+            Value<DateTime?> updatedAt = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               ToursCompanion.insert(

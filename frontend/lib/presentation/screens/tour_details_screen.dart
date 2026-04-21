@@ -765,7 +765,6 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
         ToursCompanion(
           inviteCode: drift.Value(code),
           isSynced: const drift.Value(true),
-          updatedAt: drift.Value(DateTime.now()),
         ),
       );
     } catch (e) {

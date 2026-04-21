@@ -89,7 +89,6 @@ final currentUserProvider = StreamProvider<User?>((ref) {
   final db = ref.watch(databaseProvider);
   return (db.select(db.users)
         ..where((u) => u.isMe.equals(true))
-        ..orderBy([(u) => OrderingTerm.desc(u.updatedAt)])
         ..limit(1))
       .watchSingleOrNull();
 });
@@ -106,8 +105,7 @@ final tourListProvider = StreamProvider.autoDispose<List<Tour>>((ref) {
     ..where(db.tourMembers.userId.lower().equals(currentUser.id.toLowerCase()) &
         db.tourMembers.status.equals('active') &
         db.tourMembers.isDeleted.equals(false) &
-        db.tours.isDeleted.equals(false))
-    ..orderBy([OrderingTerm.desc(db.tours.updatedAt)]);
+        db.tours.isDeleted.equals(false));
 
   return query.watch().map((rows) {
     final uniqueTours = <String, Tour>{};
@@ -117,8 +115,11 @@ final tourListProvider = StreamProvider.autoDispose<List<Tour>>((ref) {
     }
     final deduped = uniqueTours.values.toList()
       ..sort((a, b) {
-        final byTime = b.updatedAt.compareTo(a.updatedAt);
-        if (byTime != 0) return byTime;
+        // Sort by startDate descending (newer first), then by ID
+        if (a.startDate != null && b.startDate != null) {
+          final byTime = b.startDate!.compareTo(a.startDate!);
+          if (byTime != 0) return byTime;
+        }
         return a.id.compareTo(b.id);
       });
     return deduped;
@@ -128,7 +129,6 @@ final tourListProvider = StreamProvider.autoDispose<List<Tour>>((ref) {
       final p = previous[i];
       final n = next[i];
       if (p.id != n.id ||
-          p.updatedAt != n.updatedAt ||
           p.isSynced != n.isSynced ||
           p.isDeleted != n.isDeleted) {
         return false;
@@ -282,15 +282,21 @@ final globalActivityProvider =
   final currentUser = ref.watch(currentUserProvider).value;
   if (currentUser == null) return Stream.value([]);
 
+  final activeTourIdsQuery = db.selectOnly(db.tourMembers)
+    ..addColumns([db.tourMembers.tourId])
+    ..where(db.tourMembers.userId
+            .lower()
+            .equals(currentUser.id.toLowerCase()) &
+        db.tourMembers.status.equals('active') &
+        db.tourMembers.isDeleted.equals(false));
+
   final expenseQuery = db.select(db.expenses).join([
     leftOuterJoin(db.users, db.users.id.equalsExp(db.expenses.payerId)),
     innerJoin(db.tours, db.tours.id.equalsExp(db.expenses.tourId)),
   ])
     ..where(db.expenses.isDeleted.equals(false) &
-        (db.expenses.payerId.equals(currentUser.id) |
-            db.expenses.id.isInQuery(db.selectOnly(db.expenseSplits)
-              ..addColumns([db.expenseSplits.expenseId])
-              ..where(db.expenseSplits.userId.equals(currentUser.id)))));
+        db.tours.isDeleted.equals(false) &
+        db.expenses.tourId.isInQuery(activeTourIdsQuery));
 
   return expenseQuery.watch().map((rows) {
     try {

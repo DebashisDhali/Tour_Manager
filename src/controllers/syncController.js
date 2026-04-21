@@ -75,7 +75,9 @@ exports.syncData = async (req, res) => {
                 await Tour.upsert({
                   id: t.id.toLowerCase(), name: t.name, created_by: creatorId,
                   invite_code: t.inviteCode || null, start_date: t.startDate || null,
-                  end_date: t.endDate || null, purpose: t.purpose || 'tour'
+                  end_date: t.endDate || null, purpose: t.purpose || 'tour',
+                  created_at: now,
+                  updated_at: now
                 });
 
                 if (creatorId) {

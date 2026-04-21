@@ -321,8 +321,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
             createdBy: currentUser.id,
             purpose: _selectedPurpose,
             isSynced: false,
-            isDeleted: false,
-            updatedAt: DateTime.now()));
+            isDeleted: false));
 
         await db.setTourLocalOnly(finalTourId, _isLocalOnly);
 
@@ -346,7 +345,6 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
               isSynced: false,
               isDeleted: false,
               createdAt: DateTime.now(),
-              updatedAt: DateTime.now(),
             ));
             await db.into(db.tourMembers).insert(TourMember(
                   tourId: finalTourId,
@@ -368,7 +366,6 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
           endDate: drift.Value(_selectedDateRange?.end),
           isSynced: false,
           isDeleted: false,
-          updatedAt: DateTime.now(),
         ));
 
         await db.setTourLocalOnly(finalTourId, _isLocalOnly);
@@ -384,7 +381,6 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
               isSynced: false,
               isDeleted: false,
               createdAt: DateTime.now(),
-              updatedAt: DateTime.now(),
             ));
             await db.into(db.tourMembers).insert(TourMember(
                   tourId: finalTourId,

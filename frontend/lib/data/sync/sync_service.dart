@@ -43,6 +43,8 @@ class SyncService {
     }
   }
 
+  bool _hasId(String? value) => value != null && value.trim().isNotEmpty;
+
   Future<void> startSync(String userId) async {
     if (_isSyncInProgress) {
       debugPrint('⏭️ Sync skipped: previous sync still in progress');
@@ -80,32 +82,41 @@ class SyncService {
 
       final localOnlyTourIds = await _getLocalOnlyTourIds();
 
-      final unsyncedTours = allUnsyncedTours
-          .where((t) => !localOnlyTourIds.contains(t.id))
+        final unsyncedTours = allUnsyncedTours
+          .where((t) =>
+            _hasId(t.id) && _hasId(t.createdBy) &&
+            !localOnlyTourIds.contains(t.id))
           .toList();
 
       final unsyncedExpenses = allUnsyncedExpenses
-          .where((e) => !localOnlyTourIds.contains(e.tourId))
+          .where((e) => _hasId(e.id) && _hasId(e.tourId) &&
+            !localOnlyTourIds.contains(e.tourId))
           .toList();
       final syncExpenseIds = unsyncedExpenses.map((e) => e.id).toSet();
 
       final unsyncedSplits = allUnsyncedSplits
-          .where((s) => syncExpenseIds.contains(s.expenseId))
+          .where((s) => _hasId(s.id) && _hasId(s.expenseId) && _hasId(s.userId) &&
+            syncExpenseIds.contains(s.expenseId))
           .toList();
       final unsyncedPayers = allUnsyncedPayers
-          .where((p) => syncExpenseIds.contains(p.expenseId))
+          .where((p) => _hasId(p.id) && _hasId(p.expenseId) && _hasId(p.userId) &&
+            syncExpenseIds.contains(p.expenseId))
           .toList();
       final unsyncedMembers = allUnsyncedMembers
-          .where((m) => !localOnlyTourIds.contains(m.tourId))
+          .where((m) => _hasId(m.tourId) && _hasId(m.userId) &&
+            !localOnlyTourIds.contains(m.tourId))
           .toList();
       final unsyncedSettlements = allUnsyncedSettlements
-          .where((s) => !localOnlyTourIds.contains(s.tourId))
+          .where((s) => _hasId(s.id) && _hasId(s.tourId) && _hasId(s.fromId) &&
+            _hasId(s.toId) && !localOnlyTourIds.contains(s.tourId))
           .toList();
       final unsyncedIncomes = allUnsyncedIncomes
-          .where((i) => !localOnlyTourIds.contains(i.tourId))
+          .where((i) => _hasId(i.id) && _hasId(i.tourId) && _hasId(i.collectedBy) &&
+            !localOnlyTourIds.contains(i.tourId))
           .toList();
       final unsyncedJoinRequests = allUnsyncedJoinRequests
-          .where((jr) => !localOnlyTourIds.contains(jr.tourId))
+          .where((jr) => _hasId(jr.id) && _hasId(jr.tourId) && _hasId(jr.userId) &&
+            !localOnlyTourIds.contains(jr.tourId))
           .toList();
 
       final referencedUserIds = <String>{userId};
@@ -121,8 +132,8 @@ class SyncService {
       referencedUserIds.addAll(unsyncedIncomes.map((i) => i.collectedBy));
       referencedUserIds.addAll(unsyncedJoinRequests.map((jr) => jr.userId));
 
-      final unsyncedUsers = allUnsyncedUsers
-          .where((u) => referencedUserIds.contains(u.id) || u.isMe)
+        final unsyncedUsers = allUnsyncedUsers
+          .where((u) => _hasId(u.id) && (referencedUserIds.contains(u.id) || u.isMe))
           .toList();
 
       final response = await dio.post('$baseUrl/sync', data: {
@@ -155,7 +166,7 @@ class SyncService {
               .map((e) => {
                     'id': e.id,
                     'tourId': e.tourId,
-                    'payerId': e.payerId,
+                'payerId': _hasId(e.payerId) ? e.payerId : null,
                     'amount': e.amount,
                     'title': e.title,
                     'category': e.category,
@@ -323,7 +334,6 @@ class SyncService {
                   createdBy: st['created_by'] ?? '',
                   purpose: Value(st['purpose'] ?? 'tour'),
                   isSynced: const Value(true),
-                  updatedAt: Value(DateTime.now()),
                 ),
                 mode: InsertMode.insertOrReplace);
 
@@ -357,7 +367,6 @@ class SyncService {
                       isMe: Value(su['id'].toString().toLowerCase() ==
                           userId.toLowerCase()),
                       isSynced: const Value(true),
-                      updatedAt: Value(DateTime.now()),
                     ),
                     mode: InsertMode.insertOrReplace);
 
@@ -519,10 +528,8 @@ class SyncService {
           final localTours = await db.select(db.tours).get();
           for (final lt in localTours) {
             final localIdLower = lt.id.toLowerCase();
-            final hasStaleServerMembership = lt.isSynced &&
-                !serverIdsLower.contains(localIdLower) &&
-                lastSyncDate != null &&
-                lt.updatedAt.isBefore(lastSyncDate);
+            final hasStaleServerMembership =
+                lt.isSynced && !serverIdsLower.contains(localIdLower);
             if (hasStaleServerMembership) {
               debugPrint(
                   "🗑️ Removing tour ${lt.name} - no longer a member on server");
@@ -625,7 +632,6 @@ class SyncService {
               purpose: tourData['purpose'] ?? 'tour',
               isSynced: true,
               isDeleted: false,
-              updatedAt: DateTime.now(),
             ));
             debugPrint("✅ Tour saved to local DB");
 
@@ -667,7 +673,6 @@ class SyncService {
                     isSynced: true,
                     isDeleted: false,
                     createdAt: DateTime.now(),
-                    updatedAt: DateTime.now(),
                   ));
 
                   final memberMeta = _memberMeta(member);

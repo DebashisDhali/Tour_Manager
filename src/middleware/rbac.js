@@ -56,7 +56,6 @@ exports.checkTourAccess = (roles) => {
             removed_at: null,
             joined_at: now,
             created_at: now,
-            updated_at: now,
           });
 
           member = await TourMember.findOne({

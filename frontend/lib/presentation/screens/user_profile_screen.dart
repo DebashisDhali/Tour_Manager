@@ -108,7 +108,6 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
             ? null
             : _avatarController.text.trim()),
         isSynced: false,
-        updatedAt: DateTime.now(),
       );
 
       await db.createUser(updatedUser);

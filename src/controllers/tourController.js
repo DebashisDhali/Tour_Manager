@@ -16,6 +16,7 @@ exports.createTour = async (req, res) => {
   try {
     const { id, name, start_date, end_date } = req.body;
     const created_by = req.user.id;
+    const now = new Date();
 
     if (!name || !name.toString().trim()) {
       return res.status(400).json({ error: 'Tour name is required' });
@@ -28,13 +29,23 @@ exports.createTour = async (req, res) => {
       created_by, 
       invite_code,
       start_date,
-      end_date
+      end_date,
+      created_at: now,
+      updated_at: now
     });
 
-    // Add creator to members
+    // Add creator to members explicitly so timestamp columns are always set.
     const user = await User.findByPk(created_by);
     if (user) {
-      await tour.addUser(user);
+      await TourMember.upsert({
+        tour_id: tour.id,
+        user_id: user.id,
+        role: 'admin',
+        status: 'active',
+        joined_at: now,
+        created_at: now,
+        updated_at: now,
+      });
     }
 
     res.status(201).json(tour);
@@ -231,10 +242,16 @@ exports.joinTour = async (req, res) => {
         role: 'viewer' // Reset to viewer when re-joining via code
       }, { transaction: t });
     } else {
-      await tour.addUser(user, { 
-        through: { role: 'viewer' },
-        transaction: t 
-      });
+      const now = new Date();
+      await TourMember.upsert({
+        tour_id: tour.id,
+        user_id: user.id,
+        role: 'viewer',
+        status: 'active',
+        joined_at: now,
+        created_at: now,
+        updated_at: now,
+      }, { transaction: t });
     }
     
     // Commit the transaction

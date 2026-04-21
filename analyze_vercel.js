@@ -37,7 +37,6 @@ function get(path) {
     console.log(`[${i+1}] "${t.name}"`);
     console.log(`    invite_code: ${codeStatus}`);
     console.log(`    id: ${t.id}`);
-    console.log(`    last updated: ${t.updated_at}`);
     console.log('');
   });
   
