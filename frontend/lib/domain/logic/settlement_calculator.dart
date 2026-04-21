@@ -197,27 +197,28 @@ class SettlementCalculator {
 
     // ===== STEP 2: CALCULATE SHARE OBLIGATIONS =====
 
-    // Detect if this is a MESS tour with meal data
-    bool hasMealData = purpose?.toLowerCase() == 'mess' &&
-        mealCounts != null &&
-        mealCounts.values.any((v) => v > 0);
+    // Detect if this is a MESS tour
+    bool isMessMode = purpose?.toLowerCase() == 'mess';
 
-    bool hasMealExpenses = purpose?.toLowerCase() == 'mess' &&
-        expenses.any((e) => e.messCostType == 'meal');
-
-    if (hasMealData || hasMealExpenses) {
+    if (isMessMode) {
       // ===== MESS MODE: Meal-based + Fixed Costs =====
 
       // ===== DISTRIBUTE FIXED COSTS (RENT, UTILITIES) =====
       // Fixed costs divided by ALL members (everyone occupies the space)
       // Even if not present, they're still sharing the rent
       
+      // Identify participating members (those with meal count > 0)
+      final totalMeals =
+          mealCounts?.values.fold(0.0, (sum, count) => sum + count) ?? 0.0;
+
       // Fallback: any expense in mess mode that is NOT marked as 'meal' 
       // and has no explicit splits should be treated as shared fixed cost.
+      // CRITICAL: If totalMeals is 0, then EVEN 'meal' expenses act as fixed costs!
       final expensesWithSplits = splits.map((s) => s.expenseId).toSet();
       
       final actualFixedExpenses = expenses.where((e) => 
         e.messCostType == 'fixed' || 
+        (e.messCostType == 'meal' && totalMeals <= 0) ||
         (e.messCostType == null && !expensesWithSplits.contains(e.id))
       ).toList();
       
@@ -245,9 +246,6 @@ class SettlementCalculator {
       final mealExpenses =
           expenses.where((e) => e.messCostType == 'meal').toList();
       final totalMealCost = mealExpenses.fold(0.0, (sum, e) => sum + e.amount);
-      
-      final totalMeals =
-          mealCounts?.values.fold(0.0, (sum, count) => sum + count) ?? 0.0;
 
       if (totalMeals > 0 && totalMealCost > 0) {
         final mealRate = totalMealCost / totalMeals; // Keep precision for now
