@@ -28,6 +28,19 @@ app.get('/', (req, res) => {
 
 app.get('/health', (req, res) => res.sendStatus(200));
 
+// TEMPORARY: Database Migration Route (Remove after use)
+app.get('/api/migrate-db-dangerous', async (req, res) => {
+  try {
+    console.log('🔄 Manual Migration Triggered...');
+    await sequelize.sync({ alter: true });
+    console.log('✅ Manual Migration Successful');
+    res.status(200).json({ message: 'Database schema updated successfully (alter:true)' });
+  } catch (err) {
+    console.error('❌ Manual Migration Failed:', err.message);
+    res.status(500).json({ error: 'Migration failed', details: err.message });
+  }
+});
+
 // --- SECURITY MIDDLEWARE ---
 // 1. Helmet for Secure HTTP Headers
 app.use(helmet());
