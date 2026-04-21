@@ -6,7 +6,10 @@ exports.createExpense = async (req, res) => {
     const { id, tour_id, payer_id, amount, title, category, mess_cost_type, splits, payers } = req.body;
     
     const expense = await Expense.create({
-        id, tour_id, payer_id, amount, title, category, mess_cost_type, synced_at: new Date()
+        id: (id || uuidv4()).toLowerCase(), 
+        tour_id: tour_id.toLowerCase(), 
+        payer_id: payer_id ? payer_id.toLowerCase() : null, 
+        amount, title, category, mess_cost_type, synced_at: new Date()
     }, { transaction: t });
 
     if (splits && splits.length > 0) {

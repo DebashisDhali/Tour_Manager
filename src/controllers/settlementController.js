@@ -4,10 +4,10 @@ exports.createSettlement = async (req, res) => {
   try {
     const { id, tour_id, from_id, to_id, amount, date } = req.body;
     const settlement = await Settlement.create({
-      id,
-      tour_id,
-      from_id,
-      to_id,
+      id: (id || uuidv4()).toLowerCase(),
+      tour_id: tour_id.toLowerCase(),
+      from_id: from_id.toLowerCase(),
+      to_id: to_id.toLowerCase(),
       amount,
       date: date || new Date()
     });

@@ -309,33 +309,100 @@ exports.syncData = async (req, res) => {
     ]);
     console.log(`✅ Data fetched`);
 
-    // Reconstruct with case-insensitive filtering for robustness
+    // Reconstruct with explicit mapping to camelCase for Flutter compatibility
     const toursData = tours.map(tour => {
       const tourIdLower = tour.id.toLowerCase();
+      
       return {
-        ...tour,
-        Expenses: expenses.filter(e => e.tour_id.toLowerCase() === tourIdLower),
-        Settlements: settlements.filter(s => s.tour_id.toLowerCase() === tourIdLower),
-        ProgramIncomes: incomes.filter(i => i.tour_id.toLowerCase() === tourIdLower),
-        JoinRequests: joinRequests.filter(jr => jr.tour_id.toLowerCase() === tourIdLower),
+        id: tour.id.toLowerCase(),
+        name: tour.name,
+        startDate: tour.start_date,
+        endDate: tour.end_date,
+        inviteCode: tour.invite_code,
+        createdBy: tour.created_by.toLowerCase(),
+        purpose: tour.purpose || 'tour',
+        status: tour.status || 'active',
+        updatedAt: tour.updated_at,
+        
+        Expenses: expenses
+          .filter(e => e.tour_id.toLowerCase() === tourIdLower)
+          .map(e => ({
+            id: e.id,
+            tourId: e.tour_id.toLowerCase(),
+            payerId: e.payer_id ? e.payer_id.toLowerCase() : null,
+            amount: parseFloat(e.amount),
+            title: e.title,
+            category: e.category,
+            messCostType: e.mess_cost_type,
+            createdAt: e.date
+          })),
+        
+        Settlements: settlements
+          .filter(s => s.tour_id.toLowerCase() === tourIdLower)
+          .map(s => ({
+            id: s.id,
+            tourId: s.tour_id.toLowerCase(),
+            fromId: s.from_id.toLowerCase(),
+            toId: s.to_id.toLowerCase(),
+            amount: parseFloat(s.amount),
+            date: s.date
+          })),
+          
+        ProgramIncomes: incomes
+          .filter(i => i.tour_id.toLowerCase() === tourIdLower)
+          .map(i => ({
+            id: i.id,
+            tourId: i.tour_id.toLowerCase(),
+            amount: parseFloat(i.amount),
+            source: i.source,
+            description: i.description,
+            collectedBy: i.collected_by.toLowerCase(),
+            date: i.date
+          })),
+
+        JoinRequests: joinRequests
+          .filter(jr => jr.tour_id.toLowerCase() === tourIdLower)
+          .map(jr => ({
+            id: jr.id,
+            tourId: jr.tour_id.toLowerCase(),
+            userId: jr.user_id.toLowerCase(),
+            userName: jr.user_name,
+            status: jr.status
+          })),
+
         Users: members
           .filter(m => m.tour_id.toLowerCase() === tourIdLower)
           .map(m => {
             const plain = m.get({ plain: true });
             const userObj = plain.User;
-            delete plain.User;
-            return { ...userObj, TourMember: plain };
+            return {
+              id: userObj.id.toLowerCase(),
+              name: userObj.name,
+              email: userObj.email,
+              phone: userObj.phone,
+              avatarUrl: userObj.avatar_url,
+              purpose: userObj.purpose,
+              TourMember: {
+                tourId: plain.tour_id.toLowerCase(),
+                userId: plain.user_id.toLowerCase(),
+                role: plain.role,
+                status: plain.status,
+                joinedAt: plain.joined_at,
+                removedAt: plain.removed_at,
+                mealCount: parseFloat(plain.meal_count || 0)
+              }
+            };
           })
       };
     });
 
-    console.log(`✅ SYNC COMPLETE`);
+    console.log(`✅ SYNC COMPLETE for ${tourIds.length} tours`);
     res.json({
       timestamp: now.toISOString(),
       pushSuccess: pushPhaseError === null,
       pushError: pushPhaseError,
       tours: toursData,
-      allTourIds: tourIds
+      allTourIds: tourIds.map(id => id.toLowerCase())
     });
 
   } catch (err) {
