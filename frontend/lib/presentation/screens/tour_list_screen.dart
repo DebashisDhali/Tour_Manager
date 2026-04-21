@@ -299,25 +299,10 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
           onPointerMove: _handleEdgeSwipeMove,
           onPointerUp: _resetEdgeSwipe,
           onPointerCancel: _resetEdgeSwipe,
-          child: Consumer(
-            builder: (context, ref, child) {
-              // Reactively watch for new invitations to update the badge instantly
-              final requests = ref.watch(myJoinRequestsProvider).value ?? [];
-              final invites = ref.watch(myIncomingInvitationsProvider).value ?? [];
-              
-              final pendingCount = requests
-                      .where((r) => r.request.status.toLowerCase() == 'pending')
-                      .length + invites.length;
-              
-              if (pendingCount == 0 && _unreadNotificationCount == 0) return const SizedBox.shrink();
-              final displayBadgeCount = pendingCount > _unreadNotificationCount 
-                  ? pendingCount 
-                  : _unreadNotificationCount;
-
-              return AppTourOverlay(
-                key: _tourOverlayKey,
-                steps: _buildTourSteps(),
-                onComplete: _completeAppTour,
+          child: AppTourOverlay(
+            key: _tourOverlayKey,
+            steps: _buildTourSteps(),
+            onComplete: _completeAppTour,
                 child: DefaultTabController(
                   length: 2,
                   child: Scaffold(
@@ -363,7 +348,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                           ),
                         ],
                       ),
-                      actions: [
+                                            actions: [
                         Padding(
                           padding: const EdgeInsets.only(right: 6),
                           child: IconButton.filledTonal(
@@ -402,152 +387,163 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                             onTap: () => _openProfileAndMarkSeen(user),
                             child: Padding(
                               padding: const EdgeInsets.only(right: 16, left: 2),
-                              child: Stack(
-                                clipBehavior: Clip.none,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(2),
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .primary
-                                            .withValues(alpha: 0.25),
-                                        width: 1.2,
-                                      ),
-                                    ),
-                                    child: CircleAvatar(
-                                      radius: 16,
-                                      backgroundColor:
-                                          config.color.withValues(alpha: 0.1),
-                                      backgroundImage: user.avatarUrl != null
-                                          ? NetworkImage(user.avatarUrl!)
-                                          : null,
-                                      child: user.avatarUrl == null
-                                          ? Text(
-                                              user.name.isNotEmpty
-                                                  ? user.name[0].toUpperCase()
-                                                  : 'U',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: config.color,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            )
-                                          : null,
-                                    ),
-                                  ),
-                                  if (displayBadgeCount > 0)
-                                    Positioned(
-                                      right: -5,
-                                      top: -5,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 5, vertical: 2),
+                              child: Consumer(
+                                builder: (context, ref, child) {
+                                  final requests = ref.watch(myJoinRequestsProvider).value ?? [];
+                                  final invites = ref.watch(myIncomingInvitationsProvider).value ?? [];
+                                  final pendingCount = requests.where((r) => r.request.status.toLowerCase() == 'pending').length + invites.length;
+                                  final displayBadgeCount = pendingCount > _unreadNotificationCount ? pendingCount : _unreadNotificationCount;
+
+                                  return Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(2),
                                         decoration: BoxDecoration(
-                                          color: Colors.red,
-                                          borderRadius: BorderRadius.circular(10),
+                                          shape: BoxShape.circle,
                                           border: Border.all(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .surface,
-                                              width: 1),
-                                        ),
-                                        constraints: const BoxConstraints(
-                                          minWidth: 16,
-                                          minHeight: 16,
-                                        ),
-                                        child: Text(
-                                          displayBadgeCount > 99
-                                              ? '99+'
-                                              : displayBadgeCount.toString(),
-                                          textAlign: TextAlign.center,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.w700,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary
+                                                .withValues(alpha: 0.25),
+                                            width: 1.2,
                                           ),
                                         ),
+                                        child: CircleAvatar(
+                                          radius: 16,
+                                          backgroundColor: config.color.withValues(alpha: 0.1),
+                                          backgroundImage: user.avatarUrl != null
+                                              ? NetworkImage(user.avatarUrl!)
+                                              : null,
+                                          child: user.avatarUrl == null
+                                              ? Text(
+                                                  user.name.isNotEmpty
+                                                      ? user.name[0].toUpperCase()
+                                                      : 'U',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: config.color,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                )
+                                              : null,
+                                        ),
                                       ),
-                                    ),
-                                ],
+                                      if (displayBadgeCount > 0)
+                                        Positioned(
+                                          right: -5,
+                                          top: -5,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 5, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.red,
+                                              borderRadius: BorderRadius.circular(10),
+                                              border: Border.all(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .surface,
+                                                  width: 1),
+                                            ),
+                                            constraints: const BoxConstraints(
+                                              minWidth: 16,
+                                              minHeight: 16,
+                                            ),
+                                            child: Text(
+                                              displayBadgeCount > 99
+                                                  ? '99+'
+                                                  : displayBadgeCount.toString(),
+                                              textAlign: TextAlign.center,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  );
+                                },
                               ),
                             ),
                           ),
                       ],
-                  bottom: PreferredSize(
-                    preferredSize: const Size.fromHeight(96),
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
-                          child: Material(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest
-                                .withValues(alpha: 0.72),
-                            borderRadius: BorderRadius.circular(14),
-                            child: InkWell(
-                              onTap: () => showAppSearchSheet(context),
-                              borderRadius: BorderRadius.circular(14),
-                              child: Container(
-                                height: 44,
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 12),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.search_rounded,
-                                      size: 20,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurface
-                                          .withValues(alpha: 0.62),
-                                    ),
-                                    const SizedBox(width: 9),
-                                    Expanded(
-                                      child: Text(
-                                        'Search tours, events or profiles',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 13,
+                      bottom: PreferredSize(
+                        preferredSize: const Size.fromHeight(102),
+                        child: Column(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+                              child: Material(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest
+                                    .withValues(alpha: 0.72),
+                                borderRadius: BorderRadius.circular(14),
+                                child: InkWell(
+                                  onTap: () => showAppSearchSheet(context),
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Container(
+                                    height: 44,
+                                    padding:
+                                        const EdgeInsets.symmetric(horizontal: 12),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          Icons.search_rounded,
+                                          size: 20,
                                           color: Theme.of(context)
                                               .colorScheme
                                               .onSurface
-                                              .withValues(alpha: 0.7),
-                                          fontWeight: FontWeight.w600,
+                                              .withValues(alpha: 0.62),
                                         ),
-                                      ),
+                                        const SizedBox(width: 9),
+                                        Expanded(
+                                          child: Text(
+                                            'Search tours, events or profiles',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface
+                                                  .withValues(alpha: 0.7),
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ),
-                        TabBar(
-                          key: _tabBarKey,
-                          indicatorSize: TabBarIndicatorSize.label,
-                          indicatorWeight: 3,
-                          indicatorColor: config.color,
-                          labelColor: config.color,
-                          unselectedLabelColor: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.5),
-                          labelStyle:
-                              const TextStyle(fontWeight: FontWeight.bold),
-                          tabs: [
-                            const Tab(text: 'Activity Feed'),
-                            Tab(text: config.pluralLabel),
+                            TabBar(
+                              key: _tabBarKey,
+                              indicatorSize: TabBarIndicatorSize.label,
+                              indicatorWeight: 3,
+                              indicatorColor: config.color,
+                              labelColor: config.color,
+                              unselectedLabelColor: Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withValues(alpha: 0.5),
+                              labelStyle:
+                                  const TextStyle(fontWeight: FontWeight.bold),
+                              tabs: [
+                                const Tab(text: 'Activity Feed'),
+                                Tab(text: config.pluralLabel),
+                              ],
+                            ),
                           ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
+
                 body: TabBarView(
                   children: [
                     RefreshIndicator(
@@ -577,10 +573,8 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                 ),
               ),
             ),
-          );
-        },
-      ),
-    );
+          ),
+        );
       },
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
