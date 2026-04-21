@@ -950,7 +950,9 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                               : Theme.of(context).colorScheme.onSurface),
                     ),
                     const SizedBox(width: 8),
-                    ...members.map((m) => Padding(
+                    ...members
+                        .where((m) => m.status.toLowerCase().trim() == 'active')
+                        .map((m) => Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: ChoiceChip(
                             label: Text(m.user.name),
