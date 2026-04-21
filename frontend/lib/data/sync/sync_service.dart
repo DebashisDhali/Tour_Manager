@@ -516,15 +516,13 @@ class SyncService {
         });
 
         // Handle Deletions (Membership changes)
-        // ONLY delete if we got a valid list of tours back from the server
+        // Check even if empty to handle the case where the user is removed from their ONLY tour
         final allTourIds = (response.data['allTourIds'] as List?)
-            ?.map((id) => id.toString())
+            ?.map((id) => id.toString().toLowerCase())
             .toSet();
-        final lastSyncDate =
-            lastSync != null ? DateTime.tryParse(lastSync) : null;
-        if (allTourIds != null && allTourIds.isNotEmpty) {
-          final serverIdsLower =
-              allTourIds.map((id) => id.toString().toLowerCase()).toSet();
+        
+        if (allTourIds != null) {
+          final serverIdsLower = allTourIds;
           final localTours = await db.select(db.tours).get();
           for (final lt in localTours) {
             final localIdLower = lt.id.toLowerCase();

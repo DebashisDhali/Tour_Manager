@@ -62,7 +62,18 @@ exports.syncData = async (req, res) => {
           for (const t of tours) {
             try {
               if (t.isDeleted) {
-                await Tour.destroy({ where: { id: t.id.toLowerCase() } });
+                // Security Guard: Only the creator can destroy the actual tour record
+                const existingTour = await Tour.findByPk(t.id.toLowerCase());
+                if (existingTour && existingTour.created_by.toLowerCase() === normalizedUserId) {
+                  await Tour.destroy({ where: { id: t.id.toLowerCase() } });
+                  console.log(`    🗑️  Tour ${t.id} destroyed by creator`);
+                } else {
+                  // If not creator, just remove this user's membership (Left the tour)
+                  await TourMember.destroy({ 
+                    where: { tour_id: t.id.toLowerCase(), user_id: normalizedUserId } 
+                  });
+                  console.log(`    🚶 User ${normalizedUserId} left tour ${t.id}`);
+                }
               } else {
                 const creatorId = t.createdBy ? t.createdBy.toLowerCase() : null;
                 
