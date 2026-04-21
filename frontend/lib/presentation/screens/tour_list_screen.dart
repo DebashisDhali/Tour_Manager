@@ -299,168 +299,180 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
           onPointerMove: _handleEdgeSwipeMove,
           onPointerUp: _resetEdgeSwipe,
           onPointerCancel: _resetEdgeSwipe,
-          child: AppTourOverlay(
-            key: _tourOverlayKey,
-            steps: _buildTourSteps(),
-            onComplete: _completeAppTour,
-            child: DefaultTabController(
-              length: 2,
-              child: Scaffold(
-                appBar: AppBar(
-                  toolbarHeight: 72,
-                  titleSpacing: 18,
-                  title: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        config.pluralLabel,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 21,
-                          letterSpacing: -0.6,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
+          child: Consumer(
+            builder: (context, ref, child) {
+              // Reactively watch for new invitations to update the badge instantly
+              final requestsAsync = ref.watch(myJoinRequestsProvider);
+              final pendingCount = requestsAsync.value
+                      ?.where((r) => r.request.status.toLowerCase() == 'pending')
+                      .length ??
+                  0;
+              final displayBadgeCount = pendingCount > _unreadNotificationCount 
+                  ? pendingCount 
+                  : _unreadNotificationCount;
+
+              return AppTourOverlay(
+                key: _tourOverlayKey,
+                steps: _buildTourSteps(),
+                onComplete: _completeAppTour,
+                child: DefaultTabController(
+                  length: 2,
+                  child: Scaffold(
+                    appBar: AppBar(
+                      toolbarHeight: 72,
+                      titleSpacing: 18,
+                      title: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.sync_rounded,
-                            size: 11,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withValues(alpha: 0.55),
-                          ),
-                          const SizedBox(width: 4),
                           Text(
-                            syncDisplay,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurface
-                                  .withValues(alpha: 0.6),
-                              fontWeight: FontWeight.w600,
+                            config.pluralLabel,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 21,
+                              letterSpacing: -0.6,
                             ),
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.sync_rounded,
+                                size: 11,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withValues(alpha: 0.55),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                syncDisplay,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withValues(alpha: 0.6),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                  actions: [
-                    Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: IconButton.filledTonal(
-                        key: _joinCodeAppBarKey,
-                        onPressed: () => _showJoinDialog(context, config),
-                        icon: const Icon(Icons.add_rounded, size: 20),
-                        tooltip: 'Join with Code',
-                        style: IconButton.styleFrom(
-                          minimumSize: const Size(38, 38),
-                          backgroundColor: config.color.withValues(alpha: 0.14),
-                          foregroundColor: config.color,
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(right: 10),
-                      child: IconButton.filledTonal(
-                        key: _syncKey,
-                        onPressed: () => _syncData(context),
-                        icon: const Icon(Icons.sync_rounded, size: 20),
-                        tooltip: 'Sync Now',
-                        style: IconButton.styleFrom(
-                          minimumSize: const Size(38, 38),
-                          backgroundColor: Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest
-                              .withValues(alpha: 0.75),
-                          foregroundColor:
-                              Theme.of(context).colorScheme.onSurface,
-                        ),
-                      ),
-                    ),
-                    if (user != null)
-                      InkWell(
-                        key: _profileKey,
-                        onTap: () => _openProfileAndMarkSeen(user),
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 16, left: 2),
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(2),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary
-                                        .withValues(alpha: 0.25),
-                                    width: 1.2,
-                                  ),
-                                ),
-                                child: CircleAvatar(
-                                  radius: 16,
-                                  backgroundColor:
-                                      config.color.withValues(alpha: 0.1),
-                                  backgroundImage: user.avatarUrl != null
-                                      ? NetworkImage(user.avatarUrl!)
-                                      : null,
-                                  child: user.avatarUrl == null
-                                      ? Text(
-                                          user.name.isNotEmpty
-                                              ? user.name[0].toUpperCase()
-                                              : 'U',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: config.color,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        )
-                                      : null,
-                                ),
-                              ),
-                              if (_unreadNotificationCount > 0)
-                                Positioned(
-                                  right: -5,
-                                  top: -5,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 5, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red,
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .surface,
-                                          width: 1),
-                                    ),
-                                    constraints: const BoxConstraints(
-                                      minWidth: 16,
-                                      minHeight: 16,
-                                    ),
-                                    child: Text(
-                                      _unreadNotificationCount > 99
-                                          ? '99+'
-                                          : _unreadNotificationCount.toString(),
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
+                      actions: [
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: IconButton.filledTonal(
+                            key: _joinCodeAppBarKey,
+                            onPressed: () => _showJoinDialog(context, config),
+                            icon: const Icon(Icons.add_rounded, size: 20),
+                            tooltip: 'Join with Code',
+                            style: IconButton.styleFrom(
+                              minimumSize: const Size(38, 38),
+                              backgroundColor: config.color.withValues(alpha: 0.14),
+                              foregroundColor: config.color,
+                            ),
                           ),
                         ),
-                      ),
-                  ],
+                        Padding(
+                          padding: const EdgeInsets.only(right: 10),
+                          child: IconButton.filledTonal(
+                            key: _syncKey,
+                            onPressed: () => _syncData(context),
+                            icon: const Icon(Icons.sync_rounded, size: 20),
+                            tooltip: 'Sync Now',
+                            style: IconButton.styleFrom(
+                              minimumSize: const Size(38, 38),
+                              backgroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest
+                                  .withValues(alpha: 0.75),
+                              foregroundColor:
+                                  Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                        ),
+                        if (user != null)
+                          InkWell(
+                            key: _profileKey,
+                            onTap: () => _openProfileAndMarkSeen(user),
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 16, left: 2),
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(2),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary
+                                            .withValues(alpha: 0.25),
+                                        width: 1.2,
+                                      ),
+                                    ),
+                                    child: CircleAvatar(
+                                      radius: 16,
+                                      backgroundColor:
+                                          config.color.withValues(alpha: 0.1),
+                                      backgroundImage: user.avatarUrl != null
+                                          ? NetworkImage(user.avatarUrl!)
+                                          : null,
+                                      child: user.avatarUrl == null
+                                          ? Text(
+                                              user.name.isNotEmpty
+                                                  ? user.name[0].toUpperCase()
+                                                  : 'U',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: config.color,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            )
+                                          : null,
+                                    ),
+                                  ),
+                                  if (displayBadgeCount > 0)
+                                    Positioned(
+                                      right: -5,
+                                      top: -5,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 5, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red,
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .surface,
+                                              width: 1),
+                                        ),
+                                        constraints: const BoxConstraints(
+                                          minWidth: 16,
+                                          minHeight: 16,
+                                        ),
+                                        child: Text(
+                                          displayBadgeCount > 99
+                                              ? '99+'
+                                              : displayBadgeCount.toString(),
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
                   bottom: PreferredSize(
                     preferredSize: const Size.fromHeight(96),
                     child: Column(
