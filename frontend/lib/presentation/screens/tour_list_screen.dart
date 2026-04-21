@@ -302,11 +302,14 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
           child: Consumer(
             builder: (context, ref, child) {
               // Reactively watch for new invitations to update the badge instantly
-              final requestsAsync = ref.watch(myJoinRequestsProvider);
-              final pendingCount = requestsAsync.value
-                      ?.where((r) => r.request.status.toLowerCase() == 'pending')
-                      .length ??
-                  0;
+              final requests = ref.watch(myJoinRequestsProvider).value ?? [];
+              final invites = ref.watch(myIncomingInvitationsProvider).value ?? [];
+              
+              final pendingCount = requests
+                      .where((r) => r.request.status.toLowerCase() == 'pending')
+                      .length + invites.length;
+              
+              if (pendingCount == 0 && _unreadNotificationCount == 0) return const SizedBox.shrink();
               final displayBadgeCount = pendingCount > _unreadNotificationCount 
                   ? pendingCount 
                   : _unreadNotificationCount;

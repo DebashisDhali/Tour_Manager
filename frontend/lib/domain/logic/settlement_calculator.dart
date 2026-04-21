@@ -153,11 +153,12 @@ class SettlementCalculator {
     final shareMap = <String, double>{};
     final settledMap = <String, double>{};
 
-    // Initialize maps for all users
+    // Initialize maps for all users with normalized IDs (lowercase)
     for (var u in users) {
-      paidMap[u.id] = 0.0;
-      shareMap[u.id] = 0.0;
-      settledMap[u.id] = 0.0;
+      final nid = u.id.toLowerCase();
+      paidMap[nid] = 0.0;
+      shareMap[nid] = 0.0;
+      settledMap[nid] = 0.0;
     }
 
     // ===== STEP 1: CALCULATE PAID AMOUNTS =====
@@ -165,18 +166,21 @@ class SettlementCalculator {
     // 1.1 Explicit expense payer records (highest priority)
     final expensesWithPayerRecords =
         expensePayers.map((p) => p.expenseId).toSet();
-
+    
+    // Normalize user IDs for all lookups in maps
     for (var ep in expensePayers) {
-      paidMap[ep.userId] = _roundTo2Decimals(
-        (paidMap[ep.userId] ?? 0.0) + ep.amount,
+      final nid = ep.userId.toLowerCase();
+      paidMap[nid] = _roundTo2Decimals(
+        (paidMap[nid] ?? 0.0) + ep.amount,
       );
     }
 
     // 1.2 Fallback: expense.payerId for expenses without payer records
     for (var e in expenses) {
       if (!expensesWithPayerRecords.contains(e.id) && e.payerId != null) {
-        paidMap[e.payerId!] = _roundTo2Decimals(
-          (paidMap[e.payerId!] ?? 0.0) + e.amount,
+        final nid = e.payerId!.toLowerCase();
+        paidMap[nid] = _roundTo2Decimals(
+          (paidMap[nid] ?? 0.0) + e.amount,
         );
       }
     }
@@ -184,8 +188,9 @@ class SettlementCalculator {
     // 1.3 Program incomes (collected funds)
     if (incomes != null) {
       for (var income in incomes) {
-        paidMap[income.collectedBy] = _roundTo2Decimals(
-          (paidMap[income.collectedBy] ?? 0.0) + income.amount,
+        final nid = income.collectedBy.toLowerCase();
+        paidMap[nid] = _roundTo2Decimals(
+          (paidMap[nid] ?? 0.0) + income.amount,
         );
       }
     }
@@ -216,7 +221,7 @@ class SettlementCalculator {
       // Identify participating members (those with meal count > 0)
       final participatingMembers = mealCounts?.entries
               .where((e) => e.value > 0)
-              .map((e) => e.key)
+              .map((e) => e.key.toLowerCase())
               .toList() ??
           [];
 
@@ -233,10 +238,10 @@ class SettlementCalculator {
             _roundTo2Decimals(totalFixedCost - totalDistributed);
 
         for (int idx = 0; idx < users.length; idx++) {
-          final userId = users[idx].id;
+          final nid = users[idx].id.toLowerCase();
           // Add remainder to first member to prevent rounding loss
           final extraAmount = idx == 0 ? fixedRemainder : 0.0;
-          shareMap[userId] = _roundTo2Decimals(fixedPerMember + extraAmount);
+          shareMap[nid] = _roundTo2Decimals(fixedPerMember + extraAmount);
         }
       }
 
@@ -256,7 +261,8 @@ class SettlementCalculator {
         // Distribute meal costs proportional to meal count
         bool remainderAdded = false;
         for (var u in users) {
-          final count = mealCounts?[u.id] ?? 0.0;
+          final nid = u.id.toLowerCase();
+          final count = mealCounts?[u.id] ?? mealCounts?[nid] ?? 0.0;
           if (count > 0) {
             final mealShare = _roundTo2Decimals(mealRate * count);
             // Add remainder to first participant
@@ -265,8 +271,8 @@ class SettlementCalculator {
                 : 0.0;
             if (extraAmount != 0) remainderAdded = true;
 
-            shareMap[u.id] = _roundTo2Decimals(
-              (shareMap[u.id] ?? 0.0) + mealShare + extraAmount,
+            shareMap[nid] = _roundTo2Decimals(
+              (shareMap[nid] ?? 0.0) + mealShare + extraAmount,
             );
           }
         }
@@ -281,9 +287,12 @@ class SettlementCalculator {
 
       for (var split in splits) {
         if (!messManagedIds.contains(split.expenseId)) {
-          shareMap[split.userId] = _roundTo2Decimals(
-            (shareMap[split.userId] ?? 0.0) + split.amount,
-          );
+          final nid = split.userId.toLowerCase();
+          if (shareMap.containsKey(nid)) {
+             shareMap[nid] = _roundTo2Decimals(
+               (shareMap[nid] ?? 0.0) + split.amount,
+             );
+          }
         }
       }
     } else {
@@ -294,10 +303,11 @@ class SettlementCalculator {
       for (var split in splits) {
         splitSumPerExpense[split.expenseId] = (splitSumPerExpense[split.expenseId] ?? 0.0) + split.amount;
         
+        final nid = split.userId.toLowerCase();
         // Only count the share if the user is in the active users list
-        if (shareMap.containsKey(split.userId)) {
-          shareMap[split.userId] = _roundTo2Decimals(
-            (shareMap[split.userId] ?? 0.0) + split.amount,
+        if (shareMap.containsKey(nid)) {
+          shareMap[nid] = _roundTo2Decimals(
+            (shareMap[nid] ?? 0.0) + split.amount,
           );
         }
       }
@@ -307,19 +317,20 @@ class SettlementCalculator {
         final totalSplit = splitSumPerExpense[e.id] ?? 0.0;
         final missingAmount = _roundTo2Decimals(e.amount - totalSplit);
         
+        final pNid = e.payerId?.toLowerCase();
         // If money is missing from splits (e.g. someone was removed), 
         // the Payer absorbs that cost back by default.
-        if (missingAmount.abs() > 0.01 && e.payerId != null && shareMap.containsKey(e.payerId!)) {
-          shareMap[e.payerId!] = _roundTo2Decimals((shareMap[e.payerId!] ?? 0.0) + missingAmount);
+        if (missingAmount.abs() > 0.01 && pNid != null && shareMap.containsKey(pNid)) {
+          shareMap[pNid] = _roundTo2Decimals((shareMap[pNid] ?? 0.0) + missingAmount);
         }
         
         // Also handle cases where a split exists for a removed user (orphaned share)
         final orphanedAmount = splits
-            .where((s) => s.expenseId == e.id && !shareMap.containsKey(s.userId))
+            .where((s) => s.expenseId == e.id && !shareMap.containsKey(s.userId.toLowerCase()))
             .fold(0.0, (sum, s) => sum + s.amount);
             
-        if (orphanedAmount > 0.01 && e.payerId != null && shareMap.containsKey(e.payerId!)) {
-           shareMap[e.payerId!] = _roundTo2Decimals((shareMap[e.payerId!] ?? 0.0) + orphanedAmount);
+        if (orphanedAmount > 0.01 && pNid != null && shareMap.containsKey(pNid)) {
+           shareMap[pNid] = _roundTo2Decimals((shareMap[pNid] ?? 0.0) + orphanedAmount);
         }
       }
     }
@@ -327,14 +338,20 @@ class SettlementCalculator {
     // ===== STEP 3: ACCOUNT FOR PREVIOUS SETTLEMENTS =====
     // Adjust balances based on already-completed settlements
     for (var settlement in previousSettlements) {
+      final fNid = settlement.fromId.toLowerCase();
+      final tNid = settlement.toId.toLowerCase();
       // fromId paid out (reduces their debt)
-      settledMap[settlement.fromId] = _roundTo2Decimals(
-        (settledMap[settlement.fromId] ?? 0.0) + settlement.amount,
-      );
+      if (settledMap.containsKey(fNid)) {
+        settledMap[fNid] = _roundTo2Decimals(
+          (settledMap[fNid] ?? 0.0) + settlement.amount,
+        );
+      }
       // toId received (reduces their credit due)
-      settledMap[settlement.toId] = _roundTo2Decimals(
-        (settledMap[settlement.toId] ?? 0.0) - settlement.amount,
-      );
+      if (settledMap.containsKey(tNid)) {
+        settledMap[tNid] = _roundTo2Decimals(
+          (settledMap[tNid] ?? 0.0) - settlement.amount,
+        );
+      }
     }
 
     // ===== STEP 4: CALCULATE FINAL NET BALANCE =====
@@ -343,9 +360,10 @@ class SettlementCalculator {
 
     final results = <String, UserBalanceDetails>{};
     for (var u in users) {
-      final paid = _roundTo2Decimals(paidMap[u.id] ?? 0.0);
-      final share = _roundTo2Decimals(shareMap[u.id] ?? 0.0);
-      final settled = _roundTo2Decimals(settledMap[u.id] ?? 0.0);
+      final nid = u.id.toLowerCase();
+      final paid = _roundTo2Decimals(paidMap[nid] ?? 0.0);
+      final share = _roundTo2Decimals(shareMap[nid] ?? 0.0);
+      final settled = _roundTo2Decimals(settledMap[nid] ?? 0.0);
       final net = _roundTo2Decimals(paid - share + settled);
 
       results[u.id] = UserBalanceDetails(

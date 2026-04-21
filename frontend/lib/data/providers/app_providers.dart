@@ -165,7 +165,7 @@ final tourMembersProvider = StreamProvider.family
     .autoDispose<List<MemberWithStatus>, String>((ref, tourId) {
   final db = ref.watch(databaseProvider);
   final query = db.select(db.users).join([
-    innerJoin(db.tourMembers, db.tourMembers.userId.equalsExp(db.users.id)),
+    innerJoin(db.tourMembers, db.tourMembers.userId.lower().equalsExp(db.users.id.lower())),
   ])
     ..where(db.tourMembers.tourId.equals(tourId) &
         db.tourMembers.isDeleted.equals(false) &
@@ -214,7 +214,7 @@ final expensesProvider = StreamProvider.family
   final db = ref.watch(databaseProvider);
 
   final expenseQuery = db.select(db.expenses).join([
-    leftOuterJoin(db.users, db.users.id.equalsExp(db.expenses.payerId)),
+    leftOuterJoin(db.users, db.users.id.lower().equalsExp(db.expenses.payerId.lower())),
   ])
     ..where(
         db.expenses.tourId.equals(tourId) & db.expenses.isDeleted.equals(false))
@@ -291,7 +291,7 @@ final globalActivityProvider =
         db.tourMembers.isDeleted.equals(false));
 
   final expenseQuery = db.select(db.expenses).join([
-    leftOuterJoin(db.users, db.users.id.equalsExp(db.expenses.payerId)),
+    leftOuterJoin(db.users, db.users.id.lower().equalsExp(db.expenses.payerId.lower())),
     innerJoin(db.tours, db.tours.id.equalsExp(db.expenses.tourId)),
   ])
     ..where(db.expenses.isDeleted.equals(false) &
@@ -348,7 +348,7 @@ final tourUsersProvider =
     StreamProvider.family.autoDispose<List<User>, String>((ref, tourId) {
   final db = ref.watch(databaseProvider);
   final query = db.select(db.users).join([
-    innerJoin(db.tourMembers, db.tourMembers.userId.equalsExp(db.users.id)),
+    innerJoin(db.tourMembers, db.tourMembers.userId.lower().equalsExp(db.users.id.lower())),
   ])
     ..where(db.tourMembers.tourId.equals(tourId) &
         db.tourMembers.status.equals('active') &
@@ -531,18 +531,23 @@ final myJoinRequestsProvider =
 
 /// Streams the CURRENT USER'S single join_request for a specific tour (newest
 /// first), or null if none exists.
-final myJoinRequestForTourProvider =
-    StreamProvider.family.autoDispose<JoinRequest?, String>((ref, tourId) {
+      .watchSingleOrNull();
+});
+
+/// Streams ALL tours where the current user is invited but hasn't yet accepted 
+/// (status is 'pending'). This is used for notification badges.
+final myIncomingInvitationsProvider = StreamProvider.autoDispose<List<Tour>>((ref) {
   final db = ref.watch(databaseProvider);
   final currentUser = ref.watch(currentUserProvider).value;
-  if (currentUser == null) return Stream.value(null);
+  if (currentUser == null) return Stream.value([]);
 
-  return (db.select(db.joinRequests)
-        ..where((jr) =>
-            jr.tourId.equals(tourId) &
-            jr.userId.lower().equals(currentUser.id.toLowerCase()) &
-            jr.isDeleted.equals(false))
-        ..orderBy([(jr) => OrderingTerm.desc(jr.id)])
-        ..limit(1))
-      .watchSingleOrNull();
+  final query = db.select(db.tours).join([
+    innerJoin(db.tourMembers, db.tourMembers.tourId.equalsExp(db.tours.id)),
+  ])
+    ..where(db.tourMembers.userId.lower().equals(currentUser.id.toLowerCase()) &
+        db.tourMembers.status.equals('pending') &
+        db.tourMembers.isDeleted.equals(false) &
+        db.tours.isDeleted.equals(false));
+
+  return query.watch().map((rows) => rows.map((row) => row.readTable(db.tours)).toList());
 });
