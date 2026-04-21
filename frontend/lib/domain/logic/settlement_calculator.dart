@@ -200,17 +200,45 @@ class SettlementCalculator {
       }
     }
 
-    // 1.3 Program incomes (collected funds)
+    // 1.3 Program incomes (collected/shared funds)
+    double totalSharedIncome = 0.0;
     if (incomes != null) {
       final Set<String> processedIncomeIds = {};
       for (var income in incomes) {
         if (processedIncomeIds.contains(income.id)) continue;
         processedIncomeIds.add(income.id);
         
-        final nid = income.collectedBy.toLowerCase();
-        paidMap[nid] = _roundTo2Decimals(
-          (paidMap[nid] ?? 0.0) + income.amount,
-        );
+        final source = (income.source ?? '').toLowerCase();
+        // If it's a common fund or surplus from last month, it reduces the total mess obligation
+        if (source.contains('brought forward') || 
+            source.contains('common') || 
+            source.contains('fund') || 
+            source.contains('balance') ||
+            source.contains('carried')) {
+          totalSharedIncome += income.amount;
+        } else {
+          // Individual collection (liability for the collector)
+          final nid = income.collectedBy.toLowerCase();
+          paidMap[nid] = _roundTo2Decimals(
+            (paidMap[nid] ?? 0.0) - income.amount,
+          );
+        }
+      }
+    }
+
+    // Distribute shared income equally among all members as a "negative share"
+    if (totalSharedIncome > 0 && deduplicatedUsers.isNotEmpty) {
+      final incomePerMember = _roundTo2Decimals(totalSharedIncome / deduplicatedUsers.length);
+      final totalDistributed = _roundTo2Decimals(incomePerMember * deduplicatedUsers.length);
+      final remainder = _roundTo2Decimals(totalSharedIncome - totalDistributed);
+
+      for (int i = 0; i < deduplicatedUsers.length; i++) {
+        final nid = deduplicatedUsers[i].id.toLowerCase();
+        final extra = (i == 0) ? remainder : 0.0;
+        final shareReduction = incomePerMember + extra;
+        // shareMap start at 0, so subtract here or later. 
+        // We'll subtract from final share.
+        shareMap[nid] = (shareMap[nid] ?? 0.0) - shareReduction;
       }
     }
 
@@ -259,7 +287,7 @@ class SettlementCalculator {
           final nid = deduplicatedUsers[idx].id.toLowerCase();
           // Add remainder to first member to prevent rounding loss
           final extraAmount = idx == 0 ? fixedRemainder : 0.0;
-          shareMap[nid] = _roundTo2Decimals(fixedPerMember + extraAmount);
+          shareMap[nid] = _roundTo2Decimals((shareMap[nid] ?? 0.0) + fixedPerMember + extraAmount);
         }
       }
 
