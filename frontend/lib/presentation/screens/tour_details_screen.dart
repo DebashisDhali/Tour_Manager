@@ -1410,7 +1410,9 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                 itemBuilder: (context, index) {
                   final m = members[index];
                   final isMe = me?.id == m.user.id;
-                  final isRemoved = m.status.toLowerCase().trim() == 'removed';
+                  final statusNormalized = m.status.toLowerCase().trim();
+                  final isRemoved = statusNormalized == 'removed';
+                  final isPending = statusNormalized == 'pending';
                   final roleNormalized = m.role.toLowerCase().trim();
                   final effectiveRole =
                       m.user.id == tour.createdBy ? 'admin' : roleNormalized;
@@ -1491,11 +1493,11 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                           decoration: BoxDecoration(
                               color: Colors.grey.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8)),
-                          child: Text(effectiveRole.toUpperCase(),
-                              style: const TextStyle(
+                          child: Text(isPending ? 'PENDING' : effectiveRole.toUpperCase(),
+                              style: TextStyle(
                                   fontSize: 9,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.grey)));
+                                  color: isPending ? Colors.orange : Colors.grey)));
                     }
                   }
 
@@ -1597,7 +1599,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
       drift.innerJoin(
           db.tourMembers, db.tourMembers.userId.equalsExp(db.users.id))
     ])
-          ..where(db.tourMembers.tourId.equals(widget.tourId)))
+          ..where(db.tourMembers.tourId.equals(widget.tourId) & 
+                  db.tourMembers.status.equals('active')))
         .map((row) => row.readTable(db.users))
         .watch();
 
