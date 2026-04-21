@@ -292,7 +292,21 @@ exports.syncData = async (req, res) => {
         ...ownerTourRecords.map(r => r.id),
       ])
     );
-    console.log(`✅ Found ${tourIds.length} active tours`);
+
+    // Identify tours where the user's membership is "New" or changed since lastSync
+    // For these tours, we must do a FULL PULL regardless of lastSyncDate to ensure they have all history.
+    const changedMembers = await TourMember.findAll({
+      where: { 
+        user_id: normalizedUserId, 
+        status: 'active',
+        updated_at: { [Op.gt]: lastSyncDate }
+      },
+      attributes: ['tour_id'],
+      raw: true
+    });
+    const fullPullTourIds = new Set(changedMembers.map(m => m.tour_id));
+
+    console.log(`✅ Found ${tourIds.length} active tours (${fullPullTourIds.size} require full sync)`);
 
     if (tourIds.length === 0) {
       return res.json({
@@ -308,11 +322,23 @@ exports.syncData = async (req, res) => {
     console.log('⏳ Fetching data modified since:', lastSyncDate.toISOString());
     const [tours, expenses, splits, payers, settlements, incomes, joinRequests, members] = await Promise.all([
       Tour.findAll({ 
-        where: { id: { [Op.in]: tourIds }, updated_at: { [Op.gt]: lastSyncDate } }, 
+        where: { 
+          id: { [Op.in]: tourIds }, 
+          [Op.or]: [
+            { id: { [Op.in]: Array.from(fullPullTourIds) } },
+            { updated_at: { [Op.gt]: lastSyncDate } }
+          ]
+        }, 
         raw: true 
       }),
       Expense.findAll({ 
-        where: { tour_id: { [Op.in]: tourIds }, updated_at: { [Op.gt]: lastSyncDate } }, 
+        where: { 
+          tour_id: { [Op.in]: tourIds }, 
+          [Op.or]: [
+            { tour_id: { [Op.in]: Array.from(fullPullTourIds) } },
+            { updated_at: { [Op.gt]: lastSyncDate } }
+          ]
+        }, 
         raw: true 
       }),
       ExpenseSplit.findAll({ 
@@ -321,7 +347,12 @@ exports.syncData = async (req, res) => {
           where: { tour_id: { [Op.in]: tourIds } },
           attributes: []
         }],
-        where: { updated_at: { [Op.gt]: lastSyncDate } }, 
+        where: { 
+          [Op.or]: [
+            { '$Expense.tour_id$': { [Op.in]: Array.from(fullPullTourIds) } },
+            { updated_at: { [Op.gt]: lastSyncDate } }
+          ]
+        }, 
         raw: true 
       }),
       ExpensePayer.findAll({ 
@@ -330,23 +361,52 @@ exports.syncData = async (req, res) => {
           where: { tour_id: { [Op.in]: tourIds } },
           attributes: []
         }],
-        where: { updated_at: { [Op.gt]: lastSyncDate } }, 
+        where: { 
+          [Op.or]: [
+            { '$Expense.tour_id$': { [Op.in]: Array.from(fullPullTourIds) } },
+            { updated_at: { [Op.gt]: lastSyncDate } }
+          ]
+        }, 
         raw: true 
       }),
       Settlement.findAll({ 
-        where: { tour_id: { [Op.in]: tourIds }, updated_at: { [Op.gt]: lastSyncDate } }, 
+        where: { 
+          tour_id: { [Op.in]: tourIds }, 
+          [Op.or]: [
+            { tour_id: { [Op.in]: Array.from(fullPullTourIds) } },
+            { updated_at: { [Op.gt]: lastSyncDate } }
+          ]
+        }, 
         raw: true 
       }),
       ProgramIncome.findAll({ 
-        where: { tour_id: { [Op.in]: tourIds }, updated_at: { [Op.gt]: lastSyncDate } }, 
+        where: { 
+          tour_id: { [Op.in]: tourIds }, 
+          [Op.or]: [
+            { tour_id: { [Op.in]: Array.from(fullPullTourIds) } },
+            { updated_at: { [Op.gt]: lastSyncDate } }
+          ]
+        }, 
         raw: true 
       }),
       JoinRequest.findAll({ 
-        where: { tour_id: { [Op.in]: tourIds }, updated_at: { [Op.gt]: lastSyncDate } }, 
+        where: { 
+          tour_id: { [Op.in]: tourIds }, 
+          [Op.or]: [
+            { tour_id: { [Op.in]: Array.from(fullPullTourIds) } },
+            { updated_at: { [Op.gt]: lastSyncDate } }
+          ]
+        }, 
         raw: true 
       }),
       TourMember.findAll({ 
-        where: { tour_id: { [Op.in]: tourIds }, updated_at: { [Op.gt]: lastSyncDate } },
+        where: { 
+          tour_id: { [Op.in]: tourIds }, 
+          [Op.or]: [
+            { tour_id: { [Op.in]: Array.from(fullPullTourIds) } },
+            { updated_at: { [Op.gt]: lastSyncDate } }
+          ]
+        },
         include: [{ model: User, attributes: { exclude: ['password'] } }]
       })
     ]);
