@@ -47,7 +47,7 @@ exports.getTourInsights = async (req, res) => {
 
     // Compile Context
     let contextStr = `Analyze the financial state of the event "${tour.name}".
-Purpose: ${tour.category || 'General'}
+Purpose: ${tour.purpose || 'General'}
 Total Members: ${members.length}
 Members: ${members.map(m => m.name).join(', ')}
 
@@ -84,11 +84,7 @@ REPORT STRUCTURE GUIDELINES (বাংলায়):
 ২. ভাষা হতে হবে গম্ভীর, স্মার্ট, সরাসরি এবং দূরদর্শী।
 ৩. কোনো একঘেঁয়ে বা ফিক্সড টেমপ্লেট ব্যবহার করবেন না; প্রতিটি উত্তর যেন ইউনিক এবং পারফেক্ট হয়।`;
 
-
-
-
-
-    // Call OpenRouter
+    // Call OpenRouter with a more stable flash model
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -96,8 +92,8 @@ REPORT STRUCTURE GUIDELINES (বাংলায়):
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.0-flash-001",
-        max_tokens: 2000,
+        model: "google/gemini-2.0-flash-lite-001", 
+        max_tokens: 2500,
         messages: [
           {
             role: "system",
