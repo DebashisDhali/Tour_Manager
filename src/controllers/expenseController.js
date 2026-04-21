@@ -40,13 +40,37 @@ exports.createExpense = async (req, res) => {
   }
 };
 
+function parsePageNumber(raw, fallback) {
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
 exports.getExpensesByTour = async (req, res) => {
     try {
-        const expenses = await Expense.findAll({
+        const page = parsePageNumber(req.query.page, 1);
+        const limit = Math.min(parsePageNumber(req.query.limit, 50), 200);
+        const offset = (page - 1) * limit;
+
+        const { count, rows: expenses } = await Expense.findAndCountAll({
             where: { tour_id: req.params.tourId },
-            include: ['payer', ExpenseSplit, ExpensePayer]
+            include: [
+              { model: ExpenseSplit },
+              { model: ExpensePayer }
+            ],
+            limit,
+            offset,
+            order: [['date', 'DESC'], ['created_at', 'DESC']]
         });
-        res.json(expenses);
+
+        res.json({
+            expenses,
+            pagination: {
+              total: count,
+              page,
+              limit,
+              totalPages: Math.ceil(count / limit)
+            }
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

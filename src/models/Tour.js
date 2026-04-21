@@ -27,16 +27,6 @@ module.exports = (sequelize) => {
         type: DataTypes.UUID,
         allowNull: false
     },
-    created_at: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW
-    },
-    updated_at: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW
-    },
     purpose: {
         type: DataTypes.STRING,
         defaultValue: 'tour'
@@ -46,11 +36,14 @@ module.exports = (sequelize) => {
         defaultValue: 'active'
     }
   }, {
-    timestamps: false,
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
     indexes: [
       { fields: ['created_by'] },
       { fields: ['purpose'] },
       { fields: ['status'] },
+      { fields: ['updated_at'] },
       { unique: true, fields: ['invite_code'] }
     ]
   });

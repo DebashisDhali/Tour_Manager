@@ -28,27 +28,20 @@ module.exports = (sequelize) => {
       type: DataTypes.DATE,
       allowNull: true
     },
-    created_at: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW
-    },
-    updated_at: {
-      type: DataTypes.DATE,
-      allowNull: false,
-      defaultValue: DataTypes.NOW
-    },
     meal_count: {
        type: DataTypes.DECIMAL(10, 2),
        defaultValue: 0.0
     }
   }, {
-    tableName: 'TourMembers', // Keep it plural to match existing DB if any
-    timestamps: false,
+    tableName: 'TourMembers', 
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
     indexes: [
       { unique: true, fields: ['tour_id', 'user_id'] },
       { fields: ['tour_id'] },
-      { fields: ['user_id'] }
+      { fields: ['user_id'] },
+      { fields: ['updated_at'] }
     ]
   });
 };

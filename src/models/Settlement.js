@@ -32,7 +32,9 @@ module.exports = (sequelize) => {
         defaultValue: 'completed'
     }
   }, {
-    timestamps: false,
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
     indexes: [
       { fields: ['tour_id'] }
     ]
