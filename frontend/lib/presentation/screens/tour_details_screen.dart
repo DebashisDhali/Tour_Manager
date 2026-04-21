@@ -1378,6 +1378,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
               (mealTotalsByUser[record.userId] ?? 0.0) + record.count;
         }
 
+        final displayMembers = members.where((m) => m.status.toLowerCase().trim() != 'removed').toList();
+
         return Column(
           children: [
             Container(
@@ -1408,11 +1410,11 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: members.length,
+                itemCount: displayMembers.length,
                 itemBuilder: (context, index) {
-                  final m = members[index];
-                  final isMe = me?.id == m.user.id;
+                  final m = displayMembers[index];
                   final statusNormalized = m.status.toLowerCase().trim();
+                  final isMe = me?.id == m.user.id;
                   final isRemoved = statusNormalized == 'removed';
                   final isPending = statusNormalized == 'pending';
                   final roleNormalized = m.role.toLowerCase().trim();
@@ -1428,7 +1430,24 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                           .any((x) => x.user.id == me?.id && x.role == 'admin');
 
                   Widget? trailingWidget;
-                  if (isEditor && !isMe) {
+                  if (isPending) {
+                    // Show only status for pending
+                    trailingWidget = Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        "PENDING",
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.orange,
+                        ),
+                      ),
+                    );
+                  } else if (isEditor && !isMe) {
                     trailingWidget = Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
