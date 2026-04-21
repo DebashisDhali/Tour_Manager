@@ -89,6 +89,13 @@ class _AddMemberDialogState extends ConsumerState<AddMemberDialog> {
 
       if (mounted) {
         Navigator.pop(context, true);
+        
+        // Trigger a sync so the Admin sees the pending records immediately
+        final me = ref.read(currentUserProvider).value;
+        if (me != null) {
+          syncService.startSync(me.id).catchError((e) => debugPrint("Post-invite sync failed: $e"));
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text(
