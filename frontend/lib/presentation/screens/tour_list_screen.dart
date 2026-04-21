@@ -574,8 +574,10 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                 ),
               ),
             ),
-          ),
-        );
+          );
+        },
+      ),
+    );
       },
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
