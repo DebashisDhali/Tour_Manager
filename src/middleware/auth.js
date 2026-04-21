@@ -27,6 +27,9 @@ module.exports = async (req, res, next) => {
       throw new Error();
     }
 
+    // Ensure ID is normalized to lowercase for consistent lookups throughout the app
+    user.id = user.id.toLowerCase();
+
     req.token = token;
     req.user = user;
     next();

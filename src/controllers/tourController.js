@@ -24,9 +24,9 @@ exports.createTour = async (req, res) => {
 
     const invite_code = req.body.invite_code || generateInviteCode();
     const tour = await Tour.create({ 
-      id: id || uuidv4(), 
+      id: (id || uuidv4()).toLowerCase(), 
       name: name.toString().trim(), 
-      created_by, 
+      created_by: created_by.toLowerCase(), 
       invite_code,
       start_date,
       end_date,
@@ -204,7 +204,7 @@ exports.joinTour = async (req, res) => {
 
     // Check if already member (including removed ones)
     const existingConnection = await TourMember.findOne({
-      where: { tour_id: tour.id, user_id: user_id },
+      where: { tour_id: tour.id.toLowerCase(), user_id: user_id.toLowerCase() },
       transaction: t
     });
 
@@ -214,10 +214,10 @@ exports.joinTour = async (req, res) => {
     }
 
     // Ensure User exists in Backend
-    let user = await User.findByPk(user_id, { transaction: t });
+    let user = await User.findByPk(user_id.toLowerCase(), { transaction: t });
     if (!user) {
       user = await User.create({ 
-        id: user_id, 
+        id: user_id.toLowerCase(), 
         name: user_name,
         email: req.body.email,
         avatar_url: req.body.avatar_url,

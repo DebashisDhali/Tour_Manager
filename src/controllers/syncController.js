@@ -309,22 +309,25 @@ exports.syncData = async (req, res) => {
     ]);
     console.log(`✅ Data fetched`);
 
-    // Reconstruct
-    const toursData = tours.map(tour => ({
-      ...tour,
-      Expenses: expenses.filter(e => e.tour_id === tour.id),
-      Settlements: settlements.filter(s => s.tour_id === tour.id),
-      ProgramIncomes: incomes.filter(i => i.tour_id === tour.id),
-      JoinRequests: joinRequests.filter(jr => jr.tour_id === tour.id),
-      Users: members
-        .filter(m => m.tour_id === tour.id)
-        .map(m => {
-          const plain = m.get({ plain: true });
-          const userObj = plain.User;
-          delete plain.User;
-          return { ...userObj, TourMember: plain };
-        })
-    }));
+    // Reconstruct with case-insensitive filtering for robustness
+    const toursData = tours.map(tour => {
+      const tourIdLower = tour.id.toLowerCase();
+      return {
+        ...tour,
+        Expenses: expenses.filter(e => e.tour_id.toLowerCase() === tourIdLower),
+        Settlements: settlements.filter(s => s.tour_id.toLowerCase() === tourIdLower),
+        ProgramIncomes: incomes.filter(i => i.tour_id.toLowerCase() === tourIdLower),
+        JoinRequests: joinRequests.filter(jr => jr.tour_id.toLowerCase() === tourIdLower),
+        Users: members
+          .filter(m => m.tour_id.toLowerCase() === tourIdLower)
+          .map(m => {
+            const plain = m.get({ plain: true });
+            const userObj = plain.User;
+            delete plain.User;
+            return { ...userObj, TourMember: plain };
+          })
+      };
+    });
 
     console.log(`✅ SYNC COMPLETE`);
     res.json({
