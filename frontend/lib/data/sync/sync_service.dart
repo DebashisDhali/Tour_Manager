@@ -515,29 +515,8 @@ class SyncService {
           }
         });
 
-        // Handle Deletions (Membership changes)
-        // Check even if empty to handle the case where the user is removed from their ONLY tour
-        final allTourIds = (response.data['allTourIds'] as List?)
-            ?.map((id) => id.toString().toLowerCase())
-            .toSet();
-        
-        if (allTourIds != null) {
-          final serverIdsLower = allTourIds;
-          final localTours = await db.select(db.tours).get();
-          for (final lt in localTours) {
-            final localIdLower = lt.id.toLowerCase();
-            final hasStaleServerMembership =
-                lt.isSynced && !serverIdsLower.contains(localIdLower);
-            if (hasStaleServerMembership) {
-              debugPrint(
-                  "🗑️ Removing tour ${lt.name} - no longer a member on server");
-              await db.deleteTourWithDetails(lt.id);
-            } else if (lt.isSynced && !serverIdsLower.contains(localIdLower)) {
-              debugPrint(
-                  "⚠️ Keeping recent tour ${lt.name} because it was updated after last sync and may still be pending on server.");
-            }
-          }
-        }
+        // Deletions are now handled exclusively via the 'isDeleted' flag on individual records
+        // to prevent accidental data loss during incremental syncs.
 
         if (response.data['timestamp'] != null) {
           await db.setSyncMetadata(
