@@ -496,3 +496,53 @@ final hasUnsyncedChangesProvider = StreamProvider.autoDispose<bool>((ref) {
 
   return controller.stream;
 });
+
+/// Pairs a JoinRequest record with its corresponding Tour (may be null if tour
+/// not yet in local DB).
+class JoinRequestWithTour {
+  final JoinRequest request;
+  final Tour? tour;
+  JoinRequestWithTour(this.request, this.tour);
+}
+
+/// Streams ALL join_requests that were created by the CURRENT USER (any status),
+/// joined with the relevant tour row so callers can show tour names.
+final myJoinRequestsProvider =
+    StreamProvider.autoDispose<List<JoinRequestWithTour>>((ref) {
+  final db = ref.watch(databaseProvider);
+  final currentUser = ref.watch(currentUserProvider).value;
+  if (currentUser == null) return Stream.value([]);
+
+  return (db.select(db.joinRequests).join([
+    leftOuterJoin(db.tours, db.tours.id.equalsExp(db.joinRequests.tourId)),
+  ])
+        ..where(db.joinRequests.userId
+                .lower()
+                .equals(currentUser.id.toLowerCase()) &
+            db.joinRequests.isDeleted.equals(false)))
+      .watch()
+      .map((rows) => rows
+          .map((row) => JoinRequestWithTour(
+                row.readTable(db.joinRequests),
+                row.readTableOrNull(db.tours),
+              ))
+          .toList());
+});
+
+/// Streams the CURRENT USER'S single join_request for a specific tour (newest
+/// first), or null if none exists.
+final myJoinRequestForTourProvider =
+    StreamProvider.family.autoDispose<JoinRequest?, String>((ref, tourId) {
+  final db = ref.watch(databaseProvider);
+  final currentUser = ref.watch(currentUserProvider).value;
+  if (currentUser == null) return Stream.value(null);
+
+  return (db.select(db.joinRequests)
+        ..where((jr) =>
+            jr.tourId.equals(tourId) &
+            jr.userId.lower().equals(currentUser.id.toLowerCase()) &
+            jr.isDeleted.equals(false))
+        ..orderBy([(jr) => OrderingTerm.desc(jr.id)])
+        ..limit(1))
+      .watchSingleOrNull();
+});

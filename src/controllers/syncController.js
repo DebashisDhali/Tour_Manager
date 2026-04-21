@@ -117,97 +117,119 @@ exports.syncData = async (req, res) => {
           }
         }
 
-        // Process expenses
-        if (expenses?.length > 0) {
-          console.log(`  💰 ${expenses.length} expense(s)`);
-          const toDelete = expenses.filter(e => e.isDeleted).map(e => e.id);
-          if (toDelete.length > 0) await Expense.destroy({ where: { id: toDelete } });
-          
-          for (const e of expenses.filter(e => !e.isDeleted)) {
-            try {
-              await Expense.upsert({
-                id: e.id, tour_id: e.tourId, payer_id: e.payerId || null, amount: e.amount,
-                title: e.title, category: e.category, mess_cost_type: e.messCostType, date: e.createdAt || now
-              });
-            } catch (err) { recordPushError('Expense', e.id, err); }
+          // Process expenses
+          if (expenses?.length > 0) {
+            console.log(`  💰 ${expenses.length} expense(s)`);
+            const toDelete = expenses.filter(e => e.isDeleted).map(e => e.id.toLowerCase());
+            if (toDelete.length > 0) await Expense.destroy({ where: { id: toDelete } });
+            
+            for (const e of expenses.filter(e => !e.isDeleted)) {
+              try {
+                await Expense.upsert({
+                  id: e.id.toLowerCase(), 
+                  tour_id: e.tourId.toLowerCase(), 
+                  payer_id: e.payerId ? e.payerId.toLowerCase() : null, 
+                  amount: e.amount,
+                  title: e.title, category: e.category, mess_cost_type: e.messCostType, 
+                  date: e.createdAt || now
+                });
+              } catch (err) { recordPushError('Expense', e.id, err); }
+            }
           }
-        }
 
-        // Process splits
-        if (splits?.length > 0) {
-          console.log(`  ✂️  ${splits.length} split(s)`);
-          const toDelete = splits.filter(s => s.isDeleted).map(s => s.id);
-          if (toDelete.length > 0) await ExpenseSplit.destroy({ where: { id: toDelete } });
-          
-          for (const s of splits.filter(s => !s.isDeleted)) {
-            try {
-              await ExpenseSplit.upsert({
-                id: s.id, expense_id: s.expenseId, user_id: s.userId, amount: s.amount
-              });
-            } catch (err) { recordPushError('Split', s.id, err); }
+          // Process splits
+          if (splits?.length > 0) {
+            console.log(`  ✂️  ${splits.length} split(s)`);
+            const toDelete = splits.filter(s => s.isDeleted).map(s => s.id.toLowerCase());
+            if (toDelete.length > 0) await ExpenseSplit.destroy({ where: { id: toDelete } });
+            
+            for (const s of splits.filter(s => !s.isDeleted)) {
+              try {
+                await ExpenseSplit.upsert({
+                  id: s.id.toLowerCase(), 
+                  expense_id: s.expenseId.toLowerCase(), 
+                  user_id: s.userId.toLowerCase(), 
+                  amount: s.amount
+                });
+              } catch (err) { recordPushError('Split', s.id, err); }
+            }
           }
-        }
 
-        // Process payers
-        if (payers?.length > 0) {
-          console.log(`  💳 ${payers.length} payer(s)`);
-          const toDelete = payers.filter(p => p.isDeleted).map(p => p.id);
-          if (toDelete.length > 0) await ExpensePayer.destroy({ where: { id: toDelete } });
-          
-          for (const p of payers.filter(p => !p.isDeleted)) {
-            try {
-              await ExpensePayer.upsert({
-                id: p.id, expense_id: p.expenseId, user_id: p.userId, amount: p.amount
-              });
-            } catch (err) { recordPushError('Payer', p.id, err); }
+          // Process payers
+          if (payers?.length > 0) {
+            console.log(`  💳 ${payers.length} payer(s)`);
+            const toDelete = payers.filter(p => p.isDeleted).map(p => p.id.toLowerCase());
+            if (toDelete.length > 0) await ExpensePayer.destroy({ where: { id: toDelete } });
+            
+            for (const p of payers.filter(p => !p.isDeleted)) {
+              try {
+                await ExpensePayer.upsert({
+                  id: p.id.toLowerCase(), 
+                  expense_id: p.expenseId.toLowerCase(), 
+                  user_id: p.userId.toLowerCase(), 
+                  amount: p.amount
+                });
+              } catch (err) { recordPushError('Payer', p.id, err); }
+            }
           }
-        }
 
-        // Process settlements
-        if (settlements?.length > 0) {
-          console.log(`  🤝 ${settlements.length} settlement(s)`);
-          const toDelete = settlements.filter(s => s.isDeleted).map(s => s.id);
-          if (toDelete.length > 0) await Settlement.destroy({ where: { id: toDelete } });
-          
-          for (const s of settlements.filter(s => !s.isDeleted)) {
-            try {
-              await Settlement.upsert({
-                id: s.id, tour_id: s.tourId, from_id: s.fromId, to_id: s.toId, amount: s.amount, date: s.date || now
-              });
-            } catch (err) { recordPushError('Settlement', s.id, err); }
+          // Process settlements
+          if (settlements?.length > 0) {
+            console.log(`  🤝 ${settlements.length} settlement(s)`);
+            const toDelete = settlements.filter(s => s.isDeleted).map(s => s.id.toLowerCase());
+            if (toDelete.length > 0) await Settlement.destroy({ where: { id: toDelete } });
+            
+            for (const s of settlements.filter(s => !s.isDeleted)) {
+              try {
+                await Settlement.upsert({
+                  id: s.id.toLowerCase(), 
+                  tour_id: s.tourId.toLowerCase(), 
+                  from_id: s.fromId.toLowerCase(), 
+                  to_id: s.toId.toLowerCase(), 
+                  amount: s.amount, date: s.date || now
+                });
+              } catch (err) { recordPushError('Settlement', s.id, err); }
+            }
           }
-        }
 
-        // Process incomes
-        if (incomes?.length > 0) {
-          console.log(`  💵 ${incomes.length} income(s)`);
-          const toDelete = incomes.filter(i => i.isDeleted).map(i => i.id);
-          if (toDelete.length > 0) await ProgramIncome.destroy({ where: { id: toDelete } });
-          
-          for (const i of incomes.filter(i => !i.isDeleted)) {
-            try {
-              await ProgramIncome.upsert({
-                id: i.id, tour_id: i.tourId, amount: i.amount, source: i.source,
-                description: i.description, collected_by: i.collectedBy, date: i.date || now
-              });
-            } catch (err) { recordPushError('Income', i.id, err); }
+          // Process incomes
+          if (incomes?.length > 0) {
+            console.log(`  💵 ${incomes.length} income(s)`);
+            const toDelete = incomes.filter(i => i.isDeleted).map(i => i.id.toLowerCase());
+            if (toDelete.length > 0) await ProgramIncome.destroy({ where: { id: toDelete } });
+            
+            for (const i of incomes.filter(i => !i.isDeleted)) {
+              try {
+                await ProgramIncome.upsert({
+                  id: i.id.toLowerCase(), 
+                  tour_id: i.tourId.toLowerCase(), 
+                  amount: i.amount, source: i.source,
+                  description: i.description, 
+                  collected_by: i.collectedBy.toLowerCase(), 
+                  date: i.date || now
+                });
+              } catch (err) { recordPushError('Income', i.id, err); }
+            }
           }
-        }
 
-        // Process join requests
-        if (joinRequests?.length > 0) {
-          console.log(`  📋 ${joinRequests.length} join request(s)`);
-          const toDelete = joinRequests.filter(jr => jr.isDeleted).map(jr => jr.id);
-          if (toDelete.length > 0) await JoinRequest.destroy({ where: { id: toDelete } });
-          
-          for (const jr of joinRequests.filter(jr => !jr.isDeleted)) {
-            try {
-              await JoinRequest.upsert({
-                id: jr.id, tour_id: jr.tourId, user_id: jr.userId, user_name: jr.userName || 'Unknown', status: jr.status || 'pending'
-              });
-            } catch (err) { recordPushError('JoinRequest', jr.id, err); }
+          // Process join requests
+          if (joinRequests?.length > 0) {
+            console.log(`  📋 ${joinRequests.length} join request(s)`);
+            const toDelete = joinRequests.filter(jr => jr.isDeleted).map(jr => jr.id.toLowerCase());
+            if (toDelete.length > 0) await JoinRequest.destroy({ where: { id: toDelete } });
+            
+            for (const jr of joinRequests.filter(jr => !jr.isDeleted)) {
+              try {
+                await JoinRequest.upsert({
+                  id: jr.id.toLowerCase(), 
+                  tour_id: jr.tourId.toLowerCase(), 
+                  user_id: jr.userId.toLowerCase(), 
+                  user_name: jr.userName || 'Unknown', 
+                  status: jr.status || 'pending'
+                });
+              } catch (err) { recordPushError('JoinRequest', jr.id, err); }
+            }
           }
-        }
 
         if (pushItemErrors.length > 0) {
           throw new Error(`Push item failures: ${pushItemErrors.slice(0, 3).join(' | ')}`);

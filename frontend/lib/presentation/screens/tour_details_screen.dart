@@ -1248,6 +1248,119 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
     );
   }
 
+  /// Shows the CURRENT USER's own join-request status for this tour.
+  /// Only visible when a matching join_request record exists in the local DB.
+  Widget _buildMyJoinRequestBanner(Tour tour) {
+    final myRequestAsync =
+        ref.watch(myJoinRequestForTourProvider(widget.tourId));
+    return myRequestAsync.when(
+      data: (request) {
+        if (request == null) return const SizedBox.shrink();
+
+        // If already an active member, suppress the banner
+        final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
+        final me = ref.watch(currentUserProvider).value;
+        final isActiveMember = membersAsync.value?.any(
+              (m) =>
+                  m.user.id == me?.id &&
+                  m.status.toLowerCase() == 'active',
+            ) ??
+            false;
+        if (isActiveMember && request.status == 'approved') {
+          return const SizedBox.shrink();
+        }
+
+        late Color bgColor, borderColor, textColor;
+        late IconData icon;
+        late String message;
+
+        switch (request.status.toLowerCase()) {
+          case 'pending':
+            bgColor = Colors.amber.shade50;
+            borderColor = Colors.amber.shade300;
+            textColor = Colors.amber.shade800;
+            icon = Icons.hourglass_top_rounded;
+            message =
+                'আপনার join request পাঠানো হয়েছে এবং অনুমোদনের অপেক্ষায় আছে।'
+                ' Admin অনুমোদন করলে আপনি সক্রিয় সদস্য হবেন।';
+          case 'approved':
+            bgColor = Colors.green.shade50;
+            borderColor = Colors.green.shade300;
+            textColor = Colors.green.shade800;
+            icon = Icons.check_circle_rounded;
+            message = 'আপনার join request অনুমোদিত হয়েছে! আপনি এখন সক্রিয় সদস্য।';
+          case 'rejected':
+            bgColor = Colors.red.shade50;
+            borderColor = Colors.red.shade300;
+            textColor = Colors.red.shade800;
+            icon = Icons.cancel_rounded;
+            message = 'দুঃখিত, আপনার join request প্রত্যাখ্যাত হয়েছে।';
+          default:
+            return const SizedBox.shrink();
+        }
+
+        return Container(
+          margin: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: textColor, size: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'আপনার Join Request',
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      message,
+                      style: TextStyle(
+                        color: textColor.withValues(alpha: 0.85),
+                        fontSize: 11,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: borderColor.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  request.status.toUpperCase(),
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
   Widget _buildMembersTab(Tour tour) {
     final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
     final mealRecordsAsync = ref.watch(tourMealRecordsProvider(widget.tourId));
@@ -1289,6 +1402,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
               ),
             ),
             _buildJoinRequests(tour),
+            _buildMyJoinRequestBanner(tour),
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 16),

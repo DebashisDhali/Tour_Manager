@@ -725,6 +725,7 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    _buildMyJoinRequestsSection(config),
                     Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
@@ -794,9 +795,10 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
 
         return ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-          itemCount: tours.length,
+          itemCount: tours.length + 1,
           itemBuilder: (context, index) {
-            final tour = tours[index];
+            if (index == 0) return _buildMyJoinRequestsSection(config);
+            final tour = tours[index - 1];
             final tourConfig = PurposeConfig.getConfig(tour.purpose);
 
             return PremiumCard(
@@ -1009,6 +1011,145 @@ class _TourListScreenState extends ConsumerState<TourListScreen> {
                     .onSurface
                     .withValues(alpha: 0.7))),
       ],
+    );
+  }
+
+  /// Shows a section with ALL pending/rejected join requests sent by the current
+  /// user. Approved requests are omitted because the tour already appears in the
+  /// main list. The section is a no-op (SizedBox.shrink) when there is nothing
+  /// to show, so it does not disturb the layout.
+  Widget _buildMyJoinRequestsSection(PurposeConfig config) {
+    final myRequestsAsync = ref.watch(myJoinRequestsProvider);
+    return myRequestsAsync.when(
+      data: (all) {
+        final visible = all
+            .where((r) =>
+                r.request.status == 'pending' ||
+                r.request.status == 'rejected')
+            .toList();
+        if (visible.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(0, 8, 0, 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.pending_actions_rounded,
+                        size: 15,
+                        color: Colors.orange.shade700),
+                    const SizedBox(width: 6),
+                    Text(
+                      '\u0986\u09ae\u09be\u09b0 Join Requests',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.orange.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              ...visible.map((jr) => _buildJoinRequestStatusCard(jr)),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildJoinRequestStatusCard(JoinRequestWithTour jr) {
+    final isPending = jr.request.status == 'pending';
+    final tourName = jr.tour?.name ?? 'Unknown Tour';
+    final tourPurpose = jr.tour?.purpose ?? 'tour';
+    final jrTourConfig = PurposeConfig.getConfig(tourPurpose);
+
+    final bgColor = isPending ? Colors.amber.shade50 : Colors.red.shade50;
+    final borderColor =
+        isPending ? Colors.amber.shade200 : Colors.red.shade200;
+    final textColor =
+        isPending ? Colors.amber.shade800 : Colors.red.shade800;
+    final statusIcon =
+        isPending ? Icons.hourglass_top_rounded : Icons.cancel_rounded;
+    final statusLabel = isPending ? 'PENDING' : 'REJECTED';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              gradient: jrTourConfig.gradient,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child:
+                Icon(jrTourConfig.icon, color: Colors.white, size: 19),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tourName,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w800, fontSize: 13),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  isPending
+                      ? 'Admin \u0985\u09a8\u09c1\u09ae\u09cb\u09a6\u09a8\u09c7\u09b0 \u0985\u09aa\u09c7\u0995\u09cd\u09b7\u09be\u09af\u09bc...'
+                      : '\u0986\u09aa\u09a8\u09be\u09b0 request \u09aa\u09cd\u09b0\u09a4\u09cd\u09af\u09be\u0996\u09cd\u09af\u09be\u09a4 \u09b9\u09af\u09bc\u09c7\u099b\u09c7',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: textColor.withValues(alpha: 0.85),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: borderColor.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(statusIcon, size: 10, color: textColor),
+                const SizedBox(width: 4),
+                Text(
+                  statusLabel,
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

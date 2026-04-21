@@ -38,8 +38,8 @@ exports.createTour = async (req, res) => {
     const user = await User.findByPk(created_by);
     if (user) {
       await TourMember.upsert({
-        tour_id: tour.id,
-        user_id: user.id,
+        tour_id: tour.id.toLowerCase(),
+        user_id: user.id.toLowerCase(),
         role: 'admin',
         status: 'active',
         joined_at: now,
@@ -244,8 +244,8 @@ exports.joinTour = async (req, res) => {
     } else {
       const now = new Date();
       await TourMember.upsert({
-        tour_id: tour.id,
-        user_id: user.id,
+        tour_id: tour.id.toLowerCase(),
+        user_id: user.id.toLowerCase(),
         role: 'viewer',
         status: 'active',
         joined_at: now,
@@ -618,9 +618,9 @@ exports.retroactiveSplit = async (req, res) => {
 
         // Create new split for the member
         await ExpenseSplit.create({
-          id: uuidv4(),
-          expense_id: expense.id,
-          user_id: userId,
+          id: uuidv4().toLowerCase(),
+          expense_id: expense.id.toLowerCase(),
+          user_id: userId.toLowerCase(),
           amount: newAmount
         }, { transaction: t });
         

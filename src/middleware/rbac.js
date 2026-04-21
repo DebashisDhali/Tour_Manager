@@ -1,24 +1,29 @@
-const { Tour, TourMember, Expense, Settlement, ProgramIncome } = require('../models');
+const { Tour, TourMember, Expense, Settlement, ProgramIncome, JoinRequest } = require('../models');
 
 exports.checkTourAccess = (roles) => {
   return async (req, res, next) => {
     try {
-      const { tourId, tour_id, id } = { ...req.params, ...req.body, ...req.query };
+      const { tourId, tour_id, id, requestId } = { ...req.params, ...req.body, ...req.query };
       let tId = tourId || tour_id;
 
-      // If we only have 'id' (e.g. for /expenses/:id), find the tourId first
-      if (!tId && id) {
-        if (req.baseUrl.includes('expenses')) {
-          const exp = await Expense.findByPk(id);
-          tId = exp?.tour_id;
-        } else if (req.baseUrl.includes('settlements')) {
-          const set = await Settlement.findByPk(id);
-          tId = set?.tour_id;
-        } else if (req.baseUrl.includes('incomes')) {
-          const inc = await ProgramIncome.findByPk(id);
-          tId = inc?.tour_id;
-        } else if (req.baseUrl.includes('tours')) {
-          tId = id;
+      // If we only have 'id' or 'requestId', find the tourId context first
+      if (!tId) {
+        if (requestId) {
+          const jr = await JoinRequest.findByPk(requestId);
+          tId = jr?.tour_id;
+        } else if (id) {
+          if (req.baseUrl.includes('expenses')) {
+            const exp = await Expense.findByPk(id);
+            tId = exp?.tour_id;
+          } else if (req.baseUrl.includes('settlements')) {
+            const set = await Settlement.findByPk(id);
+            tId = set?.tour_id;
+          } else if (req.baseUrl.includes('incomes')) {
+            const inc = await ProgramIncome.findByPk(id);
+            tId = inc?.tour_id;
+          } else if (req.baseUrl.includes('tours')) {
+            tId = id;
+          }
         }
       }
 
