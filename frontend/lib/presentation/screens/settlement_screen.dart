@@ -295,7 +295,8 @@ class SettlementScreen extends ConsumerWidget {
         const SizedBox(height: 32),
         _buildSectionTitle("Individual Balances", config.color),
         ...users.map((u) {
-          final details = balanceDetailsMap[u.id];
+          final nid = u.id.toLowerCase();
+          final details = balanceDetailsMap[nid] ?? balanceDetailsMap[u.id];
           if (details == null) return const SizedBox.shrink();
 
           final balance = details.net;

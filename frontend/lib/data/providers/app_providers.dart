@@ -529,8 +529,19 @@ final myJoinRequestsProvider =
           .toList());
 });
 
-/// Streams the CURRENT USER'S single join_request for a specific tour (newest
-/// first), or null if none exists.
+final myJoinRequestForTourProvider =
+    StreamProvider.family.autoDispose<JoinRequest?, String>((ref, tourId) {
+  final db = ref.watch(databaseProvider);
+  final currentUser = ref.watch(currentUserProvider).value;
+  if (currentUser == null) return Stream.value(null);
+
+  return (db.select(db.joinRequests)
+        ..where((jr) =>
+            jr.tourId.equals(tourId) &
+            jr.userId.lower().equals(currentUser.id.toLowerCase()) &
+            jr.isDeleted.equals(false))
+        ..orderBy([(jr) => OrderingTerm.desc(jr.id)])
+        ..limit(1))
       .watchSingleOrNull();
 });
 

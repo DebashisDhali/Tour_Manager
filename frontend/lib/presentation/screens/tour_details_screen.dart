@@ -999,30 +999,32 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                   final exp = item.expense;
 
                   // Calculate display payer name(s)
-                  String payerText = item.payer?.name ?? 'Combined';
-                  if (allPayersAsync.hasValue &&
-                      allUsersAsync.hasValue &&
-                      allPayersAsync.value != null &&
-                      allUsersAsync.value != null) {
-                    final expPayers = allPayersAsync.value!
+                  String payerText = item.payer?.name ?? 'Someone';
+                  
+                  if (allPayersAsync.hasValue && allUsersAsync.hasValue) {
+                    final expPayers = (allPayersAsync.value ?? [])
                         .where((p) => p.expenseId == exp.id)
                         .toList();
-                    if (expPayers.length > 1) {
+                        
+                    if (expPayers.isNotEmpty) {
                       final names = expPayers.map((p) {
                         try {
-                          return allUsersAsync.value!
-                              .firstWhere((u) => u.id == p.userId)
+                          return (allUsersAsync.value ?? [])
+                              .firstWhere((u) => u.id.toLowerCase() == p.userId.toLowerCase())
                               .name;
                         } catch (e) {
                           return "User";
                         }
-                      }).toList();
+                      }).where((name) => name != "User").toList();
 
-                      if (names.length == 2) {
-                        payerText = names.join(" & ");
-                      } else if (names.isNotEmpty) {
-                        payerText =
-                            "${names.first} + ${names.length - 1} others";
+                      if (names.isNotEmpty) {
+                        if (names.length == 1) {
+                          payerText = names.first;
+                        } else if (names.length == 2) {
+                          payerText = names.join(" & ");
+                        } else {
+                          payerText = "${names.first} + ${names.length - 1} others";
+                        }
                       }
                     }
                   }

@@ -95,7 +95,8 @@ class FinalReceiptScreen extends ConsumerWidget {
                   cellAlignment: pw.Alignment.centerRight,
                   headerAlignment: pw.Alignment.centerRight,
                   data: users.map<List<String>>((u) {
-                    final balanceDetails = balanceMap[u.id];
+                    final nid = u.id.toLowerCase();
+                    final balanceDetails = balanceMap[nid] ?? balanceMap[u.id];
                     final paidOnExpenses = balanceDetails?.paid ?? 0.0;
                     final share = balanceDetails?.share ?? 0.0;
                     final adjustment = balanceDetails?.settled ?? 0.0;
@@ -240,7 +241,8 @@ class FinalReceiptScreen extends ConsumerWidget {
                   cellAlignment: pw.Alignment.centerRight,
                   headerAlignment: pw.Alignment.centerRight,
                   data: users.map<List<String>>((u) {
-                    final balanceDetails = balanceMap[u.id];
+                    final nid = u.id.toLowerCase();
+                    final balanceDetails = balanceMap[nid] ?? balanceMap[u.id];
                     final paidOnExpenses = balanceDetails?.paid ?? 0.0;
                     final share = balanceDetails?.share ?? 0.0;
                     final adjustment = balanceDetails?.settled ?? 0.0;
@@ -577,7 +579,8 @@ class FinalReceiptScreen extends ConsumerWidget {
               ),
               // Table Rows
               ...users.map((u) {
-                final balanceDetails = balanceMap[u.id];
+                final nid = u.id.toLowerCase();
+                final balanceDetails = balanceMap[nid] ?? balanceMap[u.id];
                 final balance = balanceDetails?.net ?? 0.0;
                 final share = balanceDetails?.share ?? 0.0;
                 final paidOnExpenses = balanceDetails?.paid ?? 0.0;
