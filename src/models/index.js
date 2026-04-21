@@ -26,8 +26,8 @@ Tour.belongsToMany(User, { through: TourMember, foreignKey: 'tour_id', otherKey:
 
 TourMember.belongsTo(User, { foreignKey: 'user_id' });
 TourMember.belongsTo(Tour, { foreignKey: 'tour_id' });
-User.hasMany(TourMember, { foreignKey: 'user_id' });
-Tour.hasMany(TourMember, { foreignKey: 'tour_id' });
+User.hasMany(TourMember, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+Tour.hasMany(TourMember, { foreignKey: 'tour_id', onDelete: 'CASCADE' });
 
 Tour.hasMany(Expense, { foreignKey: 'tour_id', onDelete: 'CASCADE' });
 Expense.belongsTo(Tour, { foreignKey: 'tour_id' });
@@ -38,10 +38,13 @@ Settlement.belongsTo(Tour, { foreignKey: 'tour_id' });
 Tour.hasMany(ProgramIncome, { foreignKey: 'tour_id', onDelete: 'CASCADE' });
 ProgramIncome.belongsTo(Tour, { foreignKey: 'tour_id' });
 
-User.hasMany(Expense, { foreignKey: 'payer_id' }); // kept for backward compatibility (primary payer)
+Tour.hasMany(JoinRequest, { foreignKey: 'tour_id', onDelete: 'CASCADE' });
+JoinRequest.belongsTo(Tour, { foreignKey: 'tour_id' });
+
+User.hasMany(Expense, { foreignKey: 'payer_id' });
 Expense.belongsTo(User, { foreignKey: 'payer_id', as: 'payer' });
 
-Expense.hasMany(ExpensePayer, { foreignKey: 'expense_id' });
+Expense.hasMany(ExpensePayer, { foreignKey: 'expense_id', onDelete: 'CASCADE' });
 ExpensePayer.belongsTo(Expense, { foreignKey: 'expense_id' });
 
 User.hasMany(ExpensePayer, { foreignKey: 'user_id' });
@@ -55,10 +58,10 @@ Settlement.belongsTo(User, { foreignKey: 'to_id', as: 'receiver' });
 User.hasMany(ProgramIncome, { foreignKey: 'collected_by' });
 ProgramIncome.belongsTo(User, { foreignKey: 'collected_by', as: 'collector' });
 
-Expense.hasMany(ExpenseSplit, { foreignKey: 'expense_id' });
+Expense.hasMany(ExpenseSplit, { foreignKey: 'expense_id', onDelete: 'CASCADE' });
 ExpenseSplit.belongsTo(Expense, { foreignKey: 'expense_id' });
 
-User.hasMany(ExpenseSplit, { foreignKey: 'user_id' }); // User who owes
+User.hasMany(ExpenseSplit, { foreignKey: 'user_id' });
 ExpenseSplit.belongsTo(User, { foreignKey: 'user_id', as: 'ower' });
 
 module.exports = {
