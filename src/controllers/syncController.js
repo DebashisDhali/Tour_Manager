@@ -305,21 +305,21 @@ exports.syncData = async (req, res) => {
         raw: true 
       }),
       ExpenseSplit.findAll({ 
-        where: { 
-          expense_id: { 
-            [Op.in]: sequelize.literal(`(SELECT id FROM Expenses WHERE tour_id IN ('${tourIds.join("','")}'))`) 
-          },
-          updated_at: { [Op.gt]: lastSyncDate } 
-        }, 
+        include: [{
+          model: Expense,
+          where: { tour_id: { [Op.in]: tourIds } },
+          attributes: []
+        }],
+        where: { updated_at: { [Op.gt]: lastSyncDate } }, 
         raw: true 
       }),
       ExpensePayer.findAll({ 
-        where: { 
-          expense_id: { 
-            [Op.in]: sequelize.literal(`(SELECT id FROM Expenses WHERE tour_id IN ('${tourIds.join("','")}'))`) 
-          },
-          updated_at: { [Op.gt]: lastSyncDate } 
-        }, 
+        include: [{
+          model: Expense,
+          where: { tour_id: { [Op.in]: tourIds } },
+          attributes: []
+        }],
+        where: { updated_at: { [Op.gt]: lastSyncDate } }, 
         raw: true 
       }),
       Settlement.findAll({ 
