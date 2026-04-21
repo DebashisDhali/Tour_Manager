@@ -383,7 +383,8 @@ class SettlementScreen extends ConsumerWidget {
                                     .withValues(alpha: 0.25)),
                           ],
                         ),
-                                   // Net balance badge
+                      ),
+                      // Net balance badge
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 5),
