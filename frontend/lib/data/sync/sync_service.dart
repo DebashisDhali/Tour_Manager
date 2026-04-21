@@ -428,7 +428,7 @@ class SyncService {
                     batch.insert(
                         db.expenseSplits,
                         ExpenseSplitsCompanion.insert(
-                          id: (ss['id'] ?? const Uuid().v4()).toString().toLowerCase(),
+                          id: (ss['id'] ?? "${se['id']}_${ss['user_id']}").toString().toLowerCase(),
                           expenseId: se['id'].toString().toLowerCase(),
                           userId: ss['user_id'].toString().toLowerCase(),
                           amount: double.tryParse(
@@ -446,7 +446,7 @@ class SyncService {
                     batch.insert(
                         db.expensePayers,
                         ExpensePayersCompanion.insert(
-                          id: (sp['id'] ?? const Uuid().v4()).toString().toLowerCase(),
+                          id: (sp['id'] ?? "${se['id']}_${sp['user_id']}").toString().toLowerCase(),
                           expenseId: se['id'].toString().toLowerCase(),
                           userId: sp['user_id'].toString().toLowerCase(),
                           amount: double.tryParse(
@@ -470,7 +470,7 @@ class SyncService {
                 batch.insert(
                     db.settlements,
                     SettlementsCompanion.insert(
-                      id: (ss['id'] ?? '').toString().toLowerCase(),
+                      id: (ss['id'] ?? "${st['id']}_${fromId}_${toId}_${ss['amount']}").toString().toLowerCase(),
                       tourId: (st['id'] ?? '').toString().toLowerCase(),
                       fromId: fromId.toLowerCase(),
                       toId: toId.toLowerCase(),
@@ -494,7 +494,7 @@ class SyncService {
                 batch.insert(
                     db.programIncomes,
                     ProgramIncomesCompanion.insert(
-                      id: (inc['id'] ?? '').toString().toLowerCase(),
+                      id: (inc['id'] ?? "${st['id']}_${inc['source']}_${inc['amount']}").toString().toLowerCase(),
                       tourId: (st['id'] ?? '').toString().toLowerCase(),
                       amount:
                           double.tryParse(inc['amount']?.toString() ?? '0') ??
