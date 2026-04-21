@@ -106,7 +106,7 @@ final tourListProvider = StreamProvider.autoDispose<List<TourWithRole>>((ref) {
   if (currentUser == null) return Stream.value([]);
 
   final query = db.select(db.tours).join([
-    innerJoin(db.tourMembers, db.tourMembers.tourId.equalsExp(db.tours.id)),
+    innerJoin(db.tourMembers, db.tourMembers.tourId.lower().equalsExp(db.tours.id.lower())),
   ])
     ..where(db.tourMembers.userId.lower().equals(currentUser.id.toLowerCase()) &
         db.tourMembers.status.equals('active') &
@@ -175,7 +175,7 @@ final tourMembersProvider = StreamProvider.family
   final query = db.select(db.users).join([
     innerJoin(db.tourMembers, db.tourMembers.userId.lower().equalsExp(db.users.id.lower())),
   ])
-    ..where(db.tourMembers.tourId.equals(tourId) &
+    ..where(db.tourMembers.tourId.lower().equals(tourId.toLowerCase()) &
         db.tourMembers.isDeleted.equals(false) &
         db.users.isDeleted.equals(false));
 
@@ -221,14 +221,13 @@ final expensesProvider = StreamProvider.family
     .autoDispose<List<ExpenseWithPayer>, String>((ref, tourId) {
   final db = ref.watch(databaseProvider);
 
-  final expenseQuery = db.select(db.expenses).join([
+  final query = db.select(db.expenses).join([
     leftOuterJoin(db.users, db.users.id.lower().equalsExp(db.expenses.payerId.lower())),
   ])
-    ..where(
-        db.expenses.tourId.equals(tourId) & db.expenses.isDeleted.equals(false))
+    ..where(db.expenses.tourId.lower().equals(tourId.toLowerCase()) & db.expenses.isDeleted.equals(false))
     ..orderBy([OrderingTerm.desc(db.expenses.createdAt)]);
 
-  return expenseQuery.watch().map((rows) {
+  return query.watch().map((rows) {
     final uniqueByExpenseId = <String, ExpenseWithPayer>{};
 
     for (final row in rows) {
@@ -338,7 +337,7 @@ final globalActivityProvider =
 final singleTourProvider =
     StreamProvider.family.autoDispose<Tour?, String>((ref, tourId) {
   final db = ref.watch(databaseProvider);
-  return (db.select(db.tours)..where((t) => t.id.equals(tourId)))
+  return (db.select(db.tours)..where((t) => t.id.lower().equals(tourId.toLowerCase())))
       .watchSingleOrNull()
       .handleError((e) {
     debugPrint("\n\n🧨 FATAL ERROR MAPPING SINGLE TOUR [$tourId]: $e\n\n");
@@ -427,7 +426,8 @@ final tourSettlementsProvider =
     StreamProvider.family.autoDispose<List<Settlement>, String>((ref, tourId) {
   final db = ref.watch(databaseProvider);
   return (db.select(db.settlements)
-        ..where((t) => t.tourId.equals(tourId) & t.isDeleted.equals(false)))
+        ..where((t) => t.tourId.lower().equals(tourId.toLowerCase()) & t.isDeleted.equals(false))
+        ..orderBy([(t) => OrderingTerm.desc(t.date)]))
       .watch();
 });
 
@@ -435,7 +435,8 @@ final tourIncomesProvider = StreamProvider.family
     .autoDispose<List<ProgramIncome>, String>((ref, tourId) {
   final db = ref.watch(databaseProvider);
   return (db.select(db.programIncomes)
-        ..where((t) => t.tourId.equals(tourId) & t.isDeleted.equals(false)))
+        ..where((t) => t.tourId.lower().equals(tourId.toLowerCase()) & t.isDeleted.equals(false))
+        ..orderBy([(t) => OrderingTerm.desc(t.date)]))
       .watch();
 });
 

@@ -322,7 +322,7 @@ class SyncService {
             batch.insert(
                 db.tours,
                 ToursCompanion.insert(
-                  id: st['id'] ?? '',
+                  id: (st['id'] ?? '').toString().toLowerCase(),
                   name: st['name'] ?? 'Unknown Tour',
                   startDate: Value(st['start_date'] != null
                       ? DateTime.tryParse(st['start_date'].toString())
@@ -402,15 +402,15 @@ class SyncService {
                 batch.insert(
                     db.expenses,
                     ExpensesCompanion.insert(
-                      id: se['id'],
-                      tourId: st['id'],
-                      payerId: Value(se['payer_id']),
+                      id: se['id'].toString().toLowerCase(),
+                      tourId: st['id'].toString().toLowerCase(),
+                      payerId: Value(se['payer_id']?.toString().toLowerCase()),
                       amount:
                           double.tryParse(se['amount']?.toString() ?? '0') ??
                               0.0,
-                      title: se['title'],
+                      title: se['title'] ?? 'Unknown',
                       category: (se['category'] ?? 'Others').toString(),
-                      messCostType: Value(se['mess_cost_type']),
+                      messCostType: Value(se['mess_cost_type']?.toString()),
                       isSynced: const Value(true),
                       createdAt: Value(
                           DateTime.tryParse(se['date']?.toString() ?? '') ??
@@ -470,10 +470,10 @@ class SyncService {
                 batch.insert(
                     db.settlements,
                     SettlementsCompanion.insert(
-                      id: (ss['id'] ?? '').toString(),
-                      tourId: (st['id'] ?? '').toString(),
-                      fromId: fromId,
-                      toId: toId,
+                      id: (ss['id'] ?? '').toString().toLowerCase(),
+                      tourId: (st['id'] ?? '').toString().toLowerCase(),
+                      fromId: fromId.toLowerCase(),
+                      toId: toId.toLowerCase(),
                       amount:
                           double.tryParse(ss['amount']?.toString() ?? '0') ??
                               0.0,
@@ -494,8 +494,8 @@ class SyncService {
                 batch.insert(
                     db.programIncomes,
                     ProgramIncomesCompanion.insert(
-                      id: (inc['id'] ?? '').toString(),
-                      tourId: (st['id'] ?? '').toString(),
+                      id: (inc['id'] ?? '').toString().toLowerCase(),
+                      tourId: (st['id'] ?? '').toString().toLowerCase(),
                       amount:
                           double.tryParse(inc['amount']?.toString() ?? '0') ??
                               0.0,
@@ -503,11 +503,28 @@ class SyncService {
                       description: Value((inc['description'] ?? '').toString()),
                       collectedBy:
                           (inc['collected_by'] ?? inc['collectedBy'] ?? '')
-                              .toString(),
+                              .toString().toLowerCase(),
                       date: Value(inc['date'] != null
                           ? DateTime.parse(inc['date'].toString())
                           : DateTime.now()),
                       isSynced: const Value(true),
+                    ),
+                    mode: InsertMode.insertOrReplace);
+              }
+            }
+
+            // Sync Join Requests
+            final joinReqs = st['JoinRequests'] ?? st['joinRequests'];
+            if (joinReqs != null && joinReqs is List) {
+              for (final jr in joinReqs) {
+                batch.insert(
+                    db.joinRequests,
+                    JoinRequestsCompanion.insert(
+                      id: (jr['id'] ?? '').toString().toLowerCase(),
+                      tourId: (st['id'] ?? '').toString().toLowerCase(),
+                      userId: (jr['userId'] ?? jr['user_id'] ?? '').toString().toLowerCase(),
+                      userName: (jr['userName'] ?? jr['user_name'] ?? 'Unknown').toString(),
+                      status: jr['status'] ?? 'pending',
                     ),
                     mode: InsertMode.insertOrReplace);
               }
