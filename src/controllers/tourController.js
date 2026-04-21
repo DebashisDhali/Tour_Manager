@@ -608,12 +608,21 @@ exports.retroactiveSplit = async (req, res) => {
       const userAlreadyIncluded = existingSplits.find(s => s.user_id === userId);
 
       if (!userAlreadyIncluded) {
+        const totalAmount = parseFloat(expense.amount);
         const newMemberCount = existingSplits.length + 1;
-        const newAmount = parseFloat(expense.amount) / newMemberCount;
+        
+        // Calculate precise equal share (round down to 2 decimals)
+        const equalAmount = Math.floor((totalAmount / newMemberCount) * 100) / 100;
+        // Calculate the remainder leftover from rounding
+        const remainder = Math.round((totalAmount - (equalAmount * newMemberCount)) * 100) / 100;
 
         // Update existing splits to the new equal amount
-        for (const split of existingSplits) {
-          await split.update({ amount: newAmount }, { transaction: t });
+        for (let i = 0; i < existingSplits.length; i++) {
+          // Give the remainder to the first person to keep the total exact
+          const currentSplitAmount = i === 0 ? 
+            Math.round((equalAmount + remainder) * 100) / 100 : 
+            equalAmount;
+          await existingSplits[i].update({ amount: currentSplitAmount }, { transaction: t });
         }
 
         // Create new split for the member
@@ -621,7 +630,7 @@ exports.retroactiveSplit = async (req, res) => {
           id: uuidv4().toLowerCase(),
           expense_id: expense.id.toLowerCase(),
           user_id: userId.toLowerCase(),
-          amount: newAmount
+          amount: equalAmount
         }, { transaction: t });
         
         // Update expense synced_at to trigger re-sync for everyone

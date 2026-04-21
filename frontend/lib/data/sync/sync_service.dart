@@ -1015,14 +1015,25 @@ class SyncService {
           .any((s) => s.userId.toLowerCase() == newUserId.toLowerCase());
       if (alreadyIncluded) continue;
 
+      final totalAmount = expense.amount;
       final newCount = existingSplits.length + 1;
-      final newAmount = expense.amount / newCount;
+      
+      // Calculate precise equal share (round down to 2 decimals)
+      final equalAmount = (totalAmount / newCount * 100).floor() / 100.0;
+      // Calculate the remainder leftover from rounding
+      final remainder = (totalAmount - (equalAmount * newCount) * 100).round() / 100.0;
 
       // Update existing splits
-      for (final split in existingSplits) {
+      for (int i = 0; i < existingSplits.length; i++) {
+        final split = existingSplits[i];
+        // Give the remainder to the first person to keep the total exact
+        final currentAmount = i == 0 ? 
+            (equalAmount + remainder) : 
+            equalAmount;
+            
         await (db.update(db.expenseSplits)..where((s) => s.id.equals(split.id)))
             .write(ExpenseSplitsCompanion(
-          amount: Value(newAmount),
+          amount: Value(currentAmount),
           isSynced: const Value(false),
         ));
       }
@@ -1033,7 +1044,7 @@ class SyncService {
               id: const Uuid().v4(),
               expenseId: expense.id,
               userId: newUserId,
-              amount: newAmount,
+              amount: equalAmount,
               isSynced: const Value(false),
             ),
             mode: InsertMode.insertOrReplace,
