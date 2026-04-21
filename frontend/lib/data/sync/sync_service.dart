@@ -382,8 +382,8 @@ class SyncService {
                 batch.insert(
                     db.tourMembers,
                     TourMembersCompanion.insert(
-                      tourId: st['id'],
-                      userId: su['id'],
+                      tourId: st['id'].toString().toLowerCase(),
+                      userId: su['id'].toString().toLowerCase(),
                       status: Value(suStatus),
                       leftAt: Value(suLeftAt),
                       role: Value(suRole),
@@ -428,9 +428,9 @@ class SyncService {
                     batch.insert(
                         db.expenseSplits,
                         ExpenseSplitsCompanion.insert(
-                          id: ss['id'] ?? const Uuid().v4(),
-                          expenseId: se['id'],
-                          userId: ss['user_id'],
+                          id: (ss['id'] ?? const Uuid().v4()).toString().toLowerCase(),
+                          expenseId: se['id'].toString().toLowerCase(),
+                          userId: ss['user_id'].toString().toLowerCase(),
                           amount: double.tryParse(
                                   ss['amount']?.toString() ?? '0') ??
                               0.0,
@@ -446,9 +446,9 @@ class SyncService {
                     batch.insert(
                         db.expensePayers,
                         ExpensePayersCompanion.insert(
-                          id: sp['id'] ?? const Uuid().v4(),
-                          expenseId: se['id'],
-                          userId: sp['user_id'],
+                          id: (sp['id'] ?? const Uuid().v4()).toString().toLowerCase(),
+                          expenseId: se['id'].toString().toLowerCase(),
+                          userId: sp['user_id'].toString().toLowerCase(),
                           amount: double.tryParse(
                                   sp['amount']?.toString() ?? '0') ??
                               0.0,

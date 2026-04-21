@@ -300,15 +300,34 @@ class SettlementCalculator {
       
       // Track total split amount per expense to find "orphaned" shares
       final Map<String, double> splitSumPerExpense = {};
+      
+      // Deduplicate splits per user per expense to avoid double-counting sync errors
+      final Map<String, Map<String, double>> dedupedSplits = {};
       for (var split in splits) {
-        splitSumPerExpense[split.expenseId] = (splitSumPerExpense[split.expenseId] ?? 0.0) + split.amount;
+        final eid = split.expenseId;
+        final uid = split.userId.toLowerCase();
         
-        final nid = split.userId.toLowerCase();
-        // Only count the share if the user is in the active users list
-        if (shareMap.containsKey(nid)) {
-          shareMap[nid] = _roundTo2Decimals(
-            (shareMap[nid] ?? 0.0) + split.amount,
-          );
+        if (!dedupedSplits.containsKey(eid)) {
+          dedupedSplits[eid] = {};
+        }
+        
+        // If we have duplicates, we'll take the one that actually matches the intended share 
+        // Or just keep the latest (simple approach)
+        dedupedSplits[eid]![uid] = split.amount;
+      }
+
+      // Now process the deduped splits
+      for (var eid in dedupedSplits.keys) {
+        final userSplits = dedupedSplits[eid]!;
+        for (var uid in userSplits.keys) {
+          final amount = userSplits[uid]!;
+          splitSumPerExpense[eid] = (splitSumPerExpense[eid] ?? 0.0) + amount;
+          
+          if (shareMap.containsKey(uid)) {
+            shareMap[uid] = _roundTo2Decimals(
+              (shareMap[uid] ?? 0.0) + amount,
+            );
+          }
         }
       }
 

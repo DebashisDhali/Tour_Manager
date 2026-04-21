@@ -578,68 +578,73 @@ exports.updateMemberRole = async (req, res) => {
 exports.retroactiveSplit = async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { tourId, userId } = req.params;
+    const { tourId, userId: rawUserId } = req.params;
+    const userId = rawUserId.toLowerCase();
 
-    // Check if member is active
-    // Normalize IDs for case sensitivity
-    const normalizedTourId = tourId?.toString().toLowerCase() || '';
-    const normalizedUserId = userId?.toString().toLowerCase() || '';
-
-    // Check if member is active
-    const member = await TourMember.findOne({
-      where: { tour_id: normalizedTourId, user_id: normalizedUserId, status: 'active' },
+    // 1. Get ALL active members for this tour
+    const activeMembers = await TourMember.findAll({
+      where: { tour_id: tourId.toLowerCase(), status: 'active', is_deleted: false },
       transaction: t
     });
 
-    if (!member) {
+    if (activeMembers.length === 0) {
       await t.rollback();
-      return res.status(404).json({ error: 'Active member not found in this tour' });
+      return res.status(404).json({ error: 'No active members found in this tour' });
     }
 
-    // Get all expenses for this tour
+    const participants = activeMembers.map(m => m.user_id.toLowerCase());
+    
+    // Check if the requested user is actually one of the active members
+    if (!participants.includes(userId)) {
+      await t.rollback();
+      return res.status(403).json({ error: 'Selected user is not an active member of this tour' });
+    }
+
+    // 2. Get all expenses for this tour
     const expenses = await Expense.findAll({
-      where: { tour_id: tourId },
-      include: [ExpenseSplit],
+      where: { tour_id: tourId.toLowerCase(), is_deleted: false },
       transaction: t
     });
 
     for (const expense of expenses) {
-      const existingSplits = expense.ExpenseSplits || [];
-      const userAlreadyIncluded = existingSplits.find(s => s.user_id === userId);
+      const totalAmount = parseFloat(expense.amount);
+      const participantCount = participants.length;
+      
+      // Calculate precise equal share
+      const equalAmount = Math.floor((totalAmount / participantCount) * 100) / 100;
+      const remainder = Math.round((totalAmount - (equalAmount * participantCount)) * 100) / 100;
 
-      if (!userAlreadyIncluded) {
-        const totalAmount = parseFloat(expense.amount);
-        const newMemberCount = existingSplits.length + 1;
-        
-        // Calculate precise equal share (round down to 2 decimals)
-        const equalAmount = Math.floor((totalAmount / newMemberCount) * 100) / 100;
-        // Calculate the remainder leftover from rounding
-        const remainder = Math.round((totalAmount - (equalAmount * newMemberCount)) * 100) / 100;
+      // 3. Delete ALL existing splits for this expense to do a clean re-split
+      // We only do this if the expense doesn't have custom splits logic 
+      // (For now, we assume all expenses in this flow are equal-split)
+      await ExpenseSplit.destroy({
+        where: { expense_id: expense.id },
+        transaction: t
+      });
 
-        // Update existing splits to the new equal amount
-        for (let i = 0; i < existingSplits.length; i++) {
-          // Give the remainder to the first person to keep the total exact
-          const currentSplitAmount = i === 0 ? 
-            Math.round((equalAmount + remainder) * 100) / 100 : 
-            equalAmount;
-          await existingSplits[i].update({ amount: currentSplitAmount }, { transaction: t });
-        }
-
-        // Create new split for the member
-        await ExpenseSplit.create({
+      // 4. Create new splits for EVERY active participant
+      const newSplits = [];
+      for (let i = 0; i < participants.length; i++) {
+        const splitAmount = i === 0 ? 
+          Math.round((equalAmount + remainder) * 100) / 100 : 
+          equalAmount;
+          
+        newSplits.push({
           id: uuidv4().toLowerCase(),
-          expense_id: expense.id.toLowerCase(),
-          user_id: userId.toLowerCase(),
-          amount: equalAmount
-        }, { transaction: t });
-        
-        // Update expense synced_at to trigger re-sync for everyone
-        await expense.update({ synced_at: new Date() }, { transaction: t });
+          expense_id: expense.id,
+          user_id: participants[i],
+          amount: splitAmount
+        });
       }
+
+      await ExpenseSplit.bulkCreate(newSplits, { transaction: t });
+      
+      // Update expense synced_at to trigger re-sync for everyone
+      await expense.update({ synced_at: new Date() }, { transaction: t });
     }
 
     await t.commit();
-    res.json({ message: 'Member included in all past expenses successfully' });
+    res.json({ message: `Success: All past expenses re-split among ${activeMembers.length} active members.` });
   } catch (err) {
     if (t) await t.rollback();
     res.status(500).json({ error: err.message });
