@@ -153,8 +153,15 @@ class SettlementCalculator {
     final shareMap = <String, double>{};
     final settledMap = <String, double>{};
 
-    // Initialize maps for all users with normalized IDs (lowercase)
+    // 0. Deduplicate users by normalized ID to prevent calculation errors
+    final Map<String, User> uniqueUsers = {};
     for (var u in users) {
+      uniqueUsers[u.id.toLowerCase()] = u;
+    }
+    final deduplicatedUsers = uniqueUsers.values.toList();
+
+    // Initialize maps for all users with normalized IDs (lowercase)
+    for (var u in deduplicatedUsers) {
       final nid = u.id.toLowerCase();
       paidMap[nid] = 0.0;
       shareMap[nid] = 0.0;
@@ -163,12 +170,16 @@ class SettlementCalculator {
 
     // ===== STEP 1: CALCULATE PAID AMOUNTS =====
 
-    // 1.1 Explicit expense payer records (highest priority)
-    final expensesWithPayerRecords =
-        expensePayers.map((p) => p.expenseId).toSet();
+    // Deduplicate expense payer records
+    final Set<String> processedPayerRecordIds = {};
+    final Set<String> expensesWithPayerRecords = {};
     
     // Normalize user IDs for all lookups in maps
     for (var ep in expensePayers) {
+      if (processedPayerRecordIds.contains(ep.id)) continue;
+      processedPayerRecordIds.add(ep.id);
+      
+      expensesWithPayerRecords.add(ep.expenseId);
       final nid = ep.userId.toLowerCase();
       paidMap[nid] = _roundTo2Decimals(
         (paidMap[nid] ?? 0.0) + ep.amount,
@@ -176,7 +187,11 @@ class SettlementCalculator {
     }
 
     // 1.2 Fallback: expense.payerId for expenses without payer records
+    final Set<String> processedExpenseIds = {};
     for (var e in expenses) {
+      if (processedExpenseIds.contains(e.id)) continue;
+      processedExpenseIds.add(e.id);
+      
       if (!expensesWithPayerRecords.contains(e.id) && e.payerId != null) {
         final nid = e.payerId!.toLowerCase();
         paidMap[nid] = _roundTo2Decimals(
@@ -187,7 +202,11 @@ class SettlementCalculator {
 
     // 1.3 Program incomes (collected funds)
     if (incomes != null) {
+      final Set<String> processedIncomeIds = {};
       for (var income in incomes) {
+        if (processedIncomeIds.contains(income.id)) continue;
+        processedIncomeIds.add(income.id);
+        
         final nid = income.collectedBy.toLowerCase();
         paidMap[nid] = _roundTo2Decimals(
           (paidMap[nid] ?? 0.0) + income.amount,
@@ -220,21 +239,24 @@ class SettlementCalculator {
         e.messCostType == 'fixed' || 
         (e.messCostType == 'meal' && totalMeals <= 0) ||
         (e.messCostType == null && !expensesWithSplits.contains(e.id))
-      ).toList();
+      ).fold<List<Expense>>([], (list, e) {
+        if (!list.any((item) => item.id == e.id)) list.add(e);
+        return list;
+      });
       
       final totalFixedCost = actualFixedExpenses.fold(0.0, (sum, e) => sum + e.amount);
 
-      if (users.isNotEmpty && totalFixedCost > 0) {
-        final fixedPerMember = _roundTo2Decimals(totalFixedCost / users.length);
+      if (deduplicatedUsers.isNotEmpty && totalFixedCost > 0) {
+        final fixedPerMember = _roundTo2Decimals(totalFixedCost / deduplicatedUsers.length);
 
         // Calculate remainder to distribute (avoid rounding losses)
         final totalDistributed =
-            _roundTo2Decimals(fixedPerMember * users.length);
+            _roundTo2Decimals(fixedPerMember * deduplicatedUsers.length);
         final fixedRemainder =
             _roundTo2Decimals(totalFixedCost - totalDistributed);
 
-        for (int idx = 0; idx < users.length; idx++) {
-          final nid = users[idx].id.toLowerCase();
+        for (int idx = 0; idx < deduplicatedUsers.length; idx++) {
+          final nid = deduplicatedUsers[idx].id.toLowerCase();
           // Add remainder to first member to prevent rounding loss
           final extraAmount = idx == 0 ? fixedRemainder : 0.0;
           shareMap[nid] = _roundTo2Decimals(fixedPerMember + extraAmount);
@@ -254,7 +276,7 @@ class SettlementCalculator {
         double totalDistributedMeal = 0.0;
         final participatingNids = <String>[];
         
-        for (var u in users) {
+        for (var u in deduplicatedUsers) {
           final nid = u.id.toLowerCase();
           final count = mealCounts?[u.id] ?? mealCounts?[nid] ?? 0.0;
           if (count > 0) {
@@ -381,7 +403,11 @@ class SettlementCalculator {
 
     // ===== STEP 3: ACCOUNT FOR PREVIOUS SETTLEMENTS =====
     // Adjust balances based on already-completed settlements
+    final Set<String> processedSettlementIds = {};
     for (var settlement in previousSettlements) {
+      if (processedSettlementIds.contains(settlement.id)) continue;
+      processedSettlementIds.add(settlement.id);
+      
       final fNid = settlement.fromId.toLowerCase();
       final tNid = settlement.toId.toLowerCase();
       // fromId paid out (reduces their debt)
@@ -403,7 +429,7 @@ class SettlementCalculator {
     // positive: user is owed money | negative: user owes money
 
     final results = <String, UserBalanceDetails>{};
-    for (var u in users) {
+    for (var u in deduplicatedUsers) {
       final nid = u.id.toLowerCase();
       final paid = _roundTo2Decimals(paidMap[nid] ?? 0.0);
       final share = _roundTo2Decimals(shareMap[nid] ?? 0.0);
