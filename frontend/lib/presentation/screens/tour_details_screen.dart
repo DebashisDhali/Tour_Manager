@@ -1148,12 +1148,12 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
     final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
     final isEditor = me?.id == tour.createdBy ||
         (membersAsync.value?.any((m) =>
-                m.user.id == me?.id &&
-                (m.role == 'admin')) ??
+                m.user.id.toLowerCase() == me?.id.toLowerCase() &&
+                (m.role == 'admin' || m.role == 'editor')) ??
             false);
     final isAdmin = me?.id == tour.createdBy ||
         (membersAsync.value?.any((m) =>
-                m.user.id == me?.id && (m.role == 'admin')) ??
+                m.user.id.toLowerCase() == me?.id.toLowerCase() && (m.role == 'admin')) ??
             false);
 
     if (!isEditor) return const SizedBox.shrink();
@@ -1162,7 +1162,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
     return StreamBuilder<List<JoinRequest>>(
       stream: (db.select(db.joinRequests)
             ..where((t) =>
-                t.tourId.equals(widget.tourId) & t.status.equals('pending')))
+                t.tourId.lower().equals(widget.tourId.toLowerCase()) & t.status.equals('pending')))
           .watch(),
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -1386,6 +1386,18 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
         }
 
         final displayMembers = members.where((m) => m.status.toLowerCase().trim() != 'removed').toList();
+        
+        // Sort: Active first, then Pending; both alphabetical by name
+        displayMembers.sort((a, b) {
+          final sA = a.status.toLowerCase().trim();
+          final sB = b.status.toLowerCase().trim();
+          
+          if (sA == 'active' && sB != 'active') return -1;
+          if (sA != 'active' && sB == 'active') return 1;
+          
+          // If statuses are the same, sort by name
+          return a.user.name.toLowerCase().compareTo(b.user.name.toLowerCase());
+        });
 
         return Column(
           children: [
