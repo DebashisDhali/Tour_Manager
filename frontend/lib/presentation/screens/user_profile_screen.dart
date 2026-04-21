@@ -138,9 +138,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       final dedupedByTour = <String, Map<String, dynamic>>{};
 
       for (final invitation in invitations) {
-        final tour = invitation['tour'] is Map
-            ? Map<String, dynamic>.from(invitation['tour'] as Map)
-            : <String, dynamic>{};
+        final tour = _extractTour(invitation);
         final tourId =
             invitation['tourId']?.toString() ?? tour['id']?.toString() ?? '';
         if (tourId.isEmpty) continue;
@@ -157,6 +155,13 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       if (!mounted) return;
       setState(() => _isLoadingInvitations = false);
     }
+  }
+
+  Map<String, dynamic> _extractTour(Map<String, dynamic> invitation) {
+    final rawTour = invitation['tour'];
+    if (rawTour is Map<String, dynamic>) return rawTour;
+    if (rawTour is Map) return Map<String, dynamic>.from(rawTour);
+    return <String, dynamic>{};
   }
 
   Future<void> _respondToInvitation(String tourId, String action) async {
@@ -495,9 +500,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                 )
               else
                 ..._pendingInvitations.map((invitation) {
-                  final tour = invitation['tour'] is Map
-                      ? Map<String, dynamic>.from(invitation['tour'] as Map)
-                      : <String, dynamic>{};
+                  final tour = _extractTour(invitation);
                   final tourId = invitation['tourId']?.toString() ??
                       tour['id']?.toString();
                   final tourName = tour['name']?.toString() ?? 'Unnamed Tour';
@@ -513,34 +516,48 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                               .withValues(alpha: 0.2),
                         ),
                       ),
-                      child: ListTile(
-                        title: Text(
-                          tourName,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        subtitle: const Text(
-                            'You were invited to join this tour. Accept or reject.'),
-                        trailing: tourId == null
-                            ? null
-                            : Wrap(
-                                spacing: 8,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              tourName,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700, fontSize: 15),
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'You were invited to join this tour. Accept or reject.',
+                            ),
+                            if (tourId != null) ...[
+                              const SizedBox(height: 10),
+                              Row(
                                 children: [
-                                  OutlinedButton(
-                                    onPressed: _isLoadingInvitations
-                                        ? null
-                                        : () => _respondToInvitation(
-                                            tourId, 'reject'),
-                                    child: const Text('Reject'),
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: _isLoadingInvitations
+                                          ? null
+                                          : () => _respondToInvitation(
+                                              tourId, 'reject'),
+                                      child: const Text('Reject'),
+                                    ),
                                   ),
-                                  FilledButton(
-                                    onPressed: _isLoadingInvitations
-                                        ? null
-                                        : () => _respondToInvitation(
-                                            tourId, 'accept'),
-                                    child: const Text('Accept'),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: FilledButton(
+                                      onPressed: _isLoadingInvitations
+                                          ? null
+                                          : () => _respondToInvitation(
+                                              tourId, 'accept'),
+                                      child: const Text('Accept'),
+                                    ),
                                   ),
                                 ],
                               ),
+                            ],
+                          ],
+                        ),
                       ),
                     ),
                   );
