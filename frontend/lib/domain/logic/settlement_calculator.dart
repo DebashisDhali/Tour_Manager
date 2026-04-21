@@ -288,10 +288,39 @@ class SettlementCalculator {
       }
     } else {
       // ===== TOUR/PROGRAM MODE: Use Explicit Splits =====
+      
+      // Track total split amount per expense to find "orphaned" shares
+      final Map<String, double> splitSumPerExpense = {};
       for (var split in splits) {
-        shareMap[split.userId] = _roundTo2Decimals(
-          (shareMap[split.userId] ?? 0.0) + split.amount,
-        );
+        splitSumPerExpense[split.expenseId] = (splitSumPerExpense[split.expenseId] ?? 0.0) + split.amount;
+        
+        // Only count the share if the user is in the active users list
+        if (shareMap.containsKey(split.userId)) {
+          shareMap[split.userId] = _roundTo2Decimals(
+            (shareMap[split.userId] ?? 0.0) + split.amount,
+          );
+        }
+      }
+
+      // Check for missing amounts (orphaned splits or rounding remainders)
+      for (var e in expenses) {
+        final totalSplit = splitSumPerExpense[e.id] ?? 0.0;
+        final missingAmount = _roundTo2Decimals(e.amount - totalSplit);
+        
+        // If money is missing from splits (e.g. someone was removed), 
+        // the Payer absorbs that cost back by default.
+        if (missingAmount.abs() > 0.01 && e.payerId != null && shareMap.containsKey(e.payerId!)) {
+          shareMap[e.payerId!] = _roundTo2Decimals((shareMap[e.payerId!] ?? 0.0) + missingAmount);
+        }
+        
+        // Also handle cases where a split exists for a removed user (orphaned share)
+        final orphanedAmount = splits
+            .where((s) => s.expenseId == e.id && !shareMap.containsKey(s.userId))
+            .fold(0.0, (sum, s) => sum + s.amount);
+            
+        if (orphanedAmount > 0.01 && e.payerId != null && shareMap.containsKey(e.payerId!)) {
+           shareMap[e.payerId!] = _roundTo2Decimals((shareMap[e.payerId!] ?? 0.0) + orphanedAmount);
+        }
       }
     }
 
