@@ -2,14 +2,17 @@ const { Tour, User, Expense, ExpenseSplit, TourMember, Settlement, ProgramIncome
 
 exports.getTourInsights = async (req, res) => {
   try {
-    const { tourId } = req.params;
+    const normalizedTourId = req.params.tourId?.toString().toLowerCase() || '';
+    if (!normalizedTourId) {
+      return res.status(400).json({ error: "tourId is required" });
+    }
 
     if (!process.env.OPENROUTER_API_KEY) {
       return res.status(500).json({ error: "OpenRouter API Key not configured." });
     }
 
     // Fetch Tour Data with Members
-    const tour = await Tour.findByPk(tourId, {
+    const tour = await Tour.findByPk(normalizedTourId, {
       include: [{ model: User, through: { attributes: [] } }]
     });
     if (!tour) {
@@ -20,7 +23,7 @@ exports.getTourInsights = async (req, res) => {
 
     // Fetch Expenses with Payer details
     const expenses = await Expense.findAll({
-      where: { tour_id: tourId },
+      where: { tour_id: normalizedTourId },
       include: [
         { model: User, as: 'payer', attributes: ['name'] },
         ExpenseSplit
@@ -29,7 +32,7 @@ exports.getTourInsights = async (req, res) => {
 
     // Fetch Settlements
     const settlements = await Settlement.findAll({
-      where: { tour_id: tourId },
+      where: { tour_id: normalizedTourId },
       include: [
         { model: User, as: 'sender', attributes: ['name'] },
         { model: User, as: 'receiver', attributes: ['name'] }
@@ -38,7 +41,7 @@ exports.getTourInsights = async (req, res) => {
 
     // Fetch Program Income (Fund Collections)
     const incomes = await ProgramIncome.findAll({
-      where: { tour_id: tourId },
+      where: { tour_id: normalizedTourId },
       include: [{ model: User, as: 'collector', attributes: ['name'] }]
     });
 
