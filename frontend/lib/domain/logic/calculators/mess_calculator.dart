@@ -29,27 +29,6 @@ class MessSettlementCalculator extends BaseSettlementCalculator {
       }
     }
 
-    if (totalMeals <= 0) {
-      // User says: "Jatokkhn kno meal entry hbe ... total hisab er dorkar nai"
-      // We set share = paid to ensure net balance is 0 for everyone until meals start
-      for (var u in users) {
-        final nid = u.id;
-        final paid = roundTo2Decimals(paidMap[nid] ?? 0.0);
-        if (paid.abs() > 0.001) {
-          shareMap[nid] = paid;
-          itemLogs[nid]?.add(BalanceItem(
-            title: "Pending Calculation (Share = Paid)", 
-            amount: paid, 
-            type: 'share', 
-            isCredit: false
-          ));
-        }
-      }
-      // We still apply previous settlements as they are actual money movements
-      applyPreviousSettlements(previousSettlements, settledMap, itemLogs);
-      return finalizeResults(users, paidMap, shareMap, settledMap, itemLogs);
-    }
-
     // Mess Specific: Program Incomes (Collections/Brought forward)
     processProgramIncomes(incomes, users, paidMap, shareMap, itemLogs);
     
