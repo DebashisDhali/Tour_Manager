@@ -129,16 +129,23 @@ class SettlementScreen extends ConsumerWidget {
     );
 
     // Calculate totals based on MessSettlementCalculator logic
+    // Calculate totals based on MessSettlementCalculator logic
     final totalMeals = mealCounts.values.fold(0.0, (s, c) => s + c);
     final isMess = tour.purpose.toLowerCase() == 'mess';
+    final Set<String> expensesWithSplits = tourSplits.map((s) => s.expenseId).toSet();
+
+    // Only expenses without custom splits are included in meal/fixed rate calculation
+    final unhandledDedupedExpenses = dedupedExpenses
+        .where((e) => !expensesWithSplits.contains(e.id))
+        .toList();
 
     // In Mess mode, if totalMeals > 0, treat null as meal. 
-    // If totalMeals == 0, null is treated as "pending" (not in meal or fixed).
-    final totalMealCost = dedupedExpenses
+    // If totalMeals == 0, null is treated as "pending".
+    final totalMealCost = unhandledDedupedExpenses
         .where((e) => e.messCostType == 'meal' || (isMess && totalMeals > 0 && e.messCostType == null))
         .fold(0.0, (s, e) => s + e.amount);
 
-    final totalFixedCost = dedupedExpenses
+    final totalFixedCost = unhandledDedupedExpenses
         .where((e) => e.messCostType == 'fixed')
         .fold(0.0, (s, e) => s + e.amount);
 
@@ -443,41 +450,82 @@ class SettlementScreen extends ConsumerWidget {
                         border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.05)),
                       ),
                       child: totalMeals > 0 
-                        ? Column(
-                            children: [
-                              _buildBreakdownRow(
-                                context,
-                                "Meals (${mealCounts[u.id.toLowerCase()]?.toStringAsFixed(1) ?? '0'})",
-                                "৳${( (mealCounts[u.id.toLowerCase()] ?? 0) * mealRate).toStringAsFixed(2)}",
-                                Icons.restaurant_rounded,
-                                Colors.orange,
-                              ),
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 4),
-                                child: Divider(height: 1),
-                              ),
-                              _buildBreakdownRow(
-                                context,
-                                "Shared Fixed Costs",
-                                "৳${fixedCostPerPerson.toStringAsFixed(2)}",
-                                Icons.home_rounded,
-                                Colors.blue,
-                              ),
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 2),
-                                child: DottedLine(height: 1),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text("Total Share", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                                    Text("৳${details.share.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        ? Builder(
+                            builder: (context) {
+                              // Extract values directly from Audit Items for 100% accuracy
+                              final mealPart = details.items
+                                  .where((item) => item.title.contains("Meal"))
+                                  .fold(0.0, (sum, item) => sum + item.amount);
+                              
+                              final fixedPart = details.items
+                                  .where((item) => item.title.contains("Fixed"))
+                                  .fold(0.0, (sum, item) => sum + item.amount);
+                                  
+                              final incomeReduc = details.items
+                                  .where((item) => item.title.contains("Income"))
+                                  .fold(0.0, (sum, item) => sum + item.amount);
+
+                              final customSplitPart = details.items
+                                  .where((item) => item.title.contains("Custom"))
+                                  .fold(0.0, (sum, item) => sum + item.amount);
+
+                              return Column(
+                                children: [
+                                  if (mealPart > 0)
+                                    _buildBreakdownRow(
+                                      context,
+                                      "Meals (${mealCounts[u.id.toLowerCase()]?.toStringAsFixed(1) ?? '0'})",
+                                      "৳${mealPart.toStringAsFixed(2)}",
+                                      Icons.restaurant_rounded,
+                                      Colors.orange,
+                                    ),
+                                  if (fixedPart > 0) ...[
+                                    if (mealPart > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
+                                    _buildBreakdownRow(
+                                      context,
+                                      "Shared Fixed Costs",
+                                      "৳${fixedPart.toStringAsFixed(2)}",
+                                      Icons.home_rounded,
+                                      Colors.blue,
+                                    ),
                                   ],
-                                ),
-                              ),
-                            ],
+                                  if (customSplitPart > 0) ...[
+                                    if (mealPart > 0 || fixedPart > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
+                                    _buildBreakdownRow(
+                                      context,
+                                      "Custom Splits",
+                                      "৳${customSplitPart.toStringAsFixed(2)}",
+                                      Icons.person_pin_rounded,
+                                      Colors.purple,
+                                    ),
+                                  ],
+                                  if (incomeReduc > 0) ...[
+                                    const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
+                                    _buildBreakdownRow(
+                                      context,
+                                      "Income Credit",
+                                      "-৳${incomeReduc.toStringAsFixed(2)}",
+                                      Icons.account_balance_rounded,
+                                      Colors.green,
+                                    ),
+                                  ],
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 2),
+                                    child: DottedLine(height: 1),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text("Total Share", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                        Text("৳${details.share.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           )
                         : Column(
                             children: [
