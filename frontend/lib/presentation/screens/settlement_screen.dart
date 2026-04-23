@@ -201,45 +201,79 @@ class SettlementScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildStatItem(
-                      context,
-                      "Total Cost",
-                      "৳${totalCost.toStringAsFixed(0)}",
-                      Icons.account_balance_wallet_rounded,
-                      config.color),
-                  Container(
-                      width: 1,
-                      height: 40,
-                      color: Theme.of(context)
-                          .dividerColor
-                          .withValues(alpha: 0.1)),
-                  if (tour.purpose.toLowerCase() == 'mess')
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildStatItem(
-                            context,
-                            "Rent/Fixed",
-                            "৳${fixedCostPerPerson.toStringAsFixed(0)}",
-                            Icons.home_rounded,
-                            config.color),
-                        const SizedBox(height: 12),
-                        _buildStatItem(
-                            context,
-                            "Meal Rate",
-                            "৳${mealRate.toStringAsFixed(2)}/meal",
-                            Icons.restaurant_menu_rounded,
-                            config.color),
-                      ],
-                    )
-                  else
-                    _buildStatItem(context, "Members", "${users.length} people",
-                        Icons.group_rounded, config.color),
+                if (isMess) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildSummaryItem(
+                          context,
+                          "Total Bazar",
+                          "৳${totalMealCost.toStringAsFixed(0)}",
+                          Icons.shopping_basket_rounded,
+                          Colors.orange,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildSummaryItem(
+                          context,
+                          "Total Meals",
+                          totalMeals.toStringAsFixed(1),
+                          Icons.restaurant_rounded,
+                          Colors.blue,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildSummaryItem(
+                          context,
+                          "Meal Rate",
+                          "৳${mealRate.toStringAsFixed(2)}/meal",
+                          Icons.calculate_rounded,
+                          Colors.purple,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildSummaryItem(
+                          context,
+                          "Total Rent",
+                          "৳${totalFixedCost.toStringAsFixed(0)}",
+                          Icons.home_work_rounded,
+                          Colors.teal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildSummaryItem(
+                          context,
+                          "Total Cost",
+                          "৳${totalCost.toStringAsFixed(0)}",
+                          Icons.payments_rounded,
+                          config.color,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildSummaryItem(
+                          context,
+                          "Your Share",
+                          "৳${(balanceDetailsMap[myId]?.share ?? 0).toStringAsFixed(0)}",
+                          Icons.person_outline_rounded,
+                          Colors.blue,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
-              ),
               // Show equal-split hint only when all shares are equal
               if (tour.purpose.toLowerCase() != 'mess') ...[
                 const SizedBox(height: 16),
