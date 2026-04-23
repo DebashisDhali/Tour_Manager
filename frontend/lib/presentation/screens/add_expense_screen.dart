@@ -230,15 +230,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                 segments: const [
                                   ButtonSegment(
                                       value: 'meal',
-                                      label: Text('Bazar',
+                                      label: const Text('Bazar (Meal)',
                                           style: TextStyle(fontSize: 12)),
-                                      icon: Icon(Icons.shopping_basket_rounded,
+                                      icon: const Icon(Icons.shopping_basket_rounded,
                                           size: 16)),
                                   ButtonSegment(
                                       value: 'fixed',
-                                      label: Text('Rent',
+                                      label: const Text('Rent (Fixed)',
                                           style: TextStyle(fontSize: 12)),
-                                      icon: Icon(Icons.home_work_rounded,
+                                      icon: const Icon(Icons.home_work_rounded,
                                           size: 16)),
                                 ],
                                 selected: <String?>{_messCostType},
@@ -490,7 +490,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                   DropdownMenuItem(value: c, child: Text(c)))
                               .toList(),
                           onChanged: (v) {
-                            if (v != null) setState(() => _category = v);
+                            if (v != null) {
+                              setState(() {
+                                _category = v;
+                                if (_category.toLowerCase().trim() == 'rent' && 
+                                    activeTour.purpose.toLowerCase() == 'mess') {
+                                  _messCostType = 'fixed';
+                                }
+                              });
+                            }
                           },
                           decoration: _getInputDecoration(
                               hint: "Category",
@@ -513,13 +521,18 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                 ),
                               );
 
-                              if (result != null && mounted) {
-                                _titleController.text = result['title'] ?? '';
-                                _amountController.text =
-                                    result['amount']?.toString() ?? '';
-                                _category = result['category'] ?? _category;
-                                setState(() {});
-                              }
+                                if (result != null && mounted) {
+                                  _titleController.text = result['title'] ?? '';
+                                  _amountController.text =
+                                      result['amount']?.toString() ?? '';
+                                  _category = result['category'] ?? _category;
+                                  
+                                  if (_category.toLowerCase().trim() == 'rent' &&
+                                      activeTour.purpose.toLowerCase() == 'mess') {
+                                    _messCostType = 'fixed';
+                                  }
+                                  setState(() {});
+                                }
                             },
                             icon: const Icon(Icons.receipt_long_rounded),
                             label: const Text(
