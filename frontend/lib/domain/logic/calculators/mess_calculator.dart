@@ -38,7 +38,7 @@ class MessSettlementCalculator extends BaseSettlementCalculator {
         if (paid.abs() > 0.001) {
           shareMap[nid] = paid;
           itemLogs[nid]?.add(BalanceItem(
-            title: "Pending (No Meals entered yet)", 
+            title: "Pending Calculation (Share = Paid)", 
             amount: paid, 
             type: 'share', 
             isCredit: false
@@ -90,15 +90,17 @@ class MessSettlementCalculator extends BaseSettlementCalculator {
       totalMeals += mealCounts?[u.id] ?? 0.0;
     }
 
-    // 2. Distribute Unhandled Meal Costs
-    // Since totalMeals > 0 (checked in caller), we treat unspecified (null) as meal (Bazar)
-    final mealExpenses = unhandledExpenses.where((e) => 
-      e.messCostType == 'meal' || e.messCostType == null
-    ).toList();
-    final totalMealCost = mealExpenses.fold(0.0, (sum, e) => sum + e.amount);
+    // 2. Identify Meal Expenses (Bazar)
+    // Rule: Anything that is not explicitly 'fixed' is treated as 'meal' (Bazar)
+    final mealExpenses = unhandledExpenses.where((e) {
+      final type = e.messCostType?.toLowerCase().trim();
+      return type != 'fixed';
+    }).toList();
+
+    final totalMealCost = mealExpenses.fold(0.0, (s, e) => s + e.amount);
+    final mealRate = totalMeals > 0 ? totalMealCost / totalMeals : 0.0;
 
     if (totalMealCost > 0) {
-      final mealRate = totalMealCost / totalMeals;
       double totalDistributedMeal = 0.0;
       final participatingNids = <String>[];
       
@@ -122,10 +124,11 @@ class MessSettlementCalculator extends BaseSettlementCalculator {
       }
     }
 
-    // 3. Identify Fixed Expenses
-    final fixedExpenses = unhandledExpenses.where((e) => 
-      e.messCostType == 'fixed'
-    ).toList();
+    // 3. Identify Fixed Expenses (Rent)
+    final fixedExpenses = unhandledExpenses.where((e) {
+      final type = e.messCostType?.toLowerCase().trim();
+      return type == 'fixed';
+    }).toList();
     
     final totalFixedCost = fixedExpenses.fold(0.0, (sum, e) => sum + e.amount);
 

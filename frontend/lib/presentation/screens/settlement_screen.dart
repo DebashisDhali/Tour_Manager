@@ -142,11 +142,17 @@ class SettlementScreen extends ConsumerWidget {
     // In Mess mode, if totalMeals > 0, treat null as meal. 
     // If totalMeals == 0, null is treated as "pending".
     final totalMealCost = unhandledDedupedExpenses
-        .where((e) => e.messCostType == 'meal' || (isMess && totalMeals > 0 && e.messCostType == null))
+        .where((e) {
+          final type = e.messCostType?.toLowerCase().trim();
+          return type != 'fixed';
+        })
         .fold(0.0, (s, e) => s + e.amount);
 
     final totalFixedCost = unhandledDedupedExpenses
-        .where((e) => e.messCostType == 'fixed')
+        .where((e) {
+          final type = e.messCostType?.toLowerCase().trim();
+          return type == 'fixed';
+        })
         .fold(0.0, (s, e) => s + e.amount);
 
     final mealRate = totalMeals > 0 ? totalMealCost / totalMeals : 0.0;
