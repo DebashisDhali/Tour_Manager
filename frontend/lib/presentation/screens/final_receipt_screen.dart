@@ -507,6 +507,18 @@ class FinalReceiptScreen extends ConsumerWidget {
     );
     final totalCost = expenses.fold(0.0, (sum, e) => sum + e.amount);
     final config = PurposeConfig.getConfig(purpose);
+    final isMess = purpose?.toLowerCase() == 'mess';
+
+    // Mess-specific calculations
+    final totalMealCost = isMess
+        ? expenses.where((e) => e.messCostType?.toLowerCase().trim() != 'fixed').fold(0.0, (s, e) => s + e.amount)
+        : 0.0;
+    final totalFixedCost = isMess
+        ? expenses.where((e) => e.messCostType?.toLowerCase().trim() == 'fixed').fold(0.0, (s, e) => s + e.amount)
+        : 0.0;
+    final totalMeals = mealCounts.values.fold(0.0, (s, c) => s + c);
+    final mealRate = totalMeals > 0 ? totalMealCost / totalMeals : 0.0;
+    final fixedPerPerson = users.isNotEmpty ? totalFixedCost / users.length : 0.0;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -515,104 +527,187 @@ class FinalReceiptScreen extends ConsumerWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(4),
         boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 10,
-              spreadRadius: 2),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, spreadRadius: 2),
         ],
       ),
       child: Column(
         children: [
-          const Text("FINAL RECEIPT",
-              style: TextStyle(
-                  fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 2)),
+          Text(isMess ? "MESS MONTHLY STATEMENT" : "FINAL RECEIPT",
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 2)),
           const SizedBox(height: 4),
           const Divider(),
           const SizedBox(height: 12),
-          Text(tour.name,
-              style:
-                  const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(tour.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           Text(
             tour.startDate == null
                 ? 'Active Period'
-                : '${DateFormat('MMM dd, yyyy').format(tour.startDate!)} - ${DateFormat('MMM dd, yyyy').format(tour.endDate ?? tour.startDate!)}',
+                : '${DateFormat('MMM dd, yyyy').format(tour.startDate!)} — ${DateFormat('MMM dd, yyyy').format(tour.endDate ?? tour.startDate!)}',
             style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
           const SizedBox(height: 24),
-          _buildRow("Total ${config.label} Cost",
-              "${totalCost.toStringAsFixed(0)} ৳", config.color,
-              isBold: true),
-          _buildRow("Total Members", "${users.length}", config.color),
-          const SizedBox(height: 24),
-          const Align(
-              alignment: Alignment.centerLeft,
-              child: Text("MEMBER CONTRIBUTIONS",
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      letterSpacing: 0.5))),
-          const SizedBox(height: 12),
-          Table(
-            border: TableBorder(
-              horizontalInside:
-                  BorderSide(color: Colors.grey.shade100, width: 0.5),
-              bottom: BorderSide(color: Colors.grey.shade300, width: 1),
-            ),
-            columnWidths: const {
-              0: FlexColumnWidth(2.5), // Name
-              1: FlexColumnWidth(1.5), // Paid
-              2: FlexColumnWidth(1.5), // Settled
-              3: FlexColumnWidth(1.5), // Share
-              4: FlexColumnWidth(1.5), // Balance
-            },
-            children: [
-              // Table Header
-              TableRow(
-                decoration: BoxDecoration(color: Colors.grey.shade50),
+          if (isMess) ...[
+            // ── MESS SUMMARY METRICS ──
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: Colors.teal.shade50, borderRadius: BorderRadius.circular(8)),
+              child: Column(
                 children: [
-                  _buildTableHeaderCell("Name", Alignment.centerLeft),
-                  _buildTableHeaderCell("Paid", Alignment.centerRight),
-                  _buildTableHeaderCell("Settled", Alignment.centerRight),
-                  _buildTableHeaderCell("Share", Alignment.centerRight),
-                  _buildTableHeaderCell("Balance", Alignment.centerRight),
+                  Row(children: [
+                    Expanded(child: _buildMetricTile("Total Bazar", "৳${totalMealCost.toStringAsFixed(0)}", Colors.orange)),
+                    Expanded(child: _buildMetricTile("Total Rent", "৳${totalFixedCost.toStringAsFixed(0)}", Colors.teal)),
+                  ]),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(child: _buildMetricTile("Total Meals", totalMeals.toStringAsFixed(1), Colors.blue)),
+                    Expanded(child: _buildMetricTile("Meal Rate", "৳${mealRate.toStringAsFixed(2)}/meal", Colors.purple)),
+                  ]),
                 ],
               ),
-              // Table Rows
-              ...users.map((u) {
-                final nid = u.id.toLowerCase();
-                final balanceDetails = balanceMap[nid] ?? balanceMap[u.id];
-                final balance = balanceDetails?.net ?? 0.0;
-                final share = balanceDetails?.share ?? 0.0;
-                final paidOnExpenses = balanceDetails?.paid ?? 0.0;
-                final adjustment = balanceDetails?.settled ?? 0.0;
-
-                return TableRow(
+            ),
+            const SizedBox(height: 20),
+            // ── MESS MEMBER TABLE ──
+            const Align(
+                alignment: Alignment.centerLeft,
+                child: Text("MEMBER BREAKDOWN",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5))),
+            const SizedBox(height: 8),
+            Table(
+              border: TableBorder(horizontalInside: BorderSide(color: Colors.grey.shade100, width: 0.5), bottom: BorderSide(color: Colors.grey.shade300, width: 1)),
+              columnWidths: const {
+                0: FlexColumnWidth(2.2),
+                1: FlexColumnWidth(1.0),
+                2: FlexColumnWidth(1.2),
+                3: FlexColumnWidth(1.2),
+                4: FlexColumnWidth(1.2),
+                5: FlexColumnWidth(1.2),
+              },
+              children: [
+                TableRow(
+                  decoration: BoxDecoration(color: Colors.teal.shade50),
                   children: [
+                    _buildTableHeaderCell("Name", Alignment.centerLeft),
+                    _buildTableHeaderCell("Meals", Alignment.center),
+                    _buildTableHeaderCell("Bazar ৳", Alignment.centerRight),
+                    _buildTableHeaderCell("Rent ৳", Alignment.centerRight),
+                    _buildTableHeaderCell("Paid ৳", Alignment.centerRight),
+                    _buildTableHeaderCell("Balance", Alignment.centerRight),
+                  ],
+                ),
+                ...users.map((u) {
+                  final nid = u.id.toLowerCase();
+                  final bd = balanceMap[nid] ?? balanceMap[u.id];
+                  final meals = mealCounts[u.id] ?? mealCounts[nid] ?? 0.0;
+                  final bazarShare = mealRate * meals;
+                  final rentShare = fixedPerPerson;
+                  final paid = bd?.paid ?? 0.0;
+                  final balance = bd?.net ?? 0.0;
+                  return TableRow(children: [
                     _buildTableCell(u.name, Alignment.centerLeft, isBold: true),
-                    _buildTableCell(paidOnExpenses.toStringAsFixed(0),
-                        Alignment.centerRight),
-                    _buildTableCell(
-                      "${adjustment >= 0 ? '+' : ''}${adjustment.toStringAsFixed(0)}",
-                      Alignment.centerRight,
-                      color: adjustment == 0
-                          ? Colors.grey
-                          : (adjustment > 0 ? Colors.green : Colors.orange),
-                    ),
-                    _buildTableCell(
-                        share.toStringAsFixed(0), Alignment.centerRight),
+                    _buildTableCell(meals.toStringAsFixed(1), Alignment.center),
+                    _buildTableCell(bazarShare.toStringAsFixed(0), Alignment.centerRight),
+                    _buildTableCell(rentShare.toStringAsFixed(0), Alignment.centerRight),
+                    _buildTableCell(paid.toStringAsFixed(0), Alignment.centerRight),
                     _buildTableCell(
                       "${balance >= 0 ? '+' : ''}${balance.toStringAsFixed(0)}",
                       Alignment.centerRight,
                       isBold: true,
-                      color: balance.abs() < 0.1
-                          ? Colors.grey
-                          : (balance > 0 ? Colors.green : Colors.red),
+                      color: balance.abs() < 0.5 ? Colors.grey : (balance > 0 ? Colors.green : Colors.red),
                     ),
+                  ]);
+                }),
+              ],
+            ),
+            const SizedBox(height: 20),
+            // ── EXPENSE BREAKDOWN ──
+            const Align(
+                alignment: Alignment.centerLeft,
+                child: Text("EXPENSE BREAKDOWN",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5))),
+            const SizedBox(height: 8),
+            ...expenses.map((e) {
+              final type = e.messCostType?.toLowerCase().trim();
+              final isBazar = type != 'fixed';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: isBazar ? Colors.orange.shade50 : Colors.teal.shade50,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      isBazar ? "BAZAR" : "RENT",
+                      style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: isBazar ? Colors.orange.shade700 : Colors.teal.shade700),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(e.title, style: const TextStyle(fontSize: 12))),
+                  Text("৳${e.amount.toStringAsFixed(0)}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                ]),
+              );
+            }),
+            const Divider(height: 20),
+            _buildRow("Total", "৳${totalCost.toStringAsFixed(0)}", config.color, isBold: true),
+          ] else ...[
+            _buildRow("Total ${config.label} Cost", "${totalCost.toStringAsFixed(0)} ৳", config.color, isBold: true),
+            _buildRow("Total Members", "${users.length}", config.color),
+            const SizedBox(height: 24),
+            const Align(
+                alignment: Alignment.centerLeft,
+                child: Text("MEMBER CONTRIBUTIONS",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5))),
+            const SizedBox(height: 12),
+            Table(
+              border: TableBorder(
+                horizontalInside: BorderSide(color: Colors.grey.shade100, width: 0.5),
+                bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+              ),
+              columnWidths: const {
+                0: FlexColumnWidth(2.5),
+                1: FlexColumnWidth(1.5),
+                2: FlexColumnWidth(1.5),
+                3: FlexColumnWidth(1.5),
+                4: FlexColumnWidth(1.5),
+              },
+              children: [
+                TableRow(
+                  decoration: BoxDecoration(color: Colors.grey.shade50),
+                  children: [
+                    _buildTableHeaderCell("Name", Alignment.centerLeft),
+                    _buildTableHeaderCell("Paid", Alignment.centerRight),
+                    _buildTableHeaderCell("Settled", Alignment.centerRight),
+                    _buildTableHeaderCell("Share", Alignment.centerRight),
+                    _buildTableHeaderCell("Balance", Alignment.centerRight),
                   ],
-                );
-              }),
-            ],
-          ),
+                ),
+                ...users.map((u) {
+                  final nid = u.id.toLowerCase();
+                  final balanceDetails = balanceMap[nid] ?? balanceMap[u.id];
+                  final balance = balanceDetails?.net ?? 0.0;
+                  final share = balanceDetails?.share ?? 0.0;
+                  final paidOnExpenses = balanceDetails?.paid ?? 0.0;
+                  final adjustment = balanceDetails?.settled ?? 0.0;
+                  return TableRow(children: [
+                    _buildTableCell(u.name, Alignment.centerLeft, isBold: true),
+                    _buildTableCell(paidOnExpenses.toStringAsFixed(0), Alignment.centerRight),
+                    _buildTableCell(
+                      "${adjustment >= 0 ? '+' : ''}${adjustment.toStringAsFixed(0)}",
+                      Alignment.centerRight,
+                      color: adjustment == 0 ? Colors.grey : (adjustment > 0 ? Colors.green : Colors.orange),
+                    ),
+                    _buildTableCell(share.toStringAsFixed(0), Alignment.centerRight),
+                    _buildTableCell(
+                      "${balance >= 0 ? '+' : ''}${balance.toStringAsFixed(0)}",
+                      Alignment.centerRight,
+                      isBold: true,
+                      color: balance.abs() < 0.1 ? Colors.grey : (balance > 0 ? Colors.green : Colors.red),
+                    ),
+                  ]);
+                }),
+              ],
+            ),
+          ],
           const SizedBox(height: 24),
           const Align(
               alignment: Alignment.centerLeft,
@@ -671,6 +766,15 @@ class FinalReceiptScreen extends ConsumerWidget {
                   color: isBold ? color : Colors.black)),
         ],
       ),
+    );
+  }
+
+  Widget _buildMetricTile(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+        Text(label, style: const TextStyle(fontSize: 9, color: Colors.grey)),
+      ],
     );
   }
 
