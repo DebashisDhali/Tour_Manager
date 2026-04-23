@@ -137,7 +137,7 @@ class SettlementScreen extends ConsumerWidget {
     // This matches the fix in MessSettlementCalculator.
     final totalMealCost = isMess
         ? dedupedExpenses
-            .where((e) => e.messCostType?.toLowerCase().trim() == 'meal')
+            .where((e) => e.messCostType?.toLowerCase().trim() != 'fixed')
             .fold(0.0, (s, e) => s + e.amount)
         : dedupedExpenses
             .where((e) => !tourSplits.map((s) => s.expenseId).toSet().contains(e.id))

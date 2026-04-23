@@ -69,16 +69,11 @@ class MessSettlementCalculator extends BaseSettlementCalculator {
     Map<String, List<BalanceItem>> itemLogs,
   ) {
     // --- KEY FIX ---
-    // In Mess mode, expenses are categorized by messCostType FIRST.
-    // 'meal' -> distribute by meal count (ALWAYS, even if split records exist)
-    // 'fixed' -> distribute equally (ALWAYS, even if split records exist)
-    // null -> truly custom: use existing ExpenseSplit records
-    // This prevents the bug where equal-split records for Bazar expenses
-    // were causing them to be treated as "custom splits", zeroing out mealRate.
-
+    // In Mess mode: anything NOT explicitly 'fixed' is Bazar (meal).
+    // This includes null/empty messCostType — handles legacy data too.
     final mealExpenses = expenses.where((e) {
       final type = e.messCostType?.toLowerCase().trim();
-      return type == 'meal';
+      return type != 'fixed'; // null, 'meal', or anything else → Bazar
     }).toList();
 
     final fixedExpenses = expenses.where((e) {
@@ -86,14 +81,18 @@ class MessSettlementCalculator extends BaseSettlementCalculator {
       return type == 'fixed';
     }).toList();
 
-    // Only expenses with NO messCostType (null/empty) fall through to custom split logic
+    // Custom splits are NOT used in Mess mode — meal/fixed expenses each have their own path.
+    // (Splits created by the expense entry screen are equal splits — not truly custom.)
+    // We only use splits for expenses that are truly custom (no messCostType context).
+    // Since we treat null as meal above, all expenses now fall into meal or fixed.
+    // So customSplits will always be empty in Mess mode — which is correct.
     final mealAndFixedIds = {
       ...mealExpenses.map((e) => e.id),
       ...fixedExpenses.map((e) => e.id),
     };
     final customSplits = splits.where((s) => !mealAndFixedIds.contains(s.expenseId)).toList();
 
-    // 1. Handle Explicit Custom Splits (only for non-typed expenses)
+    // 1. Handle Explicit Custom Splits (only for non-typed expenses — empty in Mess mode)
     for (var split in customSplits) {
       final nid = split.userId;
       if (shareMap.containsKey(nid)) {
