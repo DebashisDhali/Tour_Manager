@@ -70,24 +70,38 @@ class SettlementScreen extends ConsumerWidget {
     final fallbackUsers = tourMembers.map((m) => m.user).toList();
     final settlementUsers = users.isNotEmpty ? users : fallbackUsers;
 
-    final totalCost = expenses.fold(0.0, (sum, e) => sum + e.amount);
+    // Deduplicate expenses for accurate summary display (ID-based to match calculator)
+    final Map<String, models.Expense> dedupedExpensesMap = {};
+    for (var e in expenses) {
+      dedupedExpensesMap[e.id] = e;
+    }
+    final dedupedExpenses = dedupedExpensesMap.values.toList();
+
+    // Calculate totals from deduplicated data
+    final totalCost = dedupedExpenses.fold(0.0, (sum, e) => sum + e.amount);
     final equalShare =
         settlementUsers.isEmpty ? 0.0 : totalCost / settlementUsers.length;
 
-    final activeUserIds = settlementUsers.map((u) => u.id).toSet();
+    final activeUserIds = settlementUsers.map((u) => u.id.toLowerCase()).toSet();
     final activeTourMembers = tourMembers
-        .where((m) => m.status == 'active' && activeUserIds.contains(m.user.id))
+        .where((m) => m.status == 'active' && activeUserIds.contains(m.user.id.toLowerCase()))
         .toList();
+    final Map<String, models.MealRecord> dedupedMealRecords = {};
+    for (var r in mealRecords) {
+      if (!dedupedMealRecords.containsKey(r.id)) dedupedMealRecords[r.id] = r;
+    }
+    
     final mealCounts = <String, double>{};
-    for (final record in mealRecords) {
-      if (activeUserIds.contains(record.userId)) {
-        mealCounts[record.userId] =
-            (mealCounts[record.userId] ?? 0.0) + record.count;
+    for (final record in dedupedMealRecords.values) {
+      final normalizedUserId = record.userId.toLowerCase();
+      if (activeUserIds.contains(normalizedUserId)) {
+        mealCounts[normalizedUserId] =
+            (mealCounts[normalizedUserId] ?? 0.0) + record.count;
       }
     }
     if (mealCounts.isEmpty) {
       for (var m in activeTourMembers) {
-        mealCounts[m.user.id] = m.mealCount;
+        mealCounts[m.user.id.toLowerCase()] = m.mealCount;
       }
     }
     final calculator = SettlementCalculator();
@@ -114,23 +128,25 @@ class SettlementScreen extends ConsumerWidget {
       incomes: incomes,
     );
 
-    // Calculate meal rate for display (SINGLE SOURCE OF TRUTH)
-    final totalMealCost = expenses
-        .where((e) => e.messCostType == 'meal')
+    // Calculate totals based on MessSettlementCalculator logic
+    final totalMeals = mealCounts.values.fold(0.0, (s, c) => s + c);
+    final isMess = tour.purpose.toLowerCase() == 'mess';
+
+    // In Mess mode, if totalMeals > 0, treat null as meal. 
+    // If totalMeals == 0, null is treated as "pending" (not in meal or fixed).
+    final totalMealCost = dedupedExpenses
+        .where((e) => e.messCostType == 'meal' || (isMess && totalMeals > 0 && e.messCostType == null))
         .fold(0.0, (s, e) => s + e.amount);
 
-    // Calculate fixed cost per person (divided by ALL members)
-    final totalFixedCost = expenses
+    final totalFixedCost = dedupedExpenses
         .where((e) => e.messCostType == 'fixed')
         .fold(0.0, (s, e) => s + e.amount);
+
+    final mealRate = totalMeals > 0 ? totalMealCost / totalMeals : 0.0;
     final fixedCostPerPerson =
-        users.isNotEmpty && tour.purpose.toLowerCase() == 'mess'
+        settlementUsers.isNotEmpty && isMess && totalMeals > 0
             ? totalFixedCost / settlementUsers.length
             : 0.0;
-
-    // Only count members who actually participated (have meal count > 0)
-    final totalMeals = mealCounts.values.fold(0.0, (s, c) => s + c);
-    final mealRate = totalMeals > 0 ? totalMealCost / totalMeals : 0.0;
 
     // Check permissions
     final myMember = tourMembers.where((m) => m.user.id == myId).firstOrNull;
@@ -417,7 +433,7 @@ class SettlementScreen extends ConsumerWidget {
                     ],
                   ),
 
-                  if (tour.purpose.toLowerCase() == 'mess') ...[
+                  if (isMess) ...[
                     const SizedBox(height: 16),
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -426,42 +442,59 @@ class SettlementScreen extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.05)),
                       ),
-                      child: Column(
-                        children: [
-                          _buildBreakdownRow(
-                            context,
-                            "Meals (${mealCounts[u.id]?.toStringAsFixed(1) ?? '0'})",
-                            "৳${( (mealCounts[u.id] ?? 0) * mealRate).toStringAsFixed(2)}",
-                            Icons.restaurant_rounded,
-                            Colors.orange,
+                      child: totalMeals > 0 
+                        ? Column(
+                            children: [
+                              _buildBreakdownRow(
+                                context,
+                                "Meals (${mealCounts[u.id.toLowerCase()]?.toStringAsFixed(1) ?? '0'})",
+                                "৳${( (mealCounts[u.id.toLowerCase()] ?? 0) * mealRate).toStringAsFixed(2)}",
+                                Icons.restaurant_rounded,
+                                Colors.orange,
+                              ),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 4),
+                                child: Divider(height: 1),
+                              ),
+                              _buildBreakdownRow(
+                                context,
+                                "Shared Fixed Costs",
+                                "৳${fixedCostPerPerson.toStringAsFixed(2)}",
+                                Icons.home_rounded,
+                                Colors.blue,
+                              ),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 2),
+                                child: DottedLine(height: 1),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text("Total Share", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                    Text("৳${details.share.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          )
+                        : Column(
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.info_outline, size: 14, color: Colors.orange),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      "Calculation pending until first meal is entered.",
+                                      style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6)),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 4),
-                            child: Divider(height: 1),
-                          ),
-                          _buildBreakdownRow(
-                            context,
-                            "Shared Fixed Costs",
-                            "৳${fixedCostPerPerson.toStringAsFixed(2)}",
-                            Icons.home_rounded,
-                            Colors.blue,
-                          ),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 2),
-                            child: DottedLine(height: 1),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text("Total Share", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                                Text("৳${details.share.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
                     ),
                   ],
 
@@ -511,7 +544,7 @@ class SettlementScreen extends ConsumerWidget {
                           size: 13, color: Colors.redAccent),
                       const SizedBox(width: 6),
                       Text(
-                        hasCustomShare ? 'Share  (≠ equal)' : 'Share',
+                        hasCustomShare ? 'Share (≠ equal)' : 'Share',
                         style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
@@ -520,16 +553,6 @@ class SettlementScreen extends ConsumerWidget {
                                 .onSurface
                                 .withValues(alpha: 0.6)),
                       ),
-                      if (hasCustomShare) ...[
-                        const SizedBox(width: 4),
-                        Tooltip(
-                          message:
-                              'Equal share = ৳${equalShare.toStringAsFixed(0)}\nActual share = ৳${details.share.toStringAsFixed(0)}',
-                          child: Icon(Icons.help_outline_rounded,
-                              size: 12,
-                              color: Colors.orange.withValues(alpha: 0.7)),
-                        ),
-                      ],
                       const Spacer(),
                       Text(
                         '৳${details.share.toStringAsFixed(0)}',
@@ -545,7 +568,6 @@ class SettlementScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 4),
 
-                  // Share progress bar
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
@@ -557,6 +579,61 @@ class SettlementScreen extends ConsumerWidget {
                           Colors.redAccent.withValues(alpha: 0.6)),
                     ),
                   ),
+
+                  // —— NEW: Detailed Breakdown Expansion ——
+                  if (details.items.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Theme(
+                      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                      child: ExpansionTile(
+                        tilePadding: EdgeInsets.zero,
+                        dense: true,
+                        title: Text(
+                          "View Detailed Audit",
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        children: details.items.map((item) {
+                          final isPos = item.isCredit;
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  isPos ? Icons.add_circle_outline : Icons.remove_circle_outline,
+                                  size: 12,
+                                  color: isPos ? Colors.green : Colors.redAccent,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    item.title,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Text(
+                                  "${isPos ? '+' : '-'}৳${item.amount.toStringAsFixed(0)}",
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: isPos ? Colors.green : Colors.redAccent,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
