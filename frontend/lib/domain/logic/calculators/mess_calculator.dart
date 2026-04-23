@@ -50,33 +50,48 @@ class MessSettlementCalculator extends BaseSettlementCalculator {
     // --- KEY FIX ---
     // In Mess mode: anything NOT explicitly 'fixed' is Bazar (meal).
     // This includes null/empty messCostType — handles legacy data too.
-    final mealExpenses = expenses.where((e) {
+    // --- ROBUST CATEGORIZATION LOGIC ---
+    // 1. Explicit Custom Splits take the HIGHEST priority.
+    // If an expense has manually defined splits, we respect them regardless of type.
+    final splitExpenseIds = splits.map((s) => s.expenseId.toLowerCase()).toSet();
+    
+    final mealExpenses = <Expense>[];
+    final fixedExpenses = <Expense>[];
+    final customSplitExpenses = <Expense>[];
+
+    for (var e in expenses) {
+      if (splitExpenseIds.contains(e.id.toLowerCase())) {
+        customSplitExpenses.add(e);
+        continue;
+      }
+
       final type = e.messCostType?.toLowerCase().trim();
-      return type != 'fixed'; // null, 'meal', or anything else → Bazar
-    }).toList();
+      final category = e.category.toLowerCase().trim();
+      
+      // Fixed Cost indicators: type is 'fixed' OR category is Rent/Maid/Wifi/Others
+      final isFixed = type == 'fixed' || 
+                      category == 'rent' || 
+                      category == 'maid' || 
+                      category == 'wifi' || 
+                      category == 'others';
 
-    final fixedExpenses = expenses.where((e) {
-      final type = e.messCostType?.toLowerCase().trim();
-      return type == 'fixed';
-    }).toList();
+      if (isFixed) {
+        fixedExpenses.add(e);
+      } else {
+        // Default to Meal (Bazar) for everything else in Mess mode
+        mealExpenses.add(e);
+      }
+    }
 
-    // Custom splits are NOT used in Mess mode — meal/fixed expenses each have their own path.
-    // (Splits created by the expense entry screen are equal splits — not truly custom.)
-    // We only use splits for expenses that are truly custom (no messCostType context).
-    // Since we treat null as meal above, all expenses now fall into meal or fixed.
-    // So customSplits will always be empty in Mess mode — which is correct.
-    final mealAndFixedIds = {
-      ...mealExpenses.map((e) => e.id),
-      ...fixedExpenses.map((e) => e.id),
-    };
-    final customSplits = splits.where((s) => !mealAndFixedIds.contains(s.expenseId)).toList();
-
-    // 1. Handle Explicit Custom Splits (only for non-typed expenses — empty in Mess mode)
-    for (var split in customSplits) {
-      final nid = split.userId;
+    // Process Custom Splits
+    final relevantSplits = splits.where((s) => splitExpenseIds.contains(s.expenseId.toLowerCase())).toList();
+    for (var split in relevantSplits) {
+      final nid = split.userId.toLowerCase();
       if (shareMap.containsKey(nid)) {
         shareMap[nid] = roundTo2Decimals((shareMap[nid] ?? 0.0) + split.amount);
-        itemLogs[nid]?.add(BalanceItem(title: "Custom Split", amount: split.amount, type: 'share', isCredit: false));
+        // Find expense title for better logging
+        final exp = customSplitExpenses.firstWhere((e) => e.id.toLowerCase() == split.expenseId.toLowerCase(), orElse: () => expenses.first);
+        itemLogs[nid]?.add(BalanceItem(title: "${exp.title} (Split)", amount: split.amount, type: 'share', isCredit: false));
       }
     }
 

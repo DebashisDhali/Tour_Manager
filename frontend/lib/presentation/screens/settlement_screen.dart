@@ -129,26 +129,39 @@ class SettlementScreen extends ConsumerWidget {
       incomes: incomes,
     );
 
-    // Calculate totals based on MessSettlementCalculator logic
+    // Calculate totals based on Robust Mess Logic
     final totalMeals = mealCounts.values.fold(0.0, (s, c) => s + c);
     final isMess = tour.purpose.toLowerCase() == 'mess';
+    final splitExpenseIds = tourSplits.map((s) => s.expenseId.toLowerCase()).toSet();
 
-    // KEY FIX: For Mess mode, categorize expenses by messCostType DIRECTLY.
-    // Do NOT filter by split records — meal/fixed expenses always have their own path.
-    // This matches the fix in MessSettlementCalculator.
-    final totalMealCost = isMess
-        ? dedupedExpenses
-            .where((e) => e.messCostType?.toLowerCase().trim() != 'fixed')
-            .fold(0.0, (s, e) => s + e.amount)
-        : dedupedExpenses
-            .where((e) => !tourSplits.map((s) => s.expenseId).toSet().contains(e.id))
-            .fold(0.0, (s, e) => s + e.amount);
+    double totalMealCost = 0.0;
+    double totalFixedCost = 0.0;
 
-    final totalFixedCost = isMess
-        ? dedupedExpenses
-            .where((e) => e.messCostType?.toLowerCase().trim() == 'fixed')
-            .fold(0.0, (s, e) => s + e.amount)
-        : 0.0;
+    if (isMess) {
+      for (var e in dedupedExpenses) {
+        // If it has custom splits, it's neither Bazar nor standard Fixed pool in the summary
+        if (splitExpenseIds.contains(e.id.toLowerCase())) continue;
+
+        final type = e.messCostType?.toLowerCase().trim();
+        final category = e.category.toLowerCase().trim();
+        
+        final isFixed = type == 'fixed' || 
+                        category == 'rent' || 
+                        category == 'maid' || 
+                        category == 'wifi' || 
+                        category == 'others';
+
+        if (isFixed) {
+          totalFixedCost += e.amount;
+        } else {
+          totalMealCost += e.amount;
+        }
+      }
+    } else {
+      totalMealCost = dedupedExpenses
+          .where((e) => !splitExpenseIds.contains(e.id.toLowerCase()))
+          .fold(0.0, (s, e) => s + e.amount);
+    }
 
     final mealRate = totalMeals > 0 ? totalMealCost / totalMeals : 0.0;
     final fixedCostPerPerson =
