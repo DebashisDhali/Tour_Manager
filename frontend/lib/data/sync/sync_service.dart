@@ -152,9 +152,9 @@ class SyncService {
               .toList(),
           'tours': unsyncedTours
               .map((t) => {
-                    'id': t.id,
+                    'id': t.id.toLowerCase(),
                     'name': t.name,
-                    'createdBy': t.createdBy,
+                    'createdBy': t.createdBy.toLowerCase(),
                     'inviteCode': t.inviteCode,
                     'startDate': t.startDate?.toIso8601String(),
                     'endDate': t.endDate?.toIso8601String(),
@@ -164,9 +164,9 @@ class SyncService {
               .toList(),
           'expenses': unsyncedExpenses
               .map((e) => {
-                    'id': e.id,
-                    'tourId': e.tourId,
-                'payerId': _hasId(e.payerId) ? e.payerId : null,
+                    'id': e.id.toLowerCase(),
+                    'tourId': e.tourId.toLowerCase(),
+                'payerId': _hasId(e.payerId) ? e.payerId!.toLowerCase() : null,
                     'amount': e.amount,
                     'title': e.title,
                     'category': e.category,
@@ -177,18 +177,18 @@ class SyncService {
               .toList(),
           'splits': unsyncedSplits
               .map((s) => {
-                    'id': s.id,
-                    'expenseId': s.expenseId,
-                    'userId': s.userId,
+                    'id': s.id.toLowerCase(),
+                    'expenseId': s.expenseId.toLowerCase(),
+                    'userId': s.userId.toLowerCase(),
                     'amount': s.amount,
                     'isDeleted': s.isDeleted,
                   })
               .toList(),
           'payers': unsyncedPayers
               .map((p) => {
-                    'id': p.id,
-                    'expenseId': p.expenseId,
-                    'userId': p.userId,
+                    'id': p.id.toLowerCase(),
+                    'expenseId': p.expenseId.toLowerCase(),
+                    'userId': p.userId.toLowerCase(),
                     'amount': p.amount,
                     'isDeleted': p.isDeleted,
                   })

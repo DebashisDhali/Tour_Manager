@@ -687,7 +687,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       }
 
       final database = ref.read(databaseProvider);
-      final expenseId = widget.initialExpense?.id ?? const Uuid().v4();
+      final expenseId = (widget.initialExpense?.id ?? const Uuid().v4()).toLowerCase();
 
       List<models.ExpenseSplit> splits;
       if (!_isCustomSplit) {
@@ -696,9 +696,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         splits = members
             .where((m) => _involvedMemberIds.contains(m.user.id))
             .map((m) => models.ExpenseSplit(
-                id: const Uuid().v4(),
+                id: const Uuid().v4().toLowerCase(),
                 expenseId: expenseId,
-                userId: m.user.id,
+                userId: m.user.id.toLowerCase(),
                 amount: splitAmount,
                 isSynced: false,
                 isDeleted: false))
@@ -707,9 +707,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         splits = _splitAmounts.entries
             .where((e) => _involvedMemberIds.contains(e.key))
             .map((e) => models.ExpenseSplit(
-                id: const Uuid().v4(),
+                id: const Uuid().v4().toLowerCase(),
                 expenseId: expenseId,
-                userId: e.key,
+                userId: e.key.toLowerCase(),
                 amount: e.value,
                 isSynced: false,
                 isDeleted: false))
@@ -719,9 +719,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       final payers = _payerAmounts.entries
           .where((e) => e.value > 0)
           .map((e) => models.ExpensePayer(
-              id: const Uuid().v4(),
+              id: const Uuid().v4().toLowerCase(),
               expenseId: expenseId,
-              userId: e.key,
+              userId: e.key.toLowerCase(),
               amount: e.value,
               isSynced: false,
               isDeleted: false))

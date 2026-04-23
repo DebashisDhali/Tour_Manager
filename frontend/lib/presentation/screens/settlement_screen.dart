@@ -71,9 +71,10 @@ class SettlementScreen extends ConsumerWidget {
     final settlementUsers = users.isNotEmpty ? users : fallbackUsers;
 
     // Deduplicate expenses for accurate summary display (ID-based to match calculator)
+    // KEY FIX: Use lowercase keys to merge potential case-sensitive ghosts
     final Map<String, models.Expense> dedupedExpensesMap = {};
     for (var e in expenses) {
-      dedupedExpensesMap[e.id] = e;
+      dedupedExpensesMap[e.id.toLowerCase()] = e;
     }
     final dedupedExpenses = dedupedExpensesMap.values.toList();
 
@@ -107,7 +108,7 @@ class SettlementScreen extends ConsumerWidget {
     final calculator = SettlementCalculator();
 
     final instructions = calculator.calculate(
-      expenses,
+      dedupedExpenses,
       tourSplits,
       tourPayers,
       settlementUsers,
@@ -118,7 +119,7 @@ class SettlementScreen extends ConsumerWidget {
     );
 
     final balanceDetailsMap = calculator.getFullBalances(
-      expenses: expenses,
+      expenses: dedupedExpenses,
       splits: tourSplits,
       expensePayers: tourPayers,
       users: settlementUsers,

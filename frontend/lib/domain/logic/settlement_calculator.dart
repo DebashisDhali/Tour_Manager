@@ -1,5 +1,12 @@
 import 'dart:math';
+import 'package:drift/drift.dart';
 import '../../data/local/app_database.dart';
+import 'calculators/base_calculator.dart';
+import 'calculators/tour_calculator.dart';
+import 'calculators/mess_calculator.dart';
+import 'calculators/event_calculator.dart';
+import 'calculators/project_calculator.dart';
+import 'calculators/party_calculator.dart';
 
 class SettlementInstruction {
   final String payerId;
@@ -22,12 +29,28 @@ class UserBalanceDetails {
   final double share;
   final double settled; // Previous settlements (money received - money paid)
   final double net;
+  final List<BalanceItem> items;
 
   UserBalanceDetails({
     required this.paid,
     required this.share,
     this.settled = 0.0,
     required this.net,
+    this.items = const [],
+  });
+}
+
+class BalanceItem {
+  final String title;
+  final double amount;
+  final String type; // 'paid', 'share', 'settled'
+  final bool isCredit;
+
+  BalanceItem({
+    required this.title,
+    required this.amount,
+    required this.type,
+    required this.isCredit,
   });
 }
 
@@ -84,7 +107,8 @@ class SettlementCalculator {
     // Creditors descending: people owed most go first
     creditors.sort((a, b) => b.amount.compareTo(a.amount));
 
-    final userMap = {for (var u in users) u.id: u};
+    // Normalize userMap keys for reliable lookups
+    final userMap = {for (var u in users) u.id.toLowerCase(): u};
     final settlements = <SettlementInstruction>[];
 
     // 4. Two-pointer greedy algorithm for optimal settlements
@@ -138,7 +162,7 @@ class SettlementCalculator {
 
   /// Calculates complete balance details for all users
   /// Accounts for: paid amounts, shares (obligations), previous settlements
-  /// Supports: Tour (equal split), Mess (meal-based + fixed), Program (income-based)
+  /// Delegates to specialized calculators based on purpose for 100% accuracy
   Map<String, UserBalanceDetails> getFullBalances({
     required List<Expense> expenses,
     required List<ExpenseSplit> splits,
@@ -149,330 +173,102 @@ class SettlementCalculator {
     Map<String, double>? mealCounts,
     List<ProgramIncome>? incomes,
   }) {
-    final paidMap = <String, double>{};
-    final shareMap = <String, double>{};
-    final settledMap = <String, double>{};
-
-    // 0. Deduplicate users by normalized ID to prevent calculation errors
+    // 0. Normalize and Deduplicate all inputs at the entry point (Case-Insensitive)
     final Map<String, User> uniqueUsers = {};
     for (var u in users) {
-      uniqueUsers[u.id.toLowerCase()] = u;
+      final normalizedId = u.id.toLowerCase();
+      if (!uniqueUsers.containsKey(normalizedId)) {
+        uniqueUsers[normalizedId] = u.copyWith(id: normalizedId);
+      }
     }
     final deduplicatedUsers = uniqueUsers.values.toList();
 
-    // Initialize maps for all users with normalized IDs (lowercase)
-    for (var u in deduplicatedUsers) {
-      final nid = u.id.toLowerCase();
-      paidMap[nid] = 0.0;
-      shareMap[nid] = 0.0;
-      settledMap[nid] = 0.0;
-    }
-
-    // ===== STEP 1: CALCULATE PAID AMOUNTS =====
-
-    // Deduplicate expense payer records
-    final Set<String> processedPayerRecordIds = {};
-    final Set<String> expensesWithPayerRecords = {};
-    
-    // Normalize user IDs for all lookups in maps
-    for (var ep in expensePayers) {
-      if (processedPayerRecordIds.contains(ep.id)) continue;
-      processedPayerRecordIds.add(ep.id);
-      
-      expensesWithPayerRecords.add(ep.expenseId);
-      final nid = ep.userId.toLowerCase();
-      paidMap[nid] = _roundTo2Decimals(
-        (paidMap[nid] ?? 0.0) + ep.amount,
-      );
-    }
-
-    // 1.2 Fallback: expense.payerId for expenses without payer records
-    final Set<String> processedExpenseIds = {};
+    final Map<String, Expense> uniqueExpenses = {};
     for (var e in expenses) {
-      if (processedExpenseIds.contains(e.id)) continue;
-      processedExpenseIds.add(e.id);
-      
-      if (!expensesWithPayerRecords.contains(e.id) && e.payerId != null) {
-        final nid = e.payerId!.toLowerCase();
-        paidMap[nid] = _roundTo2Decimals(
-          (paidMap[nid] ?? 0.0) + e.amount,
+      final normalizedId = e.id.toLowerCase();
+      if (!uniqueExpenses.containsKey(normalizedId)) {
+        uniqueExpenses[normalizedId] = e.copyWith(
+          id: normalizedId,
+          payerId: Value(e.payerId?.toLowerCase()),
+          tourId: e.tourId.toLowerCase(),
         );
       }
     }
+    final deduplicatedExpenses = uniqueExpenses.values.toList();
 
-    // 1.3 Program incomes (collected/shared funds)
-    double totalSharedIncome = 0.0;
-    if (incomes != null) {
-      final Set<String> processedIncomeIds = {};
-      for (var income in incomes) {
-        if (processedIncomeIds.contains(income.id)) continue;
-        processedIncomeIds.add(income.id);
-        
-        final source = (income.source ?? '').toLowerCase();
-        // If it's a common fund or surplus from last month, it reduces the total mess obligation
-        if (source.contains('brought forward') || 
-            source.contains('common') || 
-            source.contains('fund') || 
-            source.contains('balance') ||
-            source.contains('carried')) {
-          totalSharedIncome += income.amount;
-        } else {
-          // Individual collection (liability for the collector)
-          final nid = income.collectedBy.toLowerCase();
-          paidMap[nid] = _roundTo2Decimals(
-            (paidMap[nid] ?? 0.0) - income.amount,
-          );
-        }
-      }
-    }
-
-    // Distribute shared income equally among all members as a "negative share"
-    if (totalSharedIncome > 0 && deduplicatedUsers.isNotEmpty) {
-      final incomePerMember = _roundTo2Decimals(totalSharedIncome / deduplicatedUsers.length);
-      final totalDistributed = _roundTo2Decimals(incomePerMember * deduplicatedUsers.length);
-      final remainder = _roundTo2Decimals(totalSharedIncome - totalDistributed);
-
-      for (int i = 0; i < deduplicatedUsers.length; i++) {
-        final nid = deduplicatedUsers[i].id.toLowerCase();
-        final extra = (i == 0) ? remainder : 0.0;
-        final shareReduction = incomePerMember + extra;
-        // shareMap start at 0, so subtract here or later. 
-        // We'll subtract from final share.
-        shareMap[nid] = (shareMap[nid] ?? 0.0) - shareReduction;
-      }
-    }
-
-    // ===== STEP 2: CALCULATE SHARE OBLIGATIONS =====
-
-    // Detect if this is a MESS tour
-    bool isMessMode = purpose?.toLowerCase() == 'mess';
-
-    if (isMessMode) {
-      // ===== MESS MODE: Meal-based + Fixed Costs =====
-
-      // ===== DISTRIBUTE FIXED COSTS (RENT, UTILITIES) =====
-      // Fixed costs divided by ALL members (everyone occupies the space)
-      // Even if not present, they're still sharing the rent
-      
-      // Identify participating members (those with meal count > 0)
-      final totalMeals =
-          mealCounts?.values.fold(0.0, (sum, count) => sum + count) ?? 0.0;
-
-      // Fallback: any expense in mess mode that is NOT marked as 'meal' 
-      // and has no explicit splits should be treated as shared fixed cost.
-      // CRITICAL: If totalMeals is 0, then EVEN 'meal' expenses act as fixed costs!
-      final expensesWithSplits = splits.map((s) => s.expenseId).toSet();
-      
-      final actualFixedExpenses = expenses.where((e) => 
-        e.messCostType == 'fixed' || 
-        (e.messCostType == 'meal' && totalMeals <= 0) ||
-        (e.messCostType == null && !expensesWithSplits.contains(e.id))
-      ).fold<List<Expense>>([], (list, e) {
-        if (!list.any((item) => item.id == e.id)) list.add(e);
-        return list;
-      });
-      
-      final totalFixedCost = actualFixedExpenses.fold(0.0, (sum, e) => sum + e.amount);
-
-      if (deduplicatedUsers.isNotEmpty && totalFixedCost > 0) {
-        final fixedPerMember = _roundTo2Decimals(totalFixedCost / deduplicatedUsers.length);
-
-        // Calculate remainder to distribute (avoid rounding losses)
-        final totalDistributed =
-            _roundTo2Decimals(fixedPerMember * deduplicatedUsers.length);
-        final fixedRemainder =
-            _roundTo2Decimals(totalFixedCost - totalDistributed);
-
-        for (int idx = 0; idx < deduplicatedUsers.length; idx++) {
-          final nid = deduplicatedUsers[idx].id.toLowerCase();
-          // Add remainder to first member to prevent rounding loss
-          final extraAmount = idx == 0 ? fixedRemainder : 0.0;
-          shareMap[nid] = _roundTo2Decimals((shareMap[nid] ?? 0.0) + fixedPerMember + extraAmount);
-        }
-      }
-
-      // ===== DISTRIBUTE MEAL COSTS =====
-      // Based on meal count per person
-      final mealExpenses =
-          expenses.where((e) => e.messCostType == 'meal').toList();
-      final totalMealCost = mealExpenses.fold(0.0, (sum, e) => sum + e.amount);
-
-      if (totalMeals > 0 && totalMealCost > 0) {
-        final mealRate = totalMealCost / totalMeals; // Keep precision for now
-
-        // Distribute meal costs proportional to meal count
-        double totalDistributedMeal = 0.0;
-        final participatingNids = <String>[];
-        
-        for (var u in deduplicatedUsers) {
-          final nid = u.id.toLowerCase();
-          final count = mealCounts?[u.id] ?? mealCounts?[nid] ?? 0.0;
-          if (count > 0) {
-            participatingNids.add(nid);
-            final mealShare = _roundTo2Decimals(mealRate * count);
-            totalDistributedMeal += mealShare;
-            shareMap[nid] = _roundTo2Decimals((shareMap[nid] ?? 0.0) + mealShare);
-          }
-        }
-        
-        // Rounding compensation for meals
-        final mealRemainder = _roundTo2Decimals(totalMealCost - totalDistributedMeal);
-        if (mealRemainder.abs() > 0.001 && participatingNids.isNotEmpty) {
-          final pNid = participatingNids.first;
-          shareMap[pNid] = _roundTo2Decimals((shareMap[pNid] ?? 0.0) + mealRemainder);
-        }
-      }
-
-      // ===== HANDLE NON-MESS SPLITS =====
-      // Custom splits that aren't meal/fixed expenses
-      final messManagedIds = expenses
-          .where((e) => e.messCostType != null)
-          .map((e) => e.id)
-          .toSet();
-
-      for (var split in splits) {
-        if (!messManagedIds.contains(split.expenseId)) {
-          final nid = split.userId.toLowerCase();
-          if (shareMap.containsKey(nid)) {
-             shareMap[nid] = _roundTo2Decimals(
-               (shareMap[nid] ?? 0.0) + split.amount,
-             );
-          }
-        }
-      }
-    } else {
-      // ===== TOUR/PROGRAM MODE: Use Explicit Splits =====
-      
-      // Track total split amount per expense to find "orphaned" shares
-      final Map<String, double> splitSumPerExpense = {};
-      
-      // Deduplicate splits per user per expense to avoid double-counting sync errors
-      final Map<String, Map<String, double>> dedupedSplits = {};
-      for (var split in splits) {
-        final eid = split.expenseId;
-        final uid = split.userId.toLowerCase();
-        
-        if (!dedupedSplits.containsKey(eid)) {
-          dedupedSplits[eid] = {};
-        }
-        
-        // If we have duplicates, we'll take the one that actually matches the intended share 
-        // Or just keep the latest (simple approach)
-        dedupedSplits[eid]![uid] = split.amount;
-      }
-
-      // Now process the deduped splits
-      for (var eid in dedupedSplits.keys) {
-        final userSplits = dedupedSplits[eid]!;
-        for (var uid in userSplits.keys) {
-          final amount = userSplits[uid]!;
-          splitSumPerExpense[eid] = (splitSumPerExpense[eid] ?? 0.0) + amount;
-          
-          if (shareMap.containsKey(uid)) {
-            shareMap[uid] = _roundTo2Decimals(
-              (shareMap[uid] ?? 0.0) + amount,
-            );
-          }
-        }
-      }
-
-      // Check for missing amounts (orphaned splits or rounding remainders)
-      for (var e in expenses) {
-        final totalSplit = splitSumPerExpense[e.id] ?? 0.0;
-        final missingAmount = _roundTo2Decimals(e.amount - totalSplit);
-        
-        final pNid = e.payerId?.toLowerCase();
-        // If money is missing from splits (e.g. someone was removed), 
-        // the Payer absorbs that cost back by default.
-        if (missingAmount.abs() > 0.01 && pNid != null && shareMap.containsKey(pNid)) {
-          shareMap[pNid] = _roundTo2Decimals((shareMap[pNid] ?? 0.0) + missingAmount);
-        }
-        
-        // Also handle cases where a split exists for a removed user (orphaned share)
-        final Map<String, double> userSplits = dedupedSplits[e.id] ?? {};
-        double orphanedAmount = 0.0;
-        
-        for (var uid in userSplits.keys) {
-          if (!shareMap.containsKey(uid.toLowerCase())) {
-            orphanedAmount += userSplits[uid]!;
-          }
-        }
-            
-        // COMBINED RECOVERY: Missing amounts + Orphaned shares
-        final totalRecovery = missingAmount + orphanedAmount;
-        
-        if (totalRecovery.abs() > 0.01) {
-          // Redistribute the recovery amount among all active members in shareMap
-          final activeMemberNids = shareMap.keys.toList();
-          if (activeMemberNids.isNotEmpty) {
-            final shareOfRecovery = _roundTo2Decimals(totalRecovery / activeMemberNids.length);
-            
-            for (int i = 0; i < activeMemberNids.length; i++) {
-              final nid = activeMemberNids[i];
-              // Add the share of recovery to each member
-              double adjustedAmount = shareOfRecovery;
-              
-              // Handle rounding remainders by giving the last bit to the First member
-              if (i == 0) {
-                final totalRedistributed = shareOfRecovery * activeMemberNids.length;
-                final remainder = _roundTo2Decimals(totalRecovery - totalRedistributed);
-                adjustedAmount = _roundTo2Decimals(adjustedAmount + remainder);
-              }
-              
-              shareMap[nid] = _roundTo2Decimals((shareMap[nid] ?? 0.0) + adjustedAmount);
-            }
-          } else if (pNid != null && shareMap.containsKey(pNid)) {
-            // Fallback to payer if no active members (shouldn't happen)
-            shareMap[pNid] = _roundTo2Decimals((shareMap[pNid] ?? 0.0) + totalRecovery);
-          }
-        }
-      }
-    }
-
-    // ===== STEP 3: ACCOUNT FOR PREVIOUS SETTLEMENTS =====
-    // Adjust balances based on already-completed settlements
-    final Set<String> processedSettlementIds = {};
-    for (var settlement in previousSettlements) {
-      if (processedSettlementIds.contains(settlement.id)) continue;
-      processedSettlementIds.add(settlement.id);
-      
-      final fNid = settlement.fromId.toLowerCase();
-      final tNid = settlement.toId.toLowerCase();
-      // fromId paid out (reduces their debt)
-      if (settledMap.containsKey(fNid)) {
-        settledMap[fNid] = _roundTo2Decimals(
-          (settledMap[fNid] ?? 0.0) + settlement.amount,
-        );
-      }
-      // toId received (reduces their credit due)
-      if (settledMap.containsKey(tNid)) {
-        settledMap[tNid] = _roundTo2Decimals(
-          (settledMap[tNid] ?? 0.0) - settlement.amount,
+    final Map<String, ExpenseSplit> uniqueSplits = {};
+    for (var s in splits) {
+      final normalizedId = s.id.toLowerCase();
+      if (!uniqueSplits.containsKey(normalizedId)) {
+        uniqueSplits[normalizedId] = s.copyWith(
+          id: normalizedId,
+          expenseId: s.expenseId.toLowerCase(),
+          userId: s.userId.toLowerCase(),
         );
       }
     }
+    final deduplicatedSplits = uniqueSplits.values.toList();
 
-    // ===== STEP 4: CALCULATE FINAL NET BALANCE =====
-    // net = paid - share + settled
-    // positive: user is owed money | negative: user owes money
+    final Map<String, ExpensePayer> uniquePayers = {};
+    for (var p in expensePayers) {
+      final normalizedId = p.id.toLowerCase();
+      if (!uniquePayers.containsKey(normalizedId)) {
+        uniquePayers[normalizedId] = p.copyWith(
+          id: normalizedId,
+          expenseId: p.expenseId.toLowerCase(),
+          userId: p.userId.toLowerCase(),
+        );
+      }
+    }
+    final deduplicatedPayers = uniquePayers.values.toList();
 
-    final results = <String, UserBalanceDetails>{};
-    for (var u in deduplicatedUsers) {
-      final nid = u.id.toLowerCase();
-      final paid = _roundTo2Decimals(paidMap[nid] ?? 0.0);
-      final share = _roundTo2Decimals(shareMap[nid] ?? 0.0);
-      final settled = _roundTo2Decimals(settledMap[nid] ?? 0.0);
-      final net = _roundTo2Decimals(paid - share + settled);
+    final Map<String, Settlement> uniqueSettlements = {};
+    for (var s in previousSettlements) {
+      if (!uniqueSettlements.containsKey(s.id)) {
+        uniqueSettlements[s.id] = s.copyWith(
+          fromId: s.fromId.toLowerCase(),
+          toId: s.toId.toLowerCase(),
+        );
+      }
+    }
+    final deduplicatedSettlements = uniqueSettlements.values.toList();
+    
+    final normalizedMealCounts = mealCounts?.map((k, v) => MapEntry(k.toLowerCase(), v));
+    final normalizedIncomes = incomes?.map((i) => i.copyWith(collectedBy: i.collectedBy.toLowerCase())).toList();
 
-      results[u.id] = UserBalanceDetails(
-        paid: paid,
-        share: share,
-        settled: settled,
-        net: net,
-      );
+    // 1. Select the appropriate calculator based on purpose
+    BaseSettlementCalculator calculator;
+    
+    switch (purpose?.toLowerCase()) {
+      case 'mess':
+        calculator = MessSettlementCalculator();
+        break;
+      case 'event':
+        calculator = EventSettlementCalculator();
+        break;
+      case 'project':
+      case 'office':
+        calculator = ProjectSettlementCalculator();
+        break;
+      case 'party':
+        calculator = PartySettlementCalculator();
+        break;
+      case 'tour':
+      default:
+        calculator = TourSettlementCalculator();
+        break;
     }
 
-    return results;
+    // 2. Execute calculation with clean, normalized data
+    return calculator.calculateBalances(
+      expenses: deduplicatedExpenses,
+      splits: deduplicatedSplits,
+      expensePayers: deduplicatedPayers,
+      users: deduplicatedUsers,
+      previousSettlements: deduplicatedSettlements,
+      mealCounts: normalizedMealCounts,
+      incomes: normalizedIncomes,
+    );
   }
 }
 
