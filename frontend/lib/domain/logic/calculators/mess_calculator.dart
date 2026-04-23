@@ -68,21 +68,39 @@ class MessSettlementCalculator extends BaseSettlementCalculator {
     Map<String, double> shareMap,
     Map<String, List<BalanceItem>> itemLogs,
   ) {
-    final Set<String> expensesWithSplits = splits.map((s) => s.expenseId).toSet();
+    // --- KEY FIX ---
+    // In Mess mode, expenses are categorized by messCostType FIRST.
+    // 'meal' -> distribute by meal count (ALWAYS, even if split records exist)
+    // 'fixed' -> distribute equally (ALWAYS, even if split records exist)
+    // null -> truly custom: use existing ExpenseSplit records
+    // This prevents the bug where equal-split records for Bazar expenses
+    // were causing them to be treated as "custom splits", zeroing out mealRate.
 
-    // 1. Handle Explicit Splits (High Priority)
-    for (var split in splits) {
+    final mealExpenses = expenses.where((e) {
+      final type = e.messCostType?.toLowerCase().trim();
+      return type == 'meal';
+    }).toList();
+
+    final fixedExpenses = expenses.where((e) {
+      final type = e.messCostType?.toLowerCase().trim();
+      return type == 'fixed';
+    }).toList();
+
+    // Only expenses with NO messCostType (null/empty) fall through to custom split logic
+    final mealAndFixedIds = {
+      ...mealExpenses.map((e) => e.id),
+      ...fixedExpenses.map((e) => e.id),
+    };
+    final customSplits = splits.where((s) => !mealAndFixedIds.contains(s.expenseId)).toList();
+
+    // 1. Handle Explicit Custom Splits (only for non-typed expenses)
+    for (var split in customSplits) {
       final nid = split.userId;
       if (shareMap.containsKey(nid)) {
-         shareMap[nid] = roundTo2Decimals((shareMap[nid] ?? 0.0) + split.amount);
-         itemLogs[nid]?.add(BalanceItem(title: "Custom Split", amount: split.amount, type: 'share', isCredit: false));
+        shareMap[nid] = roundTo2Decimals((shareMap[nid] ?? 0.0) + split.amount);
+        itemLogs[nid]?.add(BalanceItem(title: "Custom Split", amount: split.amount, type: 'share', isCredit: false));
       }
     }
-
-    // Identify expenses that were NOT handled by splits
-    final List<Expense> unhandledExpenses = expenses
-        .where((e) => !expensesWithSplits.contains(e.id))
-        .toList();
 
     // Only count meals for the users we are currently calculating for
     double totalMeals = 0.0;
@@ -90,17 +108,11 @@ class MessSettlementCalculator extends BaseSettlementCalculator {
       totalMeals += mealCounts?[u.id] ?? 0.0;
     }
 
-    // 2. Identify Meal Expenses (Bazar)
-    // Rule: Anything that is not explicitly 'fixed' is treated as 'meal' (Bazar)
-    final mealExpenses = unhandledExpenses.where((e) {
-      final type = e.messCostType?.toLowerCase().trim();
-      return type != 'fixed';
-    }).toList();
-
+    // 2. Distribute Meal (Bazar) Expenses by meal count
     final totalMealCost = mealExpenses.fold(0.0, (s, e) => s + e.amount);
     final mealRate = totalMeals > 0 ? totalMealCost / totalMeals : 0.0;
 
-    if (totalMealCost > 0) {
+    if (totalMealCost > 0 && totalMeals > 0) {
       double totalDistributedMeal = 0.0;
       final participatingNids = <String>[];
       
@@ -116,20 +128,23 @@ class MessSettlementCalculator extends BaseSettlementCalculator {
         }
       }
       
+      // Distribute any rounding remainder to the first participant
       final mealRemainder = roundTo2Decimals(totalMealCost - totalDistributedMeal);
       if (mealRemainder.abs() > 0.001 && participatingNids.isNotEmpty) {
         final pNid = participatingNids.first;
         shareMap[pNid] = roundTo2Decimals((shareMap[pNid] ?? 0.0) + mealRemainder);
         itemLogs[pNid]?.add(BalanceItem(title: "Meal Rounding Comp.", amount: mealRemainder, type: 'share', isCredit: false));
       }
+    } else if (totalMealCost > 0 && totalMeals <= 0) {
+      // Meals cost exists but no meal records yet — distribute equally as fallback
+      final fallbackShare = roundTo2Decimals(totalMealCost / users.length);
+      for (var u in users) {
+        shareMap[u.id] = roundTo2Decimals((shareMap[u.id] ?? 0.0) + fallbackShare);
+        itemLogs[u.id]?.add(BalanceItem(title: "Bazar (pending meals)", amount: fallbackShare, type: 'share', isCredit: false));
+      }
     }
 
-    // 3. Identify Fixed Expenses (Rent)
-    final fixedExpenses = unhandledExpenses.where((e) {
-      final type = e.messCostType?.toLowerCase().trim();
-      return type == 'fixed';
-    }).toList();
-    
+    // 3. Distribute Fixed (Rent) Expenses equally among all members
     final totalFixedCost = fixedExpenses.fold(0.0, (sum, e) => sum + e.amount);
 
     if (users.isNotEmpty && totalFixedCost > 0) {

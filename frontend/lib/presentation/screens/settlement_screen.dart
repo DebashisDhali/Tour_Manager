@@ -129,36 +129,30 @@ class SettlementScreen extends ConsumerWidget {
     );
 
     // Calculate totals based on MessSettlementCalculator logic
-    // Calculate totals based on MessSettlementCalculator logic
     final totalMeals = mealCounts.values.fold(0.0, (s, c) => s + c);
     final isMess = tour.purpose.toLowerCase() == 'mess';
-    final Set<String> expensesWithSplits = tourSplits.map((s) => s.expenseId).toSet();
 
-    // Only expenses without custom splits are included in meal/fixed rate calculation
-    final unhandledDedupedExpenses = dedupedExpenses
-        .where((e) => !expensesWithSplits.contains(e.id))
-        .toList();
+    // KEY FIX: For Mess mode, categorize expenses by messCostType DIRECTLY.
+    // Do NOT filter by split records — meal/fixed expenses always have their own path.
+    // This matches the fix in MessSettlementCalculator.
+    final totalMealCost = isMess
+        ? dedupedExpenses
+            .where((e) => e.messCostType?.toLowerCase().trim() == 'meal')
+            .fold(0.0, (s, e) => s + e.amount)
+        : dedupedExpenses
+            .where((e) => !tourSplits.map((s) => s.expenseId).toSet().contains(e.id))
+            .fold(0.0, (s, e) => s + e.amount);
 
-    // In Mess mode, if totalMeals > 0, treat null as meal. 
-    // If totalMeals == 0, null is treated as "pending".
-    final totalMealCost = unhandledDedupedExpenses
-        .where((e) {
-          final type = e.messCostType?.toLowerCase().trim();
-          return type != 'fixed';
-        })
-        .fold(0.0, (s, e) => s + e.amount);
-
-    final totalFixedCost = unhandledDedupedExpenses
-        .where((e) {
-          final type = e.messCostType?.toLowerCase().trim();
-          return type == 'fixed';
-        })
-        .fold(0.0, (s, e) => s + e.amount);
+    final totalFixedCost = isMess
+        ? dedupedExpenses
+            .where((e) => e.messCostType?.toLowerCase().trim() == 'fixed')
+            .fold(0.0, (s, e) => s + e.amount)
+        : 0.0;
 
     final mealRate = totalMeals > 0 ? totalMealCost / totalMeals : 0.0;
     final fixedCostPerPerson =
-        settlementUsers.isNotEmpty && isMess && totalMeals > 0
-            ? totalFixedCost / settlementUsers.length
+        settlementUsers.isNotEmpty && isMess
+            ? totalFixedCost / (settlementUsers.isEmpty ? 1 : settlementUsers.length)
             : 0.0;
 
     // Check permissions

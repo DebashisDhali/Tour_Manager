@@ -139,6 +139,13 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               }
             }
 
+            // Default to 'meal' (Bazar) for new Mess expenses so nothing slips through as custom split
+            if (widget.initialExpense == null &&
+                activeTour.purpose.toLowerCase() == 'mess' &&
+                _messCostType == null) {
+              _messCostType = 'meal';
+            }
+
             if (!_isMultiPayer &&
                 _payerAmounts.isEmpty &&
                 widget.initialExpense == null) {
