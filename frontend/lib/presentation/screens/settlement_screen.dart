@@ -857,7 +857,7 @@ class SettlementScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatItem(BuildContext context, String label, String value,
+  Widget _buildSummaryItem(BuildContext context, String label, String value,
       IconData icon, Color color) {
     return Column(
       children: [
