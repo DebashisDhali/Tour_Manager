@@ -586,7 +586,9 @@ class SettlementScreen extends ConsumerWidget {
                         border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.05)),
                       ),
                       child: (totalMeals > 0 || totalFixedCost > 0) 
-                                                // 1. Standard Meal Charge (Rate x Count)
+                        ? Builder(
+                            builder: (context) {
+                              // 1. Standard Meal Charge (Rate x Count)
                               final standardBazar = details.items
                                   .where((item) => item.title == "Meal Charge" || item.title == "Bazar Rounding Comp.")
                                   .fold(0.0, (sum, item) => sum + item.amount);
@@ -640,17 +642,12 @@ class SettlementScreen extends ConsumerWidget {
                                     const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
                                     _buildBreakdownRow(
                                       context,
-                                      isEvent ? "Fund Collected" : "Income Credit",
-                                      "৳${incomeReduc.toStringAsFixed(2)}",
+                                      "Income Credit",
+                                      "-৳${incomeReduc.toStringAsFixed(2)}",
                                       Icons.account_balance_wallet_rounded,
                                       Colors.green,
                                     ),
                                   ],
-                                ],
-                              );
-                            },
-                          )
-                        : const SizedBox.shrink(),
                                   const Padding(
                                     padding: EdgeInsets.symmetric(vertical: 2),
                                     child: DottedLine(height: 1),
