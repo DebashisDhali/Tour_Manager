@@ -555,7 +555,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       SizedBox(
                         height: 64,
                         child: FilledButton.icon(
-                          onPressed: () => _saveExpense(members),
+                          onPressed: () => _saveExpense(members, activeTour),
                           icon: Icon(widget.initialExpense == null
                               ? Icons.add_task_rounded
                               : Icons.save_rounded),
@@ -667,7 +667,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     );
   }
 
-  Future<void> _saveExpense(List<MemberWithStatus> members) async {
+  Future<void> _saveExpense(List<MemberWithStatus> members, models.Tour activeTour) async {
     if (_formKey.currentState!.validate()) {
       final totalAmount = double.parse(_amountController.text);
       final paidSum = _payerAmounts.values.fold(0.0, (sum, v) => sum + v);
@@ -693,7 +693,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       if (!_isCustomSplit) {
         // IMPORTANT: Never lock splits for Mess Bazar expenses!
         // They must remain dynamic (no splits) so the engine distributes them by meals.
-        final isMessBazar = widget.tour?.purpose.toLowerCase() == 'mess' && _messCostType != 'fixed';
+        final isMessBazar = activeTour.purpose.toLowerCase() == 'mess' && _messCostType != 'fixed';
         
         if (!isMessBazar) {
           final splitAmount = totalAmount /
