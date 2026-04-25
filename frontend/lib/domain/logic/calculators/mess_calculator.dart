@@ -54,6 +54,7 @@ class MessSettlementCalculator extends BaseSettlementCalculator {
     // 1. Explicit Custom Splits take the HIGHEST priority.
     // If an expense has manually defined splits, we respect them regardless of type.
     final splitExpenseIds = splits.map((s) => s.expenseId.toLowerCase()).toSet();
+    final actualCustomSplitExpenseIds = <String>{};
     
     final mealExpenses = <Expense>[];
     final rentExpenses = <Expense>[];
@@ -84,6 +85,7 @@ class MessSettlementCalculator extends BaseSettlementCalculator {
         }
         
         customSplitExpenses.add(e);
+        actualCustomSplitExpenseIds.add(e.id.toLowerCase());
         continue;
       }
 
@@ -96,7 +98,7 @@ class MessSettlementCalculator extends BaseSettlementCalculator {
     }
 
     // Process Custom Splits
-    final relevantSplits = splits.where((s) => splitExpenseIds.contains(s.expenseId.toLowerCase())).toList();
+    final relevantSplits = splits.where((s) => actualCustomSplitExpenseIds.contains(s.expenseId.toLowerCase())).toList();
     for (var split in relevantSplits) {
       final nid = split.userId.toLowerCase();
       if (shareMap.containsKey(nid)) {
