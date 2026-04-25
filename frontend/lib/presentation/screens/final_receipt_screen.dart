@@ -509,16 +509,50 @@ class FinalReceiptScreen extends ConsumerWidget {
     final config = PurposeConfig.getConfig(purpose);
     final isMess = purpose?.toLowerCase() == 'mess';
 
-    // Mess-specific calculations
-    final totalMealCost = isMess
-        ? expenses.where((e) => e.messCostType?.toLowerCase().trim() != 'fixed').fold(0.0, (s, e) => s + e.amount)
-        : 0.0;
-    final totalFixedCost = isMess
-        ? expenses.where((e) => e.messCostType?.toLowerCase().trim() == 'fixed').fold(0.0, (s, e) => s + e.amount)
-        : 0.0;
+    // Mess-specific calculations (Aligned with MessSettlementCalculator)
+    double totalMealCost = 0.0;
+    double totalFixedCost = 0.0;
+    double standardMealCost = 0.0;
+    double standardFixedCost = 0.0;
+
+    final splitExpenseIds = splits.map((s) => s.expenseId.toLowerCase()).toSet();
+
+    if (isMess) {
+      for (var e in expenses) {
+        final category = e.category.toLowerCase().trim();
+        final type = e.messCostType?.toLowerCase().trim();
+        final isRent = category == 'rent' || 
+                       type == 'fixed' || 
+                       category == 'maid' || 
+                       category == 'wifi' || 
+                       category == 'others';
+
+        bool isCustomSplit = splitExpenseIds.contains(e.id.toLowerCase());
+        
+        // Ignore auto-generated equal splits for Bazar expenses
+        if (isCustomSplit && !isRent) {
+          final eSplits = splits.where((s) => s.expenseId.toLowerCase() == e.id.toLowerCase()).toList();
+          if (eSplits.isNotEmpty) {
+            final firstAmount = eSplits.first.amount;
+            if (eSplits.every((s) => (s.amount - firstAmount).abs() < 0.01)) {
+              isCustomSplit = false;
+            }
+          }
+        }
+
+        if (isRent) {
+          totalFixedCost += e.amount;
+          if (!isCustomSplit) standardFixedCost += e.amount;
+        } else {
+          totalMealCost += e.amount;
+          if (!isCustomSplit) standardMealCost += e.amount;
+        }
+      }
+    }
+
     final totalMeals = mealCounts.values.fold(0.0, (s, c) => s + c);
-    final mealRate = totalMeals > 0 ? totalMealCost / totalMeals : 0.0;
-    final fixedPerPerson = users.isNotEmpty ? totalFixedCost / users.length : 0.0;
+    final mealRate = totalMeals > 0 ? standardMealCost / totalMeals : 0.0;
+    final fixedPerPerson = users.isNotEmpty ? standardFixedCost / users.length : 0.0;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -597,8 +631,27 @@ class FinalReceiptScreen extends ConsumerWidget {
                   final nid = u.id.toLowerCase();
                   final bd = balanceMap[nid] ?? balanceMap[u.id];
                   final meals = mealCounts[u.id] ?? mealCounts[nid] ?? 0.0;
-                  final bazarShare = mealRate * meals;
-                  final rentShare = fixedPerPerson;
+                  
+                  double bazarShare = 0.0;
+                  double rentShare = 0.0;
+                  
+                  if (bd != null) {
+                    for (var item in bd.items) {
+                      final title = item.title.toLowerCase();
+                      if (title.contains("meal charge") || 
+                          title.contains("bazar rounding") || 
+                          title.contains("bazar (split)") ||
+                          title.contains("meal (split)")) {
+                        bazarShare += item.amount;
+                      } else if (title.contains("rent share") || 
+                                 title.contains("rent rounding") || 
+                                 title.contains("rent (split)") ||
+                                 title.contains("fixed (split)")) {
+                        rentShare += item.amount;
+                      }
+                    }
+                  }
+
                   final paid = bd?.paid ?? 0.0;
                   final balance = bd?.net ?? 0.0;
                   return TableRow(children: [
