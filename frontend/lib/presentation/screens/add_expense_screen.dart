@@ -689,20 +689,26 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       final database = ref.read(databaseProvider);
       final expenseId = (widget.initialExpense?.id ?? const Uuid().v4()).toLowerCase();
 
-      List<models.ExpenseSplit> splits;
+      List<models.ExpenseSplit> splits = [];
       if (!_isCustomSplit) {
-        final splitAmount = totalAmount /
-            (_involvedMemberIds.isEmpty ? 1 : _involvedMemberIds.length);
-        splits = members
-            .where((m) => _involvedMemberIds.contains(m.user.id))
-            .map((m) => models.ExpenseSplit(
-                id: const Uuid().v4().toLowerCase(),
-                expenseId: expenseId,
-                userId: m.user.id.toLowerCase(),
-                amount: splitAmount,
-                isSynced: false,
-                isDeleted: false))
-            .toList();
+        // IMPORTANT: Never lock splits for Mess Bazar expenses!
+        // They must remain dynamic (no splits) so the engine distributes them by meals.
+        final isMessBazar = widget.tour?.purpose.toLowerCase() == 'mess' && _messCostType != 'fixed';
+        
+        if (!isMessBazar) {
+          final splitAmount = totalAmount /
+              (_involvedMemberIds.isEmpty ? 1 : _involvedMemberIds.length);
+          splits = members
+              .where((m) => _involvedMemberIds.contains(m.user.id))
+              .map((m) => models.ExpenseSplit(
+                  id: const Uuid().v4().toLowerCase(),
+                  expenseId: expenseId,
+                  userId: m.user.id.toLowerCase(),
+                  amount: splitAmount,
+                  isSynced: false,
+                  isDeleted: false))
+              .toList();
+        }
       } else {
         splits = _splitAmounts.entries
             .where((e) => _involvedMemberIds.contains(e.key))

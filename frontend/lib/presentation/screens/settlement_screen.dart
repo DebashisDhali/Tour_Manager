@@ -147,8 +147,6 @@ class SettlementScreen extends ConsumerWidget {
       for (var e in dedupedExpenses) {
         final category = e.category.toLowerCase().trim();
         final type = e.messCostType?.toLowerCase().trim();
-        final isCustomSplit = splitExpenseIds.contains(e.id.toLowerCase());
-        
         // Strict Categorization for Mess mode (matches MessSettlementCalculator):
         // Rent: Category is 'rent' or type is 'fixed' (including maid, wifi, etc.)
         final isRent = category == 'rent' || 
@@ -156,6 +154,19 @@ class SettlementScreen extends ConsumerWidget {
                        category == 'maid' || 
                        category == 'wifi' || 
                        category == 'others';
+
+        bool isCustomSplit = splitExpenseIds.contains(e.id.toLowerCase());
+        
+        // Ignore auto-generated equal splits for Bazar expenses
+        if (isCustomSplit && !isRent) {
+          final eSplits = tourSplits.where((s) => s.expenseId.toLowerCase() == e.id.toLowerCase()).toList();
+          if (eSplits.isNotEmpty) {
+            final firstAmount = eSplits.first.amount;
+            if (eSplits.every((s) => (s.amount - firstAmount).abs() < 0.01)) {
+              isCustomSplit = false;
+            }
+          }
+        }
 
         if (isRent) {
           totalFixedCost += e.amount;

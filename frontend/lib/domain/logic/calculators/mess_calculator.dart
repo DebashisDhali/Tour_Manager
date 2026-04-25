@@ -60,21 +60,32 @@ class MessSettlementCalculator extends BaseSettlementCalculator {
     final customSplitExpenses = <Expense>[];
 
     for (var e in expenses) {
-      if (splitExpenseIds.contains(e.id.toLowerCase())) {
-        customSplitExpenses.add(e);
-        continue;
-      }
-
       final category = e.category.toLowerCase().trim();
       final type = e.messCostType?.toLowerCase().trim();
-      
-      // Strict Categorization for Mess mode:
-      // 1. Rent: Category is 'rent' or type is 'fixed' (including maid, wifi, etc.)
       final isRent = category == 'rent' || 
                      type == 'fixed' || 
                      category == 'maid' || 
                      category == 'wifi' || 
                      category == 'others';
+
+      if (splitExpenseIds.contains(e.id.toLowerCase())) {
+        // If it's a Bazar expense, check if the splits are perfectly equal (auto-generated)
+        if (!isRent) {
+          final eSplits = splits.where((s) => s.expenseId.toLowerCase() == e.id.toLowerCase()).toList();
+          if (eSplits.isNotEmpty) {
+            final firstAmount = eSplits.first.amount;
+            final isPerfectlyEqual = eSplits.every((s) => (s.amount - firstAmount).abs() < 0.01);
+            if (isPerfectlyEqual) {
+              // Ignore these auto-generated equal splits for Bazar, let it distribute by meals!
+              mealExpenses.add(e);
+              continue;
+            }
+          }
+        }
+        
+        customSplitExpenses.add(e);
+        continue;
+      }
 
       if (isRent) {
         rentExpenses.add(e);
