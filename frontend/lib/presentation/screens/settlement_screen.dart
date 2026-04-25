@@ -641,15 +641,24 @@ class SettlementScreen extends ConsumerWidget {
 
                               return Column(
                                 children: [
-                                  // Always show Meal Charge if they have meals, even if 0, for clarity
-                                  if ((standardBazar + customBazar) > 0 || userMeals > 0)
+                                  if (standardBazar > 0 || userMeals > 0)
                                     _buildBreakdownRow(
                                       context,
                                       "Meal Charge (${userMeals.toStringAsFixed(1)} meals)",
-                                      "৳${(standardBazar + customBazar).toStringAsFixed(2)}",
+                                      "৳${standardBazar.toStringAsFixed(2)}",
                                       Icons.restaurant_rounded,
                                       Colors.orange,
                                     ),
+                                  if (customBazar > 0) ...[
+                                    if (standardBazar > 0 || userMeals > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
+                                    _buildBreakdownRow(
+                                      context,
+                                      "Bazar (Custom Split)",
+                                      "৳${customBazar.toStringAsFixed(2)}",
+                                      Icons.shopping_basket_rounded,
+                                      Colors.orangeAccent,
+                                    ),
+                                  ],
                                   if (standardRent > 0) ...[
                                     if (standardBazar > 0 || userMeals > 0 || customBazar > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
                                     _buildBreakdownRow(
