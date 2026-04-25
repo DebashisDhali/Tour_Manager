@@ -592,34 +592,65 @@ class SettlementScreen extends ConsumerWidget {
                               final standardBazar = details.items
                                   .where((item) => item.title == "Meal Charge" || item.title == "Bazar Rounding Comp.")
                                   .fold(0.0, (sum, item) => sum + item.amount);
+                                  
+                              // Custom Bazar Splits
+                              final customBazar = details.items
+                                  .where((item) => item.type == 'share' && 
+                                                 (item.title.toLowerCase().contains("bazar (split)") || 
+                                                  item.title.toLowerCase().contains("meal (split)")))
+                                  .fold(0.0, (sum, item) => sum + item.amount);
                               
                               // 2. Standard Rent Share (Equal)
                               final standardRent = details.items
                                   .where((item) => item.title == "Rent Share" || item.title == "Rent Rounding Comp.")
                                   .fold(0.0, (sum, item) => sum + item.amount);
                                   
-                              // 3. Custom Splits (Any category that was manually split)
-                              final customSplits = details.items
+                              // Custom Rent Splits
+                              final customRent = details.items
                                   .where((item) => item.type == 'share' && 
-                                                 item.title.contains("(Split)"))
+                                                 (item.title.toLowerCase().contains("rent (split)") || 
+                                                  item.title.toLowerCase().contains("fixed (split)")))
+                                  .fold(0.0, (sum, item) => sum + item.amount);
+                                  
+                              // 3. Other Custom Splits
+                              final otherSplits = details.items
+                                  .where((item) => item.type == 'share' && 
+                                                 item.title.contains("(Split)") &&
+                                                 !item.title.toLowerCase().contains("bazar (split)") &&
+                                                 !item.title.toLowerCase().contains("meal (split)") &&
+                                                 !item.title.toLowerCase().contains("rent (split)") &&
+                                                 !item.title.toLowerCase().contains("fixed (split)"))
                                   .fold(0.0, (sum, item) => sum + item.amount);
 
                               final incomeReduc = details.items
                                   .where((item) => item.type == 'settled' && item.title.contains("Fund"))
                                   .fold(0.0, (sum, item) => sum + item.amount);
+                                  
+                              final userMeals = mealCounts[u.id.toLowerCase()] ?? 0;
 
                               return Column(
                                 children: [
-                                  if (standardBazar > 0)
+                                  // Always show Meal Charge if they have meals, even if 0, for clarity
+                                  if (standardBazar > 0 || userMeals > 0)
                                     _buildBreakdownRow(
                                       context,
-                                      "Meal Charge (${mealCounts[u.id.toLowerCase()]?.toStringAsFixed(1) ?? '0'} meals)",
+                                      "Meal Charge (${userMeals.toStringAsFixed(1)} meals)",
                                       "৳${standardBazar.toStringAsFixed(2)}",
                                       Icons.restaurant_rounded,
                                       Colors.orange,
                                     ),
+                                  if (customBazar > 0) ...[
+                                    if (standardBazar > 0 || userMeals > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
+                                    _buildBreakdownRow(
+                                      context,
+                                      "Bazar (Custom Split)",
+                                      "৳${customBazar.toStringAsFixed(2)}",
+                                      Icons.shopping_basket_rounded,
+                                      Colors.orangeAccent,
+                                    ),
+                                  ],
                                   if (standardRent > 0) ...[
-                                    if (standardBazar > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
+                                    if (standardBazar > 0 || userMeals > 0 || customBazar > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
                                     _buildBreakdownRow(
                                       context,
                                       "Rent Share",
@@ -628,12 +659,22 @@ class SettlementScreen extends ConsumerWidget {
                                       Colors.teal,
                                     ),
                                   ],
-                                  if (customSplits > 0) ...[
-                                    if (standardBazar > 0 || standardRent > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
+                                  if (customRent > 0) ...[
+                                    if (standardBazar > 0 || userMeals > 0 || customBazar > 0 || standardRent > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
                                     _buildBreakdownRow(
                                       context,
-                                      "Custom Splits",
-                                      "৳${customSplits.toStringAsFixed(2)}",
+                                      "Rent (Custom Split)",
+                                      "৳${customRent.toStringAsFixed(2)}",
+                                      Icons.home_rounded,
+                                      Colors.tealAccent,
+                                    ),
+                                  ],
+                                  if (otherSplits > 0) ...[
+                                    if (standardBazar > 0 || userMeals > 0 || customBazar > 0 || standardRent > 0 || customRent > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
+                                    _buildBreakdownRow(
+                                      context,
+                                      "Other Splits",
+                                      "৳${otherSplits.toStringAsFixed(2)}",
                                       Icons.extension_rounded,
                                       Colors.blueGrey,
                                     ),
