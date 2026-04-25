@@ -337,7 +337,7 @@ final globalActivityProvider =
 final singleTourProvider =
     StreamProvider.family.autoDispose<Tour?, String>((ref, tourId) {
   final db = ref.watch(databaseProvider);
-  return (db.select(db.tours)..where((t) => t.id.equals(tourId)))
+  return (db.select(db.tours)..where((t) => t.id.lower().equals(tourId.toLowerCase())))
       .watchSingleOrNull()
       .handleError((e) {
     debugPrint("\n\n🧨 FATAL ERROR MAPPING SINGLE TOUR [$tourId]: $e\n\n");
@@ -357,7 +357,7 @@ final tourUsersProvider =
   final query = db.select(db.users).join([
     innerJoin(db.tourMembers, db.tourMembers.userId.lower().equalsExp(db.users.id.lower())),
   ])
-    ..where(db.tourMembers.tourId.equals(tourId) &
+    ..where(db.tourMembers.tourId.lower().equals(tourId.toLowerCase()) &
         db.tourMembers.isDeleted.equals(false) &
         db.users.isDeleted.equals(false));
   return query
@@ -386,7 +386,7 @@ final tourExpensesProvider =
     StreamProvider.family.autoDispose<List<Expense>, String>((ref, tourId) {
   final db = ref.watch(databaseProvider);
   return (db.select(db.expenses)
-        ..where((t) => t.tourId.equals(tourId) & t.isDeleted.equals(false)))
+        ..where((t) => t.tourId.lower().equals(tourId.toLowerCase()) & t.isDeleted.equals(false)))
       .watch()
       .handleError((e) {
     debugPrint("\n\n🧨 FATAL ERROR MAPPING TOUR EXPENSES: $e\n\n");
@@ -400,7 +400,7 @@ final tourSplitsProvider = StreamProvider.family
     innerJoin(
         db.expenses, db.expenses.id.equalsExp(db.expenseSplits.expenseId)),
   ])
-    ..where(db.expenses.tourId.equals(tourId) &
+    ..where(db.expenses.tourId.lower().equals(tourId.toLowerCase()) &
         db.expenses.isDeleted.equals(false) &
         db.expenseSplits.isDeleted.equals(false));
   return query.watch().map(
@@ -414,7 +414,7 @@ final tourPayersProvider = StreamProvider.family
     innerJoin(
         db.expenses, db.expenses.id.equalsExp(db.expensePayers.expenseId)),
   ])
-    ..where(db.expenses.tourId.equals(tourId) &
+    ..where(db.expenses.tourId.lower().equals(tourId.toLowerCase()) &
         db.expenses.isDeleted.equals(false) &
         db.expensePayers.isDeleted.equals(false));
   return query.watch().map(

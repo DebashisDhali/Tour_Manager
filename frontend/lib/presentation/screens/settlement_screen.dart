@@ -143,9 +143,6 @@ class SettlementScreen extends ConsumerWidget {
 
     if (isMess) {
       for (var e in dedupedExpenses) {
-        // If it has custom splits, it's neither Bazar nor standard Fixed pool in the summary
-        if (splitExpenseIds.contains(e.id.toLowerCase())) continue;
-
         final category = e.category.toLowerCase().trim();
         final type = e.messCostType?.toLowerCase().trim();
         
@@ -165,9 +162,7 @@ class SettlementScreen extends ConsumerWidget {
         }
       }
     } else {
-      totalMealCost = dedupedExpenses
-          .where((e) => !splitExpenseIds.contains(e.id.toLowerCase()))
-          .fold(0.0, (s, e) => s + e.amount);
+      totalMealCost = dedupedExpenses.fold(0.0, (s, e) => s + e.amount);
     }
 
     final mealRate = totalMeals > 0 ? totalMealCost / totalMeals : 0.0;
