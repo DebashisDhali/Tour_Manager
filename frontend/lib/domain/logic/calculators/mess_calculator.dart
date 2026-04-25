@@ -67,7 +67,8 @@ class MessSettlementCalculator extends BaseSettlementCalculator {
                      type == 'fixed' || 
                      category == 'maid' || 
                      category == 'wifi' || 
-                     category == 'others';
+                     category == 'others' ||
+                     category.contains("vara");
 
       if (splitExpenseIds.contains(e.id.toLowerCase())) {
         // If it's a Bazar expense, check if the splits are perfectly equal (auto-generated)

@@ -638,15 +638,12 @@ class FinalReceiptScreen extends ConsumerWidget {
                   if (bd != null) {
                     for (var item in bd.items) {
                       final title = item.title.toLowerCase();
-                      if (title.contains("meal charge") || 
-                          title.contains("bazar rounding") || 
-                          title.contains("bazar (split)") ||
-                          title.contains("meal (split)")) {
+                      final isMealCharge = title.contains("meal charge") || title.contains("bazar rounding") || title.contains("bazar (split)") || title.contains("meal (split)");
+                      final isRentCharge = title.contains("rent share") || title.contains("rent rounding") || title.contains("rent (split)") || title.contains("fixed (split)") || title.contains("vara");
+                      
+                      if (isMealCharge) {
                         bazarShare += item.amount;
-                      } else if (title.contains("rent share") || 
-                                 title.contains("rent rounding") || 
-                                 title.contains("rent (split)") ||
-                                 title.contains("fixed (split)")) {
+                      } else if (isRentCharge) {
                         rentShare += item.amount;
                       }
                     }
@@ -678,20 +675,26 @@ class FinalReceiptScreen extends ConsumerWidget {
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5))),
             const SizedBox(height: 8),
             ...expenses.map((e) {
+              final category = e.category.toLowerCase().trim();
               final type = e.messCostType?.toLowerCase().trim();
-              final isBazar = type != 'fixed';
+              final isRent = category == 'rent' || 
+                             type == 'fixed' || 
+                             category == 'maid' || 
+                             category == 'wifi' || 
+                             category == 'others' ||
+                             category.contains("vara");
               return Padding(
                 padding: const EdgeInsets.only(bottom: 6),
                 child: Row(children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: isBazar ? Colors.orange.shade50 : Colors.teal.shade50,
+                      color: !isRent ? Colors.orange.shade50 : Colors.teal.shade50,
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      isBazar ? "BAZAR" : "RENT",
-                      style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: isBazar ? Colors.orange.shade700 : Colors.teal.shade700),
+                      !isRent ? "BAZAR" : "RENT",
+                      style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: !isRent ? Colors.orange.shade700 : Colors.teal.shade700),
                     ),
                   ),
                   const SizedBox(width: 8),

@@ -153,7 +153,8 @@ class SettlementScreen extends ConsumerWidget {
                        type == 'fixed' || 
                        category == 'maid' || 
                        category == 'wifi' || 
-                       category == 'others';
+                       category == 'others' ||
+                       category.contains("vara");
 
         bool isCustomSplit = splitExpenseIds.contains(e.id.toLowerCase());
         
