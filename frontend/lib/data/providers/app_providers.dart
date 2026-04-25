@@ -106,7 +106,7 @@ final tourListProvider = StreamProvider.autoDispose<List<TourWithRole>>((ref) {
   if (currentUser == null) return Stream.value([]);
 
   final query = db.select(db.tours).join([
-    innerJoin(db.tourMembers, db.tourMembers.tourId.lower().equalsExp(db.tours.id.lower())),
+    innerJoin(db.tourMembers, db.tourMembers.tourId.equalsExp(db.tours.id)),
   ])
     ..where(db.tourMembers.userId.lower().equals(currentUser.id.toLowerCase()) &
         db.tourMembers.status.equals('active') &
@@ -222,7 +222,7 @@ final expensesProvider = StreamProvider.family
   final db = ref.watch(databaseProvider);
 
   final query = db.select(db.expenses).join([
-    leftOuterJoin(db.users, db.users.id.lower().equalsExp(db.expenses.payerId.lower())),
+    leftOuterJoin(db.users, db.users.id.equalsExp(db.expenses.payerId)),
   ])
     ..where(db.expenses.tourId.lower().equals(tourId.toLowerCase()) & db.expenses.isDeleted.equals(false))
     ..orderBy([OrderingTerm.desc(db.expenses.createdAt)]);
@@ -298,7 +298,7 @@ final globalActivityProvider =
         db.tourMembers.isDeleted.equals(false));
 
   final expenseQuery = db.select(db.expenses).join([
-    leftOuterJoin(db.users, db.users.id.lower().equalsExp(db.expenses.payerId.lower())),
+    leftOuterJoin(db.users, db.users.id.equalsExp(db.expenses.payerId)),
     innerJoin(db.tours, db.tours.id.equalsExp(db.expenses.tourId)),
   ])
     ..where(db.expenses.isDeleted.equals(false) &
@@ -337,7 +337,7 @@ final globalActivityProvider =
 final singleTourProvider =
     StreamProvider.family.autoDispose<Tour?, String>((ref, tourId) {
   final db = ref.watch(databaseProvider);
-  return (db.select(db.tours)..where((t) => t.id.lower().equals(tourId.toLowerCase())))
+  return (db.select(db.tours)..where((t) => t.id.equals(tourId)))
       .watchSingleOrNull()
       .handleError((e) {
     debugPrint("\n\n🧨 FATAL ERROR MAPPING SINGLE TOUR [$tourId]: $e\n\n");

@@ -56,7 +56,7 @@ class MessSettlementCalculator extends BaseSettlementCalculator {
     final splitExpenseIds = splits.map((s) => s.expenseId.toLowerCase()).toSet();
     
     final mealExpenses = <Expense>[];
-    final fixedExpenses = <Expense>[];
+    final rentExpenses = <Expense>[];
     final customSplitExpenses = <Expense>[];
 
     for (var e in expenses) {
@@ -65,20 +65,21 @@ class MessSettlementCalculator extends BaseSettlementCalculator {
         continue;
       }
 
-      final type = e.messCostType?.toLowerCase().trim();
       final category = e.category.toLowerCase().trim();
+      final type = e.messCostType?.toLowerCase().trim();
       
-      // Fixed Cost indicators: type is 'fixed' OR category is Rent/Maid/Wifi/Others
-      final isFixed = type == 'fixed' || 
-                      category == 'rent' || 
-                      category == 'maid' || 
-                      category == 'wifi' || 
-                      category == 'others';
+      // Strict Categorization for Mess mode:
+      // 1. Rent: Category is 'rent' or type is 'fixed' (including maid, wifi, etc.)
+      final isRent = category == 'rent' || 
+                     type == 'fixed' || 
+                     category == 'maid' || 
+                     category == 'wifi' || 
+                     category == 'others';
 
-      if (isFixed) {
-        fixedExpenses.add(e);
+      if (isRent) {
+        rentExpenses.add(e);
       } else {
-        // Default to Meal (Bazar) for everything else in Mess mode
+        // 2. Bazar: Category is 'bazar' or default (meal-based)
         mealExpenses.add(e);
       }
     }
@@ -89,67 +90,66 @@ class MessSettlementCalculator extends BaseSettlementCalculator {
       final nid = split.userId.toLowerCase();
       if (shareMap.containsKey(nid)) {
         shareMap[nid] = roundTo2Decimals((shareMap[nid] ?? 0.0) + split.amount);
-        // Find expense title for better logging
         final exp = customSplitExpenses.firstWhere((e) => e.id.toLowerCase() == split.expenseId.toLowerCase(), orElse: () => expenses.first);
         itemLogs[nid]?.add(BalanceItem(title: "${exp.title} (Split)", amount: split.amount, type: 'share', isCredit: false));
       }
     }
 
-    // Only count meals for the users we are currently calculating for
+    // Calculate total meals for participating users
     double totalMeals = 0.0;
     for (var u in users) {
-      totalMeals += mealCounts?[u.id] ?? 0.0;
+      totalMeals += mealCounts?[u.id.toLowerCase()] ?? mealCounts?[u.id] ?? 0.0;
     }
 
-    // 2. Distribute Meal (Bazar) Expenses by meal count
-    final totalMealCost = mealExpenses.fold(0.0, (s, e) => s + e.amount);
-    final mealRate = totalMeals > 0 ? totalMealCost / totalMeals : 0.0;
+    // 2. Distribute Bazar Expenses by meal count
+    final totalBazarAmount = mealExpenses.fold(0.0, (s, e) => s + e.amount);
+    final mealRate = totalMeals > 0 ? totalBazarAmount / totalMeals : 0.0;
 
-    if (totalMealCost > 0 && totalMeals > 0) {
-      double totalDistributedMeal = 0.0;
+    if (totalBazarAmount > 0 && totalMeals > 0) {
+      double totalDistributedBazar = 0.0;
       final participatingNids = <String>[];
       
       for (var u in users) {
-        final nid = u.id;
-        final count = mealCounts?[nid] ?? 0.0;
+        final nid = u.id.toLowerCase();
+        final count = mealCounts?[nid] ?? mealCounts?[u.id] ?? 0.0;
         if (count > 0) {
           participatingNids.add(nid);
-          final mealShare = roundTo2Decimals(mealRate * count);
-          totalDistributedMeal += mealShare;
-          shareMap[nid] = roundTo2Decimals((shareMap[nid] ?? 0.0) + mealShare);
-          itemLogs[nid]?.add(BalanceItem(title: "Meal Cost Share", amount: mealShare, type: 'share', isCredit: false));
+          final bazarShare = roundTo2Decimals(mealRate * count);
+          totalDistributedBazar += bazarShare;
+          shareMap[nid] = roundTo2Decimals((shareMap[nid] ?? 0.0) + bazarShare);
+          itemLogs[nid]?.add(BalanceItem(title: "Meal Charge", amount: bazarShare, type: 'share', isCredit: false));
         }
       }
       
       // Distribute any rounding remainder to the first participant
-      final mealRemainder = roundTo2Decimals(totalMealCost - totalDistributedMeal);
-      if (mealRemainder.abs() > 0.001 && participatingNids.isNotEmpty) {
+      final bazarRemainder = roundTo2Decimals(totalBazarAmount - totalDistributedBazar);
+      if (bazarRemainder.abs() > 0.001 && participatingNids.isNotEmpty) {
         final pNid = participatingNids.first;
-        shareMap[pNid] = roundTo2Decimals((shareMap[pNid] ?? 0.0) + mealRemainder);
-        itemLogs[pNid]?.add(BalanceItem(title: "Meal Rounding Comp.", amount: mealRemainder, type: 'share', isCredit: false));
+        shareMap[pNid] = roundTo2Decimals((shareMap[pNid] ?? 0.0) + bazarRemainder);
+        itemLogs[pNid]?.add(BalanceItem(title: "Bazar Rounding Comp.", amount: bazarRemainder, type: 'share', isCredit: false));
       }
-    } else if (totalMealCost > 0 && totalMeals <= 0) {
-      // Meals cost exists but no meal records yet — distribute equally as fallback
-      final fallbackShare = roundTo2Decimals(totalMealCost / users.length);
+    } else if (totalBazarAmount > 0 && totalMeals <= 0) {
+      // Bazar cost exists but no meal records — distribute equally as fallback (avoid divide by zero)
+      final fallbackShare = roundTo2Decimals(totalBazarAmount / users.length);
       for (var u in users) {
         shareMap[u.id] = roundTo2Decimals((shareMap[u.id] ?? 0.0) + fallbackShare);
         itemLogs[u.id]?.add(BalanceItem(title: "Bazar (pending meals)", amount: fallbackShare, type: 'share', isCredit: false));
       }
     }
 
-    // 3. Distribute Fixed (Rent) Expenses equally among all members
-    final totalFixedCost = fixedExpenses.fold(0.0, (sum, e) => sum + e.amount);
+    // 3. Distribute Rent Expenses equally among all members
+    final totalRentAmount = rentExpenses.fold(0.0, (sum, e) => sum + e.amount);
 
-    if (users.isNotEmpty && totalFixedCost > 0) {
-      final fixedPerMember = roundTo2Decimals(totalFixedCost / users.length);
-      final totalDistributed = roundTo2Decimals(fixedPerMember * users.length);
-      final fixedRemainder = roundTo2Decimals(totalFixedCost - totalDistributed);
+    if (users.isNotEmpty && totalRentAmount > 0) {
+      final rentPerPerson = roundTo2Decimals(totalRentAmount / users.length);
+      final totalDistributed = roundTo2Decimals(rentPerPerson * users.length);
+      final rentRemainder = roundTo2Decimals(totalRentAmount - totalDistributed);
 
       for (int idx = 0; idx < users.length; idx++) {
-        final nid = users[idx].id;
-        final extraAmount = idx == 0 ? fixedRemainder : 0.0;
-        shareMap[nid] = roundTo2Decimals((shareMap[nid] ?? 0.0) + fixedPerMember + extraAmount);
-        itemLogs[nid]?.add(BalanceItem(title: "Fixed Cost Share", amount: fixedPerMember + extraAmount, type: 'share', isCredit: false));
+        final nid = users[idx].id.toLowerCase();
+        final extraAmount = idx == 0 ? rentRemainder : 0.0;
+        shareMap[nid] = roundTo2Decimals((shareMap[nid] ?? 0.0) + rentPerPerson + extraAmount);
+        itemLogs[nid]?.add(BalanceItem(title: "Rent Share", amount: rentPerPerson + extraAmount, type: 'share', isCredit: false));
       }
     }
   }

@@ -129,9 +129,13 @@ class SettlementScreen extends ConsumerWidget {
       incomes: incomes,
     );
 
-    // Calculate totals based on Robust Mess Logic
+    // Calculate totals based on Robust Mess/Event Logic
     final totalMeals = mealCounts.values.fold(0.0, (s, c) => s + c);
-    final isMess = tour.purpose.toLowerCase() == 'mess';
+    final purpose = tour.purpose.trim().toLowerCase();
+    final isMess = purpose == 'mess';
+    final isEvent = purpose == 'event';
+    final totalFundCollected = incomes.fold(0.0, (sum, i) => sum + i.amount);
+    final surplusOrDeficit = totalFundCollected - totalCost;
     final splitExpenseIds = tourSplits.map((s) => s.expenseId.toLowerCase()).toSet();
 
     double totalMealCost = 0.0;
@@ -142,18 +146,21 @@ class SettlementScreen extends ConsumerWidget {
         // If it has custom splits, it's neither Bazar nor standard Fixed pool in the summary
         if (splitExpenseIds.contains(e.id.toLowerCase())) continue;
 
-        final type = e.messCostType?.toLowerCase().trim();
         final category = e.category.toLowerCase().trim();
+        final type = e.messCostType?.toLowerCase().trim();
         
-        final isFixed = type == 'fixed' || 
-                        category == 'rent' || 
-                        category == 'maid' || 
-                        category == 'wifi' || 
-                        category == 'others';
+        // Strict Categorization for Mess mode (matches MessSettlementCalculator):
+        // Rent: Category is 'rent' or type is 'fixed' (including maid, wifi, etc.)
+        final isRent = category == 'rent' || 
+                       type == 'fixed' || 
+                       category == 'maid' || 
+                       category == 'wifi' || 
+                       category == 'others';
 
-        if (isFixed) {
+        if (isRent) {
           totalFixedCost += e.amount;
         } else {
+          // Bazar: Category is 'bazar' or default (meal-based)
           totalMealCost += e.amount;
         }
       }
@@ -239,7 +246,7 @@ class SettlementScreen extends ConsumerWidget {
                       Expanded(
                         child: _buildSummaryItem(
                           context,
-                          "Meal Rate",
+                          "Meal Charge",
                           "৳${mealRate.toStringAsFixed(2)}/meal",
                           Icons.calculate_rounded,
                           Colors.purple,
@@ -252,6 +259,54 @@ class SettlementScreen extends ConsumerWidget {
                           "Total Rent",
                           "৳${totalFixedCost.toStringAsFixed(0)}",
                           Icons.home_work_rounded,
+                          Colors.teal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else if (isEvent) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildSummaryItem(
+                          context,
+                          "Total Fund",
+                          "৳${totalFundCollected.toStringAsFixed(0)}",
+                          Icons.account_balance_wallet_rounded,
+                          Colors.green,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildSummaryItem(
+                          context,
+                          "Total Expenses",
+                          "৳${totalCost.toStringAsFixed(0)}",
+                          Icons.shopping_cart_rounded,
+                          Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildSummaryItem(
+                          context,
+                          surplusOrDeficit >= 0 ? "Surplus" : "Deficit",
+                          "৳${surplusOrDeficit.abs().toStringAsFixed(0)}",
+                          surplusOrDeficit >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                          surplusOrDeficit >= 0 ? Colors.blue : Colors.orange,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildSummaryItem(
+                          context,
+                          "Members",
+                          settlementUsers.length.toString(),
+                          Icons.group_rounded,
                           Colors.teal,
                         ),
                       ),
@@ -300,6 +355,34 @@ class SettlementScreen extends ConsumerWidget {
                       const SizedBox(width: 6),
                       Text(
                         "Equal split = ৳${equalShare.toStringAsFixed(0)} per person",
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: config.color.withValues(alpha: 0.8),
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              ], 
+              if (isEvent) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: config.color.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.info_outline_rounded,
+                          size: 13, color: config.color.withValues(alpha: 0.7)),
+                      const SizedBox(width: 6),
+                      Text(
+                        surplusOrDeficit >= 0 
+                          ? "Leftover ৳${surplusOrDeficit.abs().toStringAsFixed(0)} will be shared equally"
+                          : "Deficit of ৳${surplusOrDeficit.abs().toStringAsFixed(0)} must be covered by all",
                         style: TextStyle(
                             fontSize: 11,
                             color: config.color.withValues(alpha: 0.8),
@@ -365,7 +448,7 @@ class SettlementScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 32),
         _buildSectionTitle("Individual Balances", config.color),
-        ...users.map((u) {
+        ...settlementUsers.map((u) {
           final nid = u.id.toLowerCase();
           final details = balanceDetailsMap[nid] ?? balanceDetailsMap[u.id];
           if (details == null) return const SizedBox.shrink();
@@ -475,10 +558,12 @@ class SettlementScreen extends ConsumerWidget {
                             ),
                             Text(
                               isSettled
-                                  ? "Settled ✓"
-                                  : (isCreditor ? "Surplus (Receive)" : "Due (Pay)"),
+                                  ? "সেটেলড"
+                                  : (isEvent 
+                                      ? (isCreditor ? "পাবে ৳${balance.toStringAsFixed(0)}" : "দিতে হবে ৳${balance.abs().toStringAsFixed(0)}")
+                                      : (isCreditor ? "Surplus (Receive)" : "Due (Pay)")),
                               style: TextStyle(
-                                  fontSize: 9,
+                                  fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                   color: netColor),
                             ),
@@ -497,48 +582,50 @@ class SettlementScreen extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.05)),
                       ),
-                      child: totalMeals > 0 
+                      child: (totalMeals > 0 || totalFixedCost > 0) 
                         ? Builder(
                             builder: (context) {
                               // Extract values directly from Audit Items for 100% accuracy
-                              final mealPart = details.items
-                                  .where((item) => item.title.contains("Meal"))
+                              final bazarPart = details.items
+                                  .where((item) => item.title.toLowerCase().contains("bazar") || 
+                                                   item.title.toLowerCase().contains("meal"))
                                   .fold(0.0, (sum, item) => sum + item.amount);
                               
-                              final fixedPart = details.items
-                                  .where((item) => item.title.contains("Fixed"))
+                              final rentPart = details.items
+                                  .where((item) => item.title.toLowerCase().contains("rent") || 
+                                                   item.title.toLowerCase().contains("fixed"))
                                   .fold(0.0, (sum, item) => sum + item.amount);
                                   
                               final incomeReduc = details.items
                                   .where((item) => item.title.contains("Income"))
                                   .fold(0.0, (sum, item) => sum + item.amount);
-
+ 
                               final customSplitPart = details.items
                                   .where((item) => item.title.contains("Custom"))
                                   .fold(0.0, (sum, item) => sum + item.amount);
-
+ 
                               return Column(
                                 children: [
-                                  if (mealPart > 0)
+                                  if (bazarPart > 0)
                                     _buildBreakdownRow(
                                       context,
-                                      "Meals (${mealCounts[u.id.toLowerCase()]?.toStringAsFixed(1) ?? '0'})",
-                                      "৳${mealPart.toStringAsFixed(2)}",
+                                      "Meal Charge (${mealCounts[u.id.toLowerCase()]?.toStringAsFixed(1) ?? '0'} meals)",
+                                      "৳${bazarPart.toStringAsFixed(2)}",
                                       Icons.restaurant_rounded,
                                       Colors.orange,
                                     ),
-                                  if (fixedPart > 0) ...[
-                                    if (mealPart > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
+                                  if (rentPart > 0) ...[
+                                    if (bazarPart > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
                                     _buildBreakdownRow(
                                       context,
-                                      "Shared Fixed Costs",
-                                      "৳${fixedPart.toStringAsFixed(2)}",
+                                      "Rent Share",
+                                      "৳${rentPart.toStringAsFixed(2)}",
                                       Icons.home_rounded,
                                       Colors.blue,
                                     ),
                                   ],
                                   if (customSplitPart > 0) ...[
-                                    if (mealPart > 0 || fixedPart > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
+                                    if (bazarPart > 0 || rentPart > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
                                     _buildBreakdownRow(
                                       context,
                                       "Custom Splits",
@@ -591,6 +678,66 @@ class SettlementScreen extends ConsumerWidget {
                               ),
                             ],
                           ),
+                    ),
+                  ],
+
+                  if (isEvent) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).dividerColor.withValues(alpha: 0.03),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.05)),
+                      ),
+                      child: Builder(
+                        builder: (context) {
+                          final collected = details.items
+                              .where((item) => item.type == 'collected')
+                              .fold(0.0, (sum, item) => sum + item.amount);
+                          
+                          final spent = details.items
+                              .where((item) => item.type == 'spent')
+                              .fold(0.0, (sum, item) => sum + item.amount);
+
+                          final expenseShare = settlementUsers.isEmpty ? 0.0 : totalCost / settlementUsers.length;
+
+                          return Column(
+                            children: [
+                              _buildBreakdownRow(context, "Collected Funds", "৳${collected.toStringAsFixed(2)}", Icons.account_balance_wallet_rounded, Colors.green),
+                              const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
+                              _buildBreakdownRow(context, "Out-of-pocket Spent", "৳${spent.toStringAsFixed(2)}", Icons.payments_rounded, Colors.orange),
+                              const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
+                              _buildBreakdownRow(context, "Expense Share", "৳${expenseShare.toStringAsFixed(2)}", Icons.person_outline_rounded, Colors.redAccent),
+                              const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
+                              _buildBreakdownRow(
+                                context, 
+                                surplusOrDeficit >= 0 ? "Surplus Share" : "Deficit Share", 
+                                "${surplusOrDeficit >= 0 ? '-' : '+'}৳${(surplusOrDeficit.abs() / settlementUsers.length).toStringAsFixed(2)}", 
+                                Icons.pie_chart_rounded, 
+                                Colors.blue
+                              ),
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 2),
+                                child: DottedLine(height: 1),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text("Net Position", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                    Text(
+                                      isSettled ? "Settled" : (balance < 0 ? "Receive ৳${balance.abs().toStringAsFixed(2)}" : "Pay ৳${balance.toStringAsFixed(2)}"),
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: netColor)
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
                     ),
                   ],
 

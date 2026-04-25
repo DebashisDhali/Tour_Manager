@@ -27,10 +27,11 @@ abstract class BaseSettlementCalculator {
     Map<String, List<BalanceItem>> itemLogs,
   ) {
     for (var u in users) {
-      paidMap[u.id] = 0.0;
-      shareMap[u.id] = 0.0;
-      settledMap[u.id] = 0.0;
-      itemLogs[u.id] = [];
+      final nid = u.id.toLowerCase();
+      paidMap[nid] = 0.0;
+      shareMap[nid] = 0.0;
+      settledMap[nid] = 0.0;
+      itemLogs[nid] = [];
     }
   }
 
@@ -43,17 +44,17 @@ abstract class BaseSettlementCalculator {
   ) {
     final Set<String> expensesWithPayerRecords = {};
 
-    // Use clean lists directly
     for (var ep in expensePayers) {
-      expensesWithPayerRecords.add(ep.expenseId);
-      final nid = ep.userId;
+      expensesWithPayerRecords.add(ep.expenseId.toLowerCase());
+      final nid = ep.userId.toLowerCase();
       paidMap[nid] = roundTo2Decimals((paidMap[nid] ?? 0.0) + ep.amount);
       itemLogs[nid]?.add(BalanceItem(title: "Payment", amount: ep.amount, type: 'paid', isCredit: true));
     }
 
     for (var e in expenses) {
-      if (!expensesWithPayerRecords.contains(e.id) && e.payerId != null) {
-        final nid = e.payerId!;
+      final eid = e.id.toLowerCase();
+      if (!expensesWithPayerRecords.contains(eid) && e.payerId != null) {
+        final nid = e.payerId!.toLowerCase();
         paidMap[nid] = roundTo2Decimals((paidMap[nid] ?? 0.0) + e.amount);
         itemLogs[nid]?.add(BalanceItem(title: e.title, amount: e.amount, type: 'paid', isCredit: true));
       }
@@ -112,10 +113,10 @@ abstract class BaseSettlementCalculator {
   ) {
     final results = <String, UserBalanceDetails>{};
     for (var u in users) {
-      final nid = u.id;
-      final paid = roundTo2Decimals(paidMap[nid] ?? 0.0);
-      final share = roundTo2Decimals(shareMap[nid] ?? 0.0);
-      final settled = roundTo2Decimals(settledMap[nid] ?? 0.0);
+      final nid = u.id.toLowerCase();
+      final paid = roundTo2Decimals(paidMap[nid] ?? paidMap[u.id] ?? 0.0);
+      final share = roundTo2Decimals(shareMap[nid] ?? shareMap[u.id] ?? 0.0);
+      final settled = roundTo2Decimals(settledMap[nid] ?? settledMap[u.id] ?? 0.0);
       final net = roundTo2Decimals(paid - share + settled);
 
       results[nid] = UserBalanceDetails(
@@ -123,7 +124,7 @@ abstract class BaseSettlementCalculator {
         share: share,
         settled: settled,
         net: net,
-        items: List.from(itemLogs[nid] ?? []),
+        items: List.from(itemLogs[nid] ?? itemLogs[u.id] ?? []),
       );
     }
     return results;
