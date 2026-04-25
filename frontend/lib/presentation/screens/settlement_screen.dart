@@ -140,11 +140,14 @@ class SettlementScreen extends ConsumerWidget {
 
     double totalMealCost = 0.0;
     double totalFixedCost = 0.0;
+    double standardMealCost = 0.0;
+    double standardFixedCost = 0.0;
 
     if (isMess) {
       for (var e in dedupedExpenses) {
         final category = e.category.toLowerCase().trim();
         final type = e.messCostType?.toLowerCase().trim();
+        final isCustomSplit = splitExpenseIds.contains(e.id.toLowerCase());
         
         // Strict Categorization for Mess mode (matches MessSettlementCalculator):
         // Rent: Category is 'rent' or type is 'fixed' (including maid, wifi, etc.)
@@ -156,19 +159,24 @@ class SettlementScreen extends ConsumerWidget {
 
         if (isRent) {
           totalFixedCost += e.amount;
+          if (!isCustomSplit) standardFixedCost += e.amount;
         } else {
           // Bazar: Category is 'bazar' or default (meal-based)
           totalMealCost += e.amount;
+          if (!isCustomSplit) standardMealCost += e.amount;
         }
       }
     } else {
       totalMealCost = dedupedExpenses.fold(0.0, (s, e) => s + e.amount);
+      standardMealCost = dedupedExpenses
+          .where((e) => !splitExpenseIds.contains(e.id.toLowerCase()))
+          .fold(0.0, (s, e) => s + e.amount);
     }
 
-    final mealRate = totalMeals > 0 ? totalMealCost / totalMeals : 0.0;
+    final mealRate = totalMeals > 0 ? standardMealCost / totalMeals : 0.0;
     final fixedCostPerPerson =
         settlementUsers.isNotEmpty && isMess
-            ? totalFixedCost / (settlementUsers.isEmpty ? 1 : settlementUsers.length)
+            ? standardFixedCost / settlementUsers.length
             : 0.0;
 
     // Check permissions
@@ -578,67 +586,71 @@ class SettlementScreen extends ConsumerWidget {
                         border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.05)),
                       ),
                       child: (totalMeals > 0 || totalFixedCost > 0) 
-                        ? Builder(
-                            builder: (context) {
-                              // Extract values directly from Audit Items for 100% accuracy
-                              final bazarPart = details.items
-                                  .where((item) => item.title.toLowerCase().contains("bazar") || 
-                                                   item.title.toLowerCase().contains("meal"))
+                                                // 1. Standard Meal Charge (Rate x Count)
+                              final standardBazar = details.items
+                                  .where((item) => item.title == "Meal Charge" || item.title == "Bazar Rounding Comp.")
                                   .fold(0.0, (sum, item) => sum + item.amount);
                               
-                              final rentPart = details.items
-                                  .where((item) => item.title.toLowerCase().contains("rent") || 
-                                                   item.title.toLowerCase().contains("fixed"))
+                              // 2. Standard Rent Share (Equal)
+                              final standardRent = details.items
+                                  .where((item) => item.title == "Rent Share" || item.title == "Rent Rounding Comp.")
                                   .fold(0.0, (sum, item) => sum + item.amount);
                                   
+                              // 3. Custom Splits (Any category that was manually split)
+                              final customSplits = details.items
+                                  .where((item) => item.type == 'share' && 
+                                                 item.title.contains("(Split)"))
+                                  .fold(0.0, (sum, item) => sum + item.amount);
+
                               final incomeReduc = details.items
-                                  .where((item) => item.title.contains("Income"))
+                                  .where((item) => item.type == 'settled' && item.title.contains("Fund"))
                                   .fold(0.0, (sum, item) => sum + item.amount);
- 
-                              final customSplitPart = details.items
-                                  .where((item) => item.title.contains("Custom"))
-                                  .fold(0.0, (sum, item) => sum + item.amount);
- 
+
                               return Column(
                                 children: [
-                                  if (bazarPart > 0)
+                                  if (standardBazar > 0)
                                     _buildBreakdownRow(
                                       context,
                                       "Meal Charge (${mealCounts[u.id.toLowerCase()]?.toStringAsFixed(1) ?? '0'} meals)",
-                                      "৳${bazarPart.toStringAsFixed(2)}",
+                                      "৳${standardBazar.toStringAsFixed(2)}",
                                       Icons.restaurant_rounded,
                                       Colors.orange,
                                     ),
-                                  if (rentPart > 0) ...[
-                                    if (bazarPart > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
+                                  if (standardRent > 0) ...[
+                                    if (standardBazar > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
                                     _buildBreakdownRow(
                                       context,
                                       "Rent Share",
-                                      "৳${rentPart.toStringAsFixed(2)}",
-                                      Icons.home_rounded,
-                                      Colors.blue,
+                                      "৳${standardRent.toStringAsFixed(2)}",
+                                      Icons.home_work_rounded,
+                                      Colors.teal,
                                     ),
                                   ],
-                                  if (customSplitPart > 0) ...[
-                                    if (bazarPart > 0 || rentPart > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
+                                  if (customSplits > 0) ...[
+                                    if (standardBazar > 0 || standardRent > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
                                     _buildBreakdownRow(
                                       context,
                                       "Custom Splits",
-                                      "৳${customSplitPart.toStringAsFixed(2)}",
-                                      Icons.person_pin_rounded,
-                                      Colors.purple,
+                                      "৳${customSplits.toStringAsFixed(2)}",
+                                      Icons.extension_rounded,
+                                      Colors.blueGrey,
                                     ),
                                   ],
-                                  if (incomeReduc > 0) ...[
+                                  if (incomeReduc != 0) ...[
                                     const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
                                     _buildBreakdownRow(
                                       context,
-                                      "Income Credit",
-                                      "-৳${incomeReduc.toStringAsFixed(2)}",
-                                      Icons.account_balance_rounded,
+                                      isEvent ? "Fund Collected" : "Income Credit",
+                                      "৳${incomeReduc.toStringAsFixed(2)}",
+                                      Icons.account_balance_wallet_rounded,
                                       Colors.green,
                                     ),
                                   ],
+                                ],
+                              );
+                            },
+                          )
+                        : const SizedBox.shrink(),
                                   const Padding(
                                     padding: EdgeInsets.symmetric(vertical: 2),
                                     child: DottedLine(height: 1),
