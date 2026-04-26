@@ -300,9 +300,9 @@ class SyncService {
                 batch.insert(
                     db.joinRequests,
                     JoinRequestsCompanion.insert(
-                      id: jr['id'] ?? '',
-                      tourId: st['id'] ?? '',
-                      userId: jr['user_id'] ?? '',
+                      id: (jr['id'] ?? '').toString().toLowerCase(),
+                      tourId: (st['id'] ?? '').toString().toLowerCase(),
+                      userId: (jr['user_id'] ?? '').toString().toLowerCase(),
                       userName: jr['user_name'] ?? 'User',
                       status: Value(jr['status']),
                       isSynced: const Value(true),
@@ -358,7 +358,7 @@ class SyncService {
                 batch.insert(
                     db.users,
                     UsersCompanion.insert(
-                      id: su['id'] ?? '',
+                      id: (su['id'] ?? '').toString().toLowerCase(),
                       name: userName,
                       phone: Value(su['phone']),
                       email: Value(userEmail),
@@ -744,9 +744,9 @@ class SyncService {
 
                       await db.into(db.expenseSplits).insert(
                           ExpenseSplit(
-                            id: (sp['id'] ?? const Uuid().v4()).toString(),
+                            id: (sp['id'] ?? const Uuid().v4()).toString().toLowerCase(),
                             expenseId: exId,
-                            userId: sUserId,
+                            userId: sUserId.toLowerCase(),
                             amount: double.tryParse(
                                     sp['amount']?.toString() ?? '0') ??
                                 0.0,
@@ -770,9 +770,9 @@ class SyncService {
 
                       await db.into(db.expensePayers).insert(
                           ExpensePayer(
-                            id: (pay['id'] ?? const Uuid().v4()).toString(),
+                            id: (pay['id'] ?? const Uuid().v4()).toString().toLowerCase(),
                             expenseId: exId,
-                            userId: pUserId,
+                            userId: pUserId.toLowerCase(),
                             amount: double.tryParse(
                                     pay['amount']?.toString() ?? '0') ??
                                 0.0,
@@ -803,10 +803,10 @@ class SyncService {
 
                   await db.into(db.settlements).insert(
                       Settlement(
-                        id: (stItem['id'] ?? const Uuid().v4()).toString(),
-                        tourId: tourData['id'].toString(),
-                        fromId: fId,
-                        toId: tId,
+                        id: (stItem['id'] ?? const Uuid().v4()).toString().toLowerCase(),
+                        tourId: tourData['id'].toString().toLowerCase(),
+                        fromId: fId.toLowerCase(),
+                        toId: tId.toLowerCase(),
                         amount: double.tryParse(
                                 stItem['amount']?.toString() ?? '0') ??
                             0.0,
@@ -833,8 +833,8 @@ class SyncService {
                 try {
                   await db.into(db.programIncomes).insert(
                       ProgramIncome(
-                        id: (inc['id'] ?? '').toString(),
-                        tourId: tourData['id'].toString(),
+                        id: (inc['id'] ?? '').toString().toLowerCase(),
+                        tourId: tourData['id'].toString().toLowerCase(),
                         amount:
                             double.tryParse(inc['amount']?.toString() ?? '0') ??
                                 0.0,
@@ -842,7 +842,7 @@ class SyncService {
                         description: (inc['description'] ?? '').toString(),
                         collectedBy:
                             (inc['collected_by'] ?? inc['collectedBy'] ?? '')
-                                .toString(),
+                                .toString().toLowerCase(),
                         date: inc['date'] != null
                             ? DateTime.parse(inc['date'].toString())
                             : DateTime.now(),
