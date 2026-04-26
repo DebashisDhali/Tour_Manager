@@ -28,6 +28,10 @@ module.exports = (sequelize) => {
         defaultValue: 'Others'
     },
     note: DataTypes.TEXT,
+    is_deleted: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
     mess_cost_type: {
         type: DataTypes.STRING,
         allowNull: true

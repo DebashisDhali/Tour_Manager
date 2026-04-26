@@ -34,6 +34,10 @@ module.exports = (sequelize) => {
     status: {
         type: DataTypes.ENUM('active', 'completed'),
         defaultValue: 'active'
+    },
+    is_deleted: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
     }
   }, {
     timestamps: true,

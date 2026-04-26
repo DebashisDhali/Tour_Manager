@@ -75,14 +75,14 @@ exports.syncData = async (req, res) => {
               const role = roleMap[tourId] || 'none';
 
               if (t.isDeleted) {
-                // Security Guard: Only the creator can destroy the actual tour record
+                // Security Guard: Only the creator can destroy/soft-delete the actual tour record
                 const existingTour = await Tour.findByPk(tourId);
                 if (existingTour && existingTour.created_by.toLowerCase() === normalizedUserId) {
-                  await Tour.destroy({ where: { id: tourId } });
-                  console.log(`    🗑️  Tour ${t.id} destroyed by creator`);
+                  await Tour.update({ is_deleted: true, updated_at: now }, { where: { id: tourId } });
+                  console.log(`    🗑️  Tour ${t.id} soft-deleted by creator`);
                 } else {
                   // If not creator, just remove this user's membership (Left the tour)
-                  await TourMember.destroy({ 
+                  await TourMember.update({ status: 'removed', removed_at: now, updated_at: now }, { 
                     where: { tour_id: tourId, user_id: normalizedUserId } 
                   });
                   console.log(`    🚶 User ${normalizedUserId} left tour ${t.id}`);
@@ -152,7 +152,7 @@ exports.syncData = async (req, res) => {
                 if (role !== 'admin' && role !== 'editor') throw new Error("Permission Denied: Only Admin or Editor can modify expenses");
 
                 if (e.isDeleted) {
-                  await Expense.destroy({ where: { id: e.id.toLowerCase() } });
+                  await Expense.update({ is_deleted: true, updated_at: now }, { where: { id: e.id.toLowerCase() } });
                 } else {
                   await Expense.upsert({
                     id: e.id.toLowerCase(), 
@@ -171,7 +171,7 @@ exports.syncData = async (req, res) => {
           if (splits?.length > 0) {
             console.log(`  ✂️  ${splits.length} split(s)`);
             const toDelete = splits.filter(s => s.isDeleted).map(s => s.id.toLowerCase());
-            if (toDelete.length > 0) await ExpenseSplit.destroy({ where: { id: toDelete } });
+            if (toDelete.length > 0) await ExpenseSplit.update({ is_deleted: true, updated_at: now }, { where: { id: toDelete } });
             
             for (const s of splits.filter(s => !s.isDeleted)) {
               try {
@@ -189,7 +189,7 @@ exports.syncData = async (req, res) => {
           if (payers?.length > 0) {
             console.log(`  💳 ${payers.length} payer(s)`);
             const toDelete = payers.filter(p => p.isDeleted).map(p => p.id.toLowerCase());
-            if (toDelete.length > 0) await ExpensePayer.destroy({ where: { id: toDelete } });
+            if (toDelete.length > 0) await ExpensePayer.update({ is_deleted: true, updated_at: now }, { where: { id: toDelete } });
             
             for (const p of payers.filter(p => !p.isDeleted)) {
               try {
@@ -213,7 +213,7 @@ exports.syncData = async (req, res) => {
                 if (role !== 'admin' && role !== 'editor') throw new Error("Permission Denied");
 
                 if (s.isDeleted) {
-                  await Settlement.destroy({ where: { id: s.id.toLowerCase() } });
+                  await Settlement.update({ is_deleted: true, updated_at: now }, { where: { id: s.id.toLowerCase() } });
                 } else {
                   await Settlement.upsert({
                     id: s.id.toLowerCase(), 
@@ -237,7 +237,7 @@ exports.syncData = async (req, res) => {
                 if (role !== 'admin' && role !== 'editor') throw new Error("Permission Denied");
 
                 if (i.isDeleted) {
-                  await ProgramIncome.destroy({ where: { id: i.id.toLowerCase() } });
+                  await ProgramIncome.update({ is_deleted: true, updated_at: now }, { where: { id: i.id.toLowerCase() } });
                 } else {
                   await ProgramIncome.upsert({
                     id: i.id.toLowerCase(), 
@@ -256,7 +256,7 @@ exports.syncData = async (req, res) => {
           if (joinRequests?.length > 0) {
             console.log(`  📋 ${joinRequests.length} join request(s)`);
             const toDelete = joinRequests.filter(jr => jr.isDeleted).map(jr => jr.id.toLowerCase());
-            if (toDelete.length > 0) await JoinRequest.destroy({ where: { id: toDelete } });
+            if (toDelete.length > 0) await JoinRequest.destroy({ where: { id: toDelete } }); // JoinRequest doesn't need soft-delete as it's not part of balance logic
             
             for (const jr of joinRequests.filter(jr => !jr.isDeleted)) {
               try {

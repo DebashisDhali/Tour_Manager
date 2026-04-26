@@ -119,25 +119,32 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
     return StreamBuilder<List<ProgramIncome>>(
       stream: (db.select(db.programIncomes)..where((t) => t.tourId.lower().equals(widget.tourId.toLowerCase()) & t.isDeleted.equals(false))).watch(), 
       builder: (context, incomeSnap) {
-        final incomes = (incomeSnap.data ?? []).where((i) => i.tourId.toLowerCase() == widget.tourId.toLowerCase()).toList();
+        final incomes = incomeSnap.data ?? [];
 
         return StreamBuilder<List<Expense>>(
           stream: (db.select(db.expenses)..where((t) => t.tourId.lower().equals(widget.tourId.toLowerCase()) & t.isDeleted.equals(false))).watch(),
           builder: (context, expenseSnap) {
-            final expenses = (expenseSnap.data ?? []).where((e) => e.tourId.toLowerCase() == widget.tourId.toLowerCase() && e.isDeleted == false).toList();
+            final expenses = expenseSnap.data ?? [];
             final totalSpent = expenses.fold(0.0, (sum, item) => sum + item.amount);
 
             return StreamBuilder<List<Settlement>>(
               stream: (db.select(db.settlements)..where((t) => t.tourId.lower().equals(widget.tourId.toLowerCase()) & t.isDeleted.equals(false))).watch(),
               builder: (context, settlementSnap) {
-                final settlements = (settlementSnap.data ?? []).where((s) => s.tourId.toLowerCase() == widget.tourId.toLowerCase()).toList();
+                final settlements = settlementSnap.data ?? [];
                 final totalCollected = incomes.fold(0.0, (sum, item) => sum + item.amount);
                 final currentBalance = totalCollected - totalSpent; 
 
-                return StreamBuilder<List<ExpensePayer>>(
-                  stream: (db.select(db.expensePayers)..where((t) => t.isDeleted.equals(false))).watch(),
-                  builder: (context, payerSnap) {
-                    final allPayers = (payerSnap.data ?? []).toList();
+                // Fetch only payers for this tour's expenses to avoid huge data sets
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: StreamBuilder<List<ExpensePayer>>(
+                    stream: (db.select(db.expensePayers).join([
+                      drift.innerJoin(db.expenses, db.expenses.id.equalsExp(db.expensePayers.expenseId))
+                    ])..where(db.expenses.tourId.lower().equals(widget.tourId.toLowerCase()) & db.expensePayers.isDeleted.equals(false)))
+                    .map((row) => row.readTable(db.expensePayers))
+                    .watch(),
+                    builder: (context, payerSnap) {
+                      final allPayers = payerSnap.data ?? [];
 
                     return SingleChildScrollView(
                       padding: const EdgeInsets.all(16),
@@ -186,12 +193,10 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
                                   final expensePayers = allPayers.where((p) => p.expenseId.toLowerCase() == eId).toList();
                                   
                                   if (expensePayers.isNotEmpty) {
-                                    // Use multi-payer data if it exists
                                     spent += expensePayers
                                         .where((p) => p.userId.toLowerCase() == uid)
                                         .fold(0.0, (sum, p) => sum + p.amount);
                                   } else {
-                                    // Fallback to single payerId for old data
                                     if (e.payerId?.toLowerCase() == uid) {
                                       spent += e.amount;
                                     }

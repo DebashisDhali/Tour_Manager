@@ -1627,219 +1627,176 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
   }
 
   Widget _buildProgramOverviewTab(Tour tour) {
-    final db = ref.watch(databaseProvider);
     final config = PurposeConfig.getConfig(tour.purpose);
     final me = ref.watch(currentUserProvider).value;
-    final splitsAsync = ref.watch(tourSplitsProvider(widget.tourId));
-    final splits = splitsAsync.value ?? [];
 
-    final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
-    final members = membersAsync.value ?? [];
+    // Use Providers for all data to avoid nesting hell and ensure consistency
+    final incomes = ref.watch(tourIncomesProvider(widget.tourId)).value ?? [];
+    final expenses = ref.watch(tourExpensesProvider(widget.tourId)).value ?? [];
+    final settlements =
+        ref.watch(tourSettlementsProvider(widget.tourId)).value ?? [];
+    final splits = ref.watch(tourSplitsProvider(widget.tourId)).value ?? [];
+    final payers = ref.watch(tourPayersProvider(widget.tourId)).value ?? [];
+    final members = ref.watch(tourMembersProvider(widget.tourId)).value ?? [];
 
-    final usersStream = (db.select(db.users).join([
-      drift.innerJoin(
-          db.tourMembers, db.tourMembers.userId.equalsExp(db.users.id))
-    ])
-          ..where(db.tourMembers.tourId.equals(widget.tourId) & 
-                  db.tourMembers.status.equals('active')))
-        .map((row) => row.readTable(db.users))
-        .watch();
+    final totalCollected = incomes.fold(0.0, (sum, item) => sum + item.amount);
+    final totalSpent = expenses.fold(0.0, (sum, item) => sum + item.amount);
+    final currentBalance = totalCollected - totalSpent;
 
-    return StreamBuilder<List<ProgramIncome>>(
-      stream: (db.select(db.programIncomes)
-            ..where((t) => t.isDeleted.equals(false)))
-          .watch(),
-      builder: (context, incomeSnap) {
-        final incomes = (incomeSnap.data ?? [])
-            .where((i) => i.tourId == widget.tourId)
-            .toList();
-        final totalCollected =
-            incomes.fold(0.0, (sum, item) => sum + item.amount);
+    final userBalances = <User, double>{};
+    final users = members.map((m) => m.user).toList();
 
-        return StreamBuilder<List<Expense>>(
-          stream: (db.select(db.expenses)
-                ..where((t) => t.isDeleted.equals(false)))
-              .watch(),
-          builder: (context, expenseSnap) {
-            final expenses = (expenseSnap.data ?? [])
-                .where((e) => e.tourId == widget.tourId)
-                .toList();
-            final totalSpent =
-                expenses.fold(0.0, (sum, item) => sum + item.amount);
+    for (final u in users) {
+      final col = incomes
+          .where((i) => i.collectedBy == u.id)
+          .fold(0.0, (sum, i) => sum + i.amount);
+      final rec = settlements
+          .where((s) => s.toId == u.id)
+          .fold(0.0, (sum, s) => sum + s.amount);
+      final giv = settlements
+          .where((s) => s.fromId == u.id)
+          .fold(0.0, (sum, s) => sum + s.amount);
 
-            return StreamBuilder<List<Settlement>>(
-              stream: (db.select(db.settlements)
-                    ..where((t) => t.isDeleted.equals(false)))
-                  .watch(),
-              builder: (context, settlementSnap) {
-                final settlements = (settlementSnap.data ?? [])
-                    .where((s) => s.tourId == widget.tourId)
-                    .toList();
-                final currentBalance = totalCollected - totalSpent;
+      // Single payer contribution
+      final singlePayerSpt = expenses
+          .where((e) => e.payerId == u.id)
+          .fold(0.0, (sum, e) => sum + e.amount);
 
-                return StreamBuilder<List<User>>(
-                  stream: usersStream,
-                  builder: (context, userSnap) {
-                    if (!userSnap.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    final users = userSnap.data!;
-                    final userBalances = <User, double>{};
+      // Multi payer contribution
+      final multiPayerSpt =
+          payers.where((p) => p.userId == u.id).fold(0.0, (sum, p) => sum + p.amount);
 
-                    for (final u in users) {
-                      final col = incomes
-                          .where((i) => i.collectedBy == u.id)
-                          .fold(0.0, (sum, i) => sum + i.amount);
-                      final rec = settlements
-                          .where((s) => s.toId == u.id)
-                          .fold(0.0, (sum, s) => sum + s.amount);
-                      final giv = settlements
-                          .where((s) => s.fromId == u.id)
-                          .fold(0.0, (sum, s) => sum + s.amount);
-                      final spt = expenses
-                          .where((e) => e.payerId == u.id)
-                          .fold(0.0, (sum, e) => sum + e.amount);
-                      userBalances[u] = col + rec - giv - spt;
-                    }
+      userBalances[u] = col + rec - giv - (singlePayerSpt + multiPayerSpt);
+    }
 
-                    final sortedUsers = List<User>.from(users)
-                      ..sort((a, b) => (userBalances[b] ?? 0)
-                          .compareTo(userBalances[a] ?? 0));
-                    final progressVal = totalCollected > 0
-                        ? (totalSpent / totalCollected).clamp(0.0, 1.0)
-                        : 0.0;
+    final sortedUsers = List<User>.from(users)
+      ..sort((a, b) =>
+          (userBalances[b] ?? 0).compareTo(userBalances[a] ?? 0));
+    final progressVal =
+        totalCollected > 0 ? (totalSpent / totalCollected).clamp(0.0, 1.0) : 0.0;
 
-                    return SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildPremiumDashboardCard(totalCollected, totalSpent,
-                              currentBalance, progressVal, config),
-                          const SizedBox(height: 32),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text("Your Team",
-                                  style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: -0.5)),
-                              if (tour.createdBy == me?.id)
-                                IconButton.filledTonal(
-                                  onPressed: () => showDialog(
-                                      context: context,
-                                      builder: (_) => AddMemberDialog(
-                                          tourId: widget.tourId)),
-                                  icon: const Icon(Icons.add_rounded, size: 20),
-                                  style: IconButton.styleFrom(
-                                    backgroundColor:
-                                        config.color.withValues(alpha: 0.05),
-                                    foregroundColor: config.color,
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          _buildMemberStatusList(
-                              sortedUsers, userBalances, config),
-                          const SizedBox(height: 32),
-                          const Text("Quick Actions",
-                              style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -0.5)),
-                          const SizedBox(height: 16),
-                          Builder(builder: (context) {
-                            final myRole = members
-                                .firstWhere((m) => m.user.id == me?.id,
-                                    orElse: () => members.first)
-                                .role;
-                            final isViewer = myRole == 'viewer';
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildPremiumDashboardCard(
+              totalCollected, totalSpent, currentBalance, progressVal, config),
+          const SizedBox(height: 32),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Your Team",
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5)),
+              if (tour.createdBy == me?.id ||
+                  members.any((m) =>
+                      m.user.id == me?.id &&
+                      (m.role == 'admin' || m.role == 'editor')))
+                IconButton.filledTonal(
+                  onPressed: () => showDialog(
+                      context: context,
+                      builder: (_) => AddMemberDialog(tourId: widget.tourId)),
+                  icon: const Icon(Icons.add_rounded, size: 20),
+                  style: IconButton.styleFrom(
+                    backgroundColor: config.color.withValues(alpha: 0.05),
+                    foregroundColor: config.color,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildMemberStatusList(sortedUsers, userBalances, config),
+          const SizedBox(height: 32),
+          const Text("Quick Actions",
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.5)),
+          const SizedBox(height: 16),
+          Builder(builder: (context) {
+            final myMember =
+                members.where((m) => m.user.id == me?.id).firstOrNull;
+            final isEditor = me?.id == tour.createdBy ||
+                myMember?.role == 'admin' ||
+                myMember?.role == 'editor';
 
-                            if (isViewer) {
-                              return Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                    color: Colors.amber.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(12)),
-                                child: const Row(
-                                  children: [
-                                    Icon(Icons.lock_outline,
-                                        color: Colors.orange, size: 20),
-                                    SizedBox(width: 8),
-                                    Expanded(
-                                        child: Text(
-                                            "You are a Viewer. Viewers cannot add or edit expenses.",
-                                            style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.orange))),
-                                  ],
-                                ),
-                              );
-                            }
+            if (!isEditor) {
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.2)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.lock_outline, color: Colors.orange, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                        child: Text(
+                            "You are a Viewer. Viewers cannot add or edit expenses.",
+                            style:
+                                TextStyle(fontSize: 12, color: Colors.orange))),
+                  ],
+                ),
+              );
+            }
 
-                            return Row(
-                              children: [
-                                Expanded(
-                                    child: _buildDashboardQuickButton(
-                                        Icons.add_task_rounded,
-                                        "Income",
-                                        config.color,
-                                        () => showDialog(
-                                            context: context,
-                                            builder: (_) => AddIncomeDialog(
-                                                tourId: widget.tourId)))),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                    child: _buildDashboardQuickButton(
-                                        Icons.receipt_rounded,
-                                        "Expense",
-                                        Colors.orange,
-                                        () => navigateWithTransition(context,
-                                            builder: () => AddExpenseScreen(
-                                                tourId: widget.tourId)))),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                    child: _buildDashboardQuickButton(
-                                        Icons.swap_calls_rounded,
-                                        "Transfer",
-                                        Colors.teal,
-                                        () => showDialog(
-                                            context: context,
-                                            builder: (_) => AllocateFundDialog(
-                                                tourId: widget.tourId)))),
-                              ],
-                            );
-                          }),
-                          const SizedBox(height: 32),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text("Recent Activity",
-                                  style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: -0.5)),
-                              TextButton(
-                                  onPressed: () => _tabController?.animateTo(1),
-                                  child: const Text("See All")),
-                            ],
-                          ),
-                          _buildRecentTransactionsList(
-                              incomes, expenses, settlements, me?.id, splits),
-                          const SizedBox(height: 80),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
+            return Row(
+              children: [
+                Expanded(
+                    child: _buildDashboardQuickButton(
+                        Icons.add_task_rounded,
+                        "Income",
+                        config.color,
+                        () => showDialog(
+                            context: context,
+                            builder: (_) =>
+                                AddIncomeDialog(tourId: widget.tourId)))),
+                const SizedBox(width: 12),
+                Expanded(
+                    child: _buildDashboardQuickButton(
+                        Icons.add_rounded,
+                        "Expense",
+                        Colors.orange,
+                        () => navigateWithTransition(context,
+                            builder: () =>
+                                AddExpenseScreen(tourId: widget.tourId)))),
+                const SizedBox(width: 12),
+                Expanded(
+                    child: _buildDashboardQuickButton(
+                        Icons.swap_calls_rounded,
+                        "Transfer",
+                        Colors.teal,
+                        () => showDialog(
+                            context: context,
+                            builder: (_) =>
+                                AllocateFundDialog(tourId: widget.tourId)))),
+              ],
             );
-          },
-        );
-      },
+          }),
+          const SizedBox(height: 32),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Recent Activity",
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5)),
+              TextButton(
+                  onPressed: () => _tabController?.animateTo(2), // Expenses tab
+                  child: const Text("See All")),
+            ],
+          ),
+          _buildRecentTransactionsList(
+              incomes, expenses, settlements, me?.id, splits),
+          const SizedBox(height: 80),
+        ],
+      ),
     );
   }
 

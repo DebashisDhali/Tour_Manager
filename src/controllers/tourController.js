@@ -614,30 +614,51 @@ exports.retroactiveSplit = async (req, res) => {
       const equalAmount = Math.floor((totalAmount / participantCount) * 100) / 100;
       const remainder = Math.round((totalAmount - (equalAmount * participantCount)) * 100) / 100;
 
-      // 3. Delete ALL existing splits for this expense to do a clean re-split
-      // We only do this if the expense doesn't have custom splits logic 
-      // (For now, we assume all expenses in this flow are equal-split)
-      await ExpenseSplit.destroy({
+      // 3. Reuse existing splits to prevent ID changes (which cause sync duplication)
+      const existingSplits = await ExpenseSplit.findAll({ 
         where: { expense_id: expense.id },
-        transaction: t
+        transaction: t 
       });
+      const splitMap = {};
+      existingSplits.forEach(s => splitMap[s.user_id.toLowerCase()] = s);
 
-      // 4. Create new splits for EVERY active participant
-      const newSplits = [];
       for (let i = 0; i < participants.length; i++) {
+        const uid = participants[i];
         const splitAmount = i === 0 ? 
           Math.round((equalAmount + remainder) * 100) / 100 : 
           equalAmount;
           
-        newSplits.push({
-          id: uuidv4().toLowerCase(),
-          expense_id: expense.id,
-          user_id: participants[i],
-          amount: splitAmount
-        });
+        if (splitMap[uid]) {
+          // Update existing split
+          await splitMap[uid].update({ 
+            amount: splitAmount,
+            is_deleted: false,
+            updated_at: new Date()
+          }, { transaction: t });
+          delete splitMap[uid];
+        } else {
+          // Create new split with deterministic-like ID if possible, but uuid is fine as it's new
+          await ExpenseSplit.create({
+            id: uuidv4().toLowerCase(),
+            expense_id: expense.id,
+            user_id: uid,
+            amount: splitAmount,
+            is_deleted: false
+          }, { transaction: t });
+        }
       }
 
-      await ExpenseSplit.bulkCreate(newSplits, { transaction: t });
+      // 4. Soft-delete any remaining splits (users who are no longer active)
+      const leftovers = Object.values(splitMap);
+      if (leftovers.length > 0) {
+        await ExpenseSplit.update({ 
+          is_deleted: true, 
+          updated_at: new Date() 
+        }, { 
+          where: { id: leftovers.map(s => s.id) },
+          transaction: t 
+        });
+      }
       
       // Update expense synced_at to trigger re-sync for everyone
       await expense.update({ synced_at: new Date() }, { transaction: t });

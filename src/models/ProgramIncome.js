@@ -30,6 +30,10 @@ module.exports = (sequelize) => {
     date: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW
+    },
+    is_deleted: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
     }
   }, {
     timestamps: true,

@@ -393,8 +393,16 @@ class AppDatabase extends _$AppDatabase {
     final query = select(expensePayers).join([
       innerJoin(expenses, expenses.id.equalsExp(expensePayers.expenseId)),
     ])
-      ..where(expenses.tourId.equals(tourId));
+      ..where(expenses.tourId.equals(tourId) & expensePayers.isDeleted.equals(false));
     return query.map((row) => row.readTable(expensePayers)).get();
+  }
+
+  Stream<List<ExpensePayer>> watchPayersByTour(String tourId) {
+    final query = select(expensePayers).join([
+      innerJoin(expenses, expenses.id.equalsExp(expensePayers.expenseId)),
+    ])
+      ..where(expenses.tourId.equals(tourId) & expensePayers.isDeleted.equals(false));
+    return query.map((row) => row.readTable(expensePayers)).watch();
   }
 
   Future<List<Settlement>> getSettlementsByTour(String tourId) {
