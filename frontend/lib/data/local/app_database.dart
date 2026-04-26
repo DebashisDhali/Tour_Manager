@@ -377,7 +377,9 @@ class AppDatabase extends _$AppDatabase {
     final query = select(users).join([
       innerJoin(tourMembers, tourMembers.userId.equalsExp(users.id)),
     ])
-      ..where(tourMembers.tourId.equals(tourId));
+      ..where(tourMembers.tourId.equals(tourId) & 
+              tourMembers.isDeleted.equals(false) & 
+              users.isDeleted.equals(false));
     return query.map((row) => row.readTable(users)).get();
   }
 
@@ -385,7 +387,9 @@ class AppDatabase extends _$AppDatabase {
     final query = select(expenseSplits).join([
       innerJoin(expenses, expenses.id.equalsExp(expenseSplits.expenseId)),
     ])
-      ..where(expenses.tourId.equals(tourId));
+      ..where(expenses.tourId.equals(tourId) & 
+              expenseSplits.isDeleted.equals(false) & 
+              expenses.isDeleted.equals(false));
     return query.map((row) => row.readTable(expenseSplits)).get();
   }
 
@@ -406,11 +410,11 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Future<List<Settlement>> getSettlementsByTour(String tourId) {
-    return (select(settlements)..where((t) => t.tourId.equals(tourId))).get();
+    return (select(settlements)..where((t) => t.tourId.equals(tourId) & t.isDeleted.equals(false))).get();
   }
 
   Future<List<ProgramIncome>> getProgramIncomesByTour(String tourId) {
-    return (select(programIncomes)..where((t) => t.tourId.equals(tourId)))
+    return (select(programIncomes)..where((t) => t.tourId.equals(tourId) & t.isDeleted.equals(false)))
         .get();
   }
 

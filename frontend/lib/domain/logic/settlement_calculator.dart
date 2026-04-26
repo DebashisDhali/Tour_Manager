@@ -185,6 +185,7 @@ class SettlementCalculator {
 
     final Map<String, Expense> uniqueExpenses = {};
     for (var e in expenses) {
+      if (e.isDeleted) continue;
       final normalizedId = e.id.toLowerCase();
       if (!uniqueExpenses.containsKey(normalizedId)) {
         uniqueExpenses[normalizedId] = e.copyWith(
@@ -198,11 +199,17 @@ class SettlementCalculator {
 
     final Map<String, ExpenseSplit> uniqueSplits = {};
     for (var s in splits) {
+      if (s.isDeleted) continue;
       final normalizedId = s.id.toLowerCase();
+      final normalizedExpId = s.expenseId.toLowerCase();
+      
+      // Safety: Only include splits for expenses that are active in this calculation
+      if (!uniqueExpenses.containsKey(normalizedExpId)) continue;
+
       if (!uniqueSplits.containsKey(normalizedId)) {
         uniqueSplits[normalizedId] = s.copyWith(
           id: normalizedId,
-          expenseId: s.expenseId.toLowerCase(),
+          expenseId: normalizedExpId,
           userId: s.userId.toLowerCase(),
         );
       }
@@ -211,11 +218,17 @@ class SettlementCalculator {
 
     final Map<String, ExpensePayer> uniquePayers = {};
     for (var p in expensePayers) {
+      if (p.isDeleted) continue;
       final normalizedId = p.id.toLowerCase();
+      final normalizedExpId = p.expenseId.toLowerCase();
+      
+      // Safety: Only include payers for expenses that are active in this calculation
+      if (!uniqueExpenses.containsKey(normalizedExpId)) continue;
+
       if (!uniquePayers.containsKey(normalizedId)) {
         uniquePayers[normalizedId] = p.copyWith(
           id: normalizedId,
-          expenseId: p.expenseId.toLowerCase(),
+          expenseId: normalizedExpId,
           userId: p.userId.toLowerCase(),
         );
       }
@@ -224,6 +237,7 @@ class SettlementCalculator {
 
     final Map<String, Settlement> uniqueSettlements = {};
     for (var s in previousSettlements) {
+      if (s.isDeleted) continue;
       if (!uniqueSettlements.containsKey(s.id)) {
         uniqueSettlements[s.id] = s.copyWith(
           fromId: s.fromId.toLowerCase(),
@@ -234,7 +248,7 @@ class SettlementCalculator {
     final deduplicatedSettlements = uniqueSettlements.values.toList();
     
     final normalizedMealCounts = mealCounts?.map((k, v) => MapEntry(k.toLowerCase(), v));
-    final normalizedIncomes = incomes?.map((i) => i.copyWith(collectedBy: i.collectedBy.toLowerCase())).toList();
+    final normalizedIncomes = incomes?.where((i) => !i.isDeleted).map((i) => i.copyWith(collectedBy: i.collectedBy.toLowerCase())).toList();
 
     // 1. Select the appropriate calculator based on purpose
     BaseSettlementCalculator calculator;
