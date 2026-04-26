@@ -111,24 +111,24 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
     
     // Construct a stream for users to avoid FutureBuilder flickering and repeated calls
     final usersStream = (db.select(db.users).join([
-      drift.innerJoin(db.tourMembers, db.tourMembers.userId.equalsExp(db.users.id))
-    ])..where(db.tourMembers.tourId.equals(widget.tourId)))
+      drift.innerJoin(db.tourMembers, db.tourMembers.userId.lower().equalsExp(db.users.id.lower()))
+    ])..where(db.tourMembers.tourId.lower().equals(widget.tourId.toLowerCase()) & db.tourMembers.isDeleted.equals(false)))
     .map((row) => row.readTable(db.users))
     .watch();
 
     return StreamBuilder<List<ProgramIncome>>(
-      stream: (db.select(db.programIncomes)..where((t) => t.isDeleted.equals(false))).watch(), 
+      stream: (db.select(db.programIncomes)..where((t) => t.tourId.lower().equals(widget.tourId.toLowerCase()) & t.isDeleted.equals(false))).watch(), 
       builder: (context, incomeSnap) {
         final incomes = (incomeSnap.data ?? []).where((i) => i.tourId.toLowerCase() == widget.tourId.toLowerCase()).toList();
 
         return StreamBuilder<List<Expense>>(
-          stream: (db.select(db.expenses)..where((t) => t.tourId.equals(widget.tourId) & t.isDeleted.equals(false))).watch(),
+          stream: (db.select(db.expenses)..where((t) => t.tourId.lower().equals(widget.tourId.toLowerCase()) & t.isDeleted.equals(false))).watch(),
           builder: (context, expenseSnap) {
             final expenses = (expenseSnap.data ?? []).where((e) => e.tourId.toLowerCase() == widget.tourId.toLowerCase() && e.isDeleted == false).toList();
             final totalSpent = expenses.fold(0.0, (sum, item) => sum + item.amount);
 
             return StreamBuilder<List<Settlement>>(
-              stream: (db.select(db.settlements)..where((t) => t.tourId.equals(widget.tourId) & t.isDeleted.equals(false))).watch(),
+              stream: (db.select(db.settlements)..where((t) => t.tourId.lower().equals(widget.tourId.toLowerCase()) & t.isDeleted.equals(false))).watch(),
               builder: (context, settlementSnap) {
                 final settlements = (settlementSnap.data ?? []).where((s) => s.tourId.toLowerCase() == widget.tourId.toLowerCase()).toList();
                 final totalCollected = incomes.fold(0.0, (sum, item) => sum + item.amount);
