@@ -135,46 +135,65 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
                 
                 final currentBalance = totalCollected - totalSpent; 
 
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSummaryCard("Total Collected", totalCollected, Colors.teal),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(child: _buildSummaryCard("Total Spent", totalSpent, Colors.orange)),
-                          const SizedBox(width: 12),
-                          Expanded(child: _buildSummaryCard("Balance", currentBalance, currentBalance >= 0 ? Colors.green : Colors.red)),
-                        ],
-                      ),
-                      
-                      const SizedBox(height: 24),
-                      const Text("Net Financial Status", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      const Text(
-                        "Who holds the money vs. Who spent from pocket",
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                      const SizedBox(height: 12),
-                      
-                      // Use StreamBuilder for users instead of FutureBuilder
-                      StreamBuilder<List<User>>(
-                        stream: usersStream,
-                        builder: (context, userSnap) {
-                          if (!userSnap.hasData) return const Center(child: CircularProgressIndicator());
-                          
-                          final users = userSnap.data!;
-                          final userBalances = <User, double>{};
+                return StreamBuilder<List<ExpensePayer>>(
+                  stream: db.expensePayers.select().watch(),
+                  builder: (context, payerSnap) {
+                    final allPayers = (payerSnap.data ?? []).toList();
 
-                          for (final user in users) {
-                            final collected = incomes.where((i) => i.collectedBy == user.id).fold(0.0, (sum, i) => sum + i.amount);
-                            final received = settlements.where((s) => s.toId == user.id).fold(0.0, (sum, s) => sum + s.amount);
-                            final given = settlements.where((s) => s.fromId == user.id).fold(0.0, (sum, s) => sum + s.amount);
-                            final spent = expenses.where((e) => e.payerId == user.id).fold(0.0, (sum, e) => sum + e.amount);
-                            
-                            userBalances[user] = collected + received - given - spent;
-                          }
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSummaryCard("Total Collected", totalCollected, Colors.teal),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(child: _buildSummaryCard("Total Spent", totalSpent, Colors.orange)),
+                              const SizedBox(width: 12),
+                              Expanded(child: _buildSummaryCard("Balance", currentBalance, currentBalance >= 0 ? Colors.green : Colors.red)),
+                            ],
+                          ),
+                          
+                          const SizedBox(height: 24),
+                          const Text("Net Financial Status", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          const Text(
+                            "Who holds the money vs. Who spent from pocket",
+                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ),
+                          const SizedBox(height: 12),
+                          
+                          // Use StreamBuilder for users instead of FutureBuilder
+                          StreamBuilder<List<User>>(
+                            stream: usersStream,
+                            builder: (context, userSnap) {
+                              if (!userSnap.hasData) return const Center(child: CircularProgressIndicator());
+                              
+                              final users = userSnap.data!;
+                              final userBalances = <User, double>{};
+
+                                  final expenseIds = expenses.map((e) => e.id.toLowerCase()).toSet();
+                              for (final user in users) {
+                                final uid = user.id.toLowerCase();
+                                final collected = incomes.where((i) => i.collectedBy.toLowerCase() == uid).fold(0.0, (sum, i) => sum + i.amount);
+                                final received = settlements.where((s) => s.toId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
+                                final given = settlements.where((s) => s.fromId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
+                                
+                                // Correct Spent Calculation: Expense.payerId + ExpensePayers
+                                double spent = 0.0;
+                                
+                                // 1. Direct payerId (single payer mode)
+                                spent += expenses
+                                    .where((e) => e.payerId?.toLowerCase() == uid)
+                                    .fold(0.0, (sum, e) => sum + e.amount);
+                                
+                                // 2. ExpensePayers (multi payer mode)
+                                spent += allPayers
+                                    .where((p) => p.userId.toLowerCase() == uid && expenseIds.contains(p.expenseId.toLowerCase()))
+                                    .fold(0.0, (sum, p) => sum + p.amount);
+                                
+                                userBalances[user] = collected + received - given - spent;
+                              }
 
                           // Sort: Most positive (Cash in hand) first, then most negative (Reimbursable)
                           users.sort((a, b) => (userBalances[b] ?? 0).compareTo(userBalances[a] ?? 0));
