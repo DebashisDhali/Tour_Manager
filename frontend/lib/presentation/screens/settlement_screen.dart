@@ -649,6 +649,7 @@ class SettlementScreen extends ConsumerWidget {
                                       "৳${standardBazar.toStringAsFixed(2)}",
                                       Icons.restaurant_rounded,
                                       Colors.orange,
+                                      isDebit: true,
                                     ),
                                   if (customBazar > 0) ...[
                                     if (standardBazar > 0 || userMeals > 0) const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
@@ -658,6 +659,7 @@ class SettlementScreen extends ConsumerWidget {
                                       "৳${customBazar.toStringAsFixed(2)}",
                                       Icons.shopping_basket_rounded,
                                       Colors.orangeAccent,
+                                      isDebit: true,
                                     ),
                                   ],
                                   if (standardRent > 0) ...[
@@ -668,6 +670,7 @@ class SettlementScreen extends ConsumerWidget {
                                       "৳${standardRent.toStringAsFixed(2)}",
                                       Icons.home_work_rounded,
                                       Colors.teal,
+                                      isDebit: true,
                                     ),
                                   ],
                                   if (customRent > 0) ...[
@@ -678,6 +681,7 @@ class SettlementScreen extends ConsumerWidget {
                                       "৳${customRent.toStringAsFixed(2)}",
                                       Icons.home_rounded,
                                       Colors.tealAccent,
+                                      isDebit: true,
                                     ),
                                   ],
                                   if (otherSplits > 0) ...[
@@ -688,6 +692,7 @@ class SettlementScreen extends ConsumerWidget {
                                       "৳${otherSplits.toStringAsFixed(2)}",
                                       Icons.extension_rounded,
                                       Colors.blueGrey,
+                                      isDebit: true,
                                     ),
                                   ],
                                   if (incomeReduc != 0) ...[
@@ -695,9 +700,10 @@ class SettlementScreen extends ConsumerWidget {
                                     _buildBreakdownRow(
                                       context,
                                       "Income Credit",
-                                      "-৳${incomeReduc.toStringAsFixed(2)}",
+                                      "-৳${incomeReduc.abs().toStringAsFixed(2)}",
                                       Icons.account_balance_wallet_rounded,
                                       Colors.green,
+                                      isDebit: false,
                                     ),
                                   ],
                                   const Padding(
@@ -760,18 +766,19 @@ class SettlementScreen extends ConsumerWidget {
 
                           return Column(
                             children: [
-                              _buildBreakdownRow(context, "Collected Funds", "৳${collected.toStringAsFixed(2)}", Icons.account_balance_wallet_rounded, Colors.green),
+                              _buildBreakdownRow(context, "Collected Funds", "৳${collected.toStringAsFixed(2)}", Icons.account_balance_wallet_rounded, Colors.redAccent, isDebit: true),
                               const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
-                              _buildBreakdownRow(context, "Out-of-pocket Spent", "৳${spent.toStringAsFixed(2)}", Icons.payments_rounded, Colors.orange),
+                              _buildBreakdownRow(context, "Out-of-pocket Spent", "৳${spent.toStringAsFixed(2)}", Icons.payments_rounded, Colors.green, isDebit: false),
                               const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
-                              _buildBreakdownRow(context, "Expense Share", "৳${expenseShare.toStringAsFixed(2)}", Icons.person_outline_rounded, Colors.redAccent),
+                              _buildBreakdownRow(context, "Expense Share", "৳${expenseShare.toStringAsFixed(2)}", Icons.person_outline_rounded, Colors.orange, isDebit: true),
                               const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
                               _buildBreakdownRow(
                                 context, 
                                 surplusOrDeficit >= 0 ? "Surplus Share" : "Deficit Share", 
-                                "${surplusOrDeficit >= 0 ? '-' : '+'}৳${(surplusOrDeficit.abs() / settlementUsers.length).toStringAsFixed(2)}", 
+                                "৳${(surplusOrDeficit.abs() / settlementUsers.length).toStringAsFixed(2)}", 
                                 Icons.pie_chart_rounded, 
-                                Colors.blue
+                                surplusOrDeficit >= 0 ? Colors.green : Colors.redAccent,
+                                isDebit: surplusOrDeficit < 0
                               ),
                               const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 2),
@@ -1044,14 +1051,18 @@ class SettlementScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildBreakdownRow(BuildContext context, String label, String value, IconData icon, Color color) {
+  Widget _buildBreakdownRow(BuildContext context, String title, String amount, IconData icon, Color color, {bool isDebit = false}) {
     return Row(
       children: [
-        Icon(icon, size: 14, color: color.withValues(alpha: 0.7)),
+        Icon(icon, size: 14, color: color.withValues(alpha: 0.8)),
         const SizedBox(width: 8),
-        Text(label, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
-        const Spacer(),
-        Text(value, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+        Expanded(
+          child: Text(title, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7))),
+        ),
+        Text(
+          "${isDebit ? '-' : '+'} $amount", 
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isDebit ? Colors.redAccent : Colors.green.shade600)
+        ),
       ],
     );
   }
