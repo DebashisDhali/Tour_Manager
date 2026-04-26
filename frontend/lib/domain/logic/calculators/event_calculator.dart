@@ -28,7 +28,7 @@ class EventSettlementCalculator extends BaseSettlementCalculator {
     // 1. Calculate Collected Funds (from ProgramIncomes)
     if (incomes != null) {
       for (var income in incomes) {
-        final nid = income.collectedBy;
+        final nid = income.collectedBy.toLowerCase();
         if (collectedMap.containsKey(nid)) {
           collectedMap[nid] = roundTo2Decimals(collectedMap[nid]! + income.amount);
           itemLogs[nid]?.add(BalanceItem(
@@ -44,8 +44,8 @@ class EventSettlementCalculator extends BaseSettlementCalculator {
     // 2. Calculate Spent Amounts (from Expenses paid by member)
     final Set<String> expensesWithPayerRecords = {};
     for (var ep in expensePayers) {
-      expensesWithPayerRecords.add(ep.expenseId);
-      final nid = ep.userId;
+      expensesWithPayerRecords.add(ep.expenseId.toLowerCase());
+      final nid = ep.userId.toLowerCase();
       if (spentMap.containsKey(nid)) {
         spentMap[nid] = roundTo2Decimals(spentMap[nid]! + ep.amount);
         itemLogs[nid]?.add(BalanceItem(
@@ -57,8 +57,8 @@ class EventSettlementCalculator extends BaseSettlementCalculator {
       }
     }
     for (var e in expenses) {
-      if (!expensesWithPayerRecords.contains(e.id) && e.payerId != null) {
-        final nid = e.payerId!;
+      if (!expensesWithPayerRecords.contains(e.id.toLowerCase()) && e.payerId != null) {
+        final nid = e.payerId!.toLowerCase();
         if (spentMap.containsKey(nid)) {
           spentMap[nid] = roundTo2Decimals(spentMap[nid]! + e.amount);
           itemLogs[nid]?.add(BalanceItem(
@@ -87,7 +87,7 @@ class EventSettlementCalculator extends BaseSettlementCalculator {
     final results = <String, UserBalanceDetails>{};
     for (int i = 0; i < users.length; i++) {
       final u = users[i];
-      final nid = u.id;
+      final nid = u.id.toLowerCase();
       final extra = (i == 0) ? outcomeRemainder : 0.0;
       final memberSurplusShare = roundTo2Decimals(surplusShare + extra);
       

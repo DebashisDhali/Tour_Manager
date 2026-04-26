@@ -90,8 +90,8 @@ abstract class BaseSettlementCalculator {
     Map<String, List<BalanceItem>> itemLogs,
   ) {
     for (var settlement in previousSettlements) {
-      final fNid = settlement.fromId;
-      final tNid = settlement.toId;
+      final fNid = settlement.fromId.toLowerCase();
+      final tNid = settlement.toId.toLowerCase();
       if (settledMap.containsKey(fNid)) {
         settledMap[fNid] = roundTo2Decimals((settledMap[fNid] ?? 0.0) + settlement.amount);
         itemLogs[fNid]?.add(BalanceItem(title: "Settlement Paid Out", amount: settlement.amount, type: 'settled', isCredit: true));
@@ -148,7 +148,7 @@ abstract class BaseSettlementCalculator {
             source.contains('carried')) {
           totalSharedIncome += income.amount;
         } else {
-          final nid = income.collectedBy;
+          final nid = income.collectedBy.toLowerCase();
           paidMap[nid] = roundTo2Decimals((paidMap[nid] ?? 0.0) - income.amount);
           itemLogs[nid]?.add(BalanceItem(title: "Collected: ${income.source}", amount: income.amount, type: 'paid', isCredit: false));
         }
@@ -161,7 +161,7 @@ abstract class BaseSettlementCalculator {
       final remainder = roundTo2Decimals(totalSharedIncome - totalDistributed);
 
       for (int i = 0; i < users.length; i++) {
-        final nid = users[i].id;
+        final nid = users[i].id.toLowerCase();
         final extra = (i == 0) ? remainder : 0.0;
         final shareReduction = incomePerMember + extra;
         shareMap[nid] = (shareMap[nid] ?? 0.0) - shareReduction;

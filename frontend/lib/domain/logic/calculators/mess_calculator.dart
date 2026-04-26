@@ -25,7 +25,7 @@ class MessSettlementCalculator extends BaseSettlementCalculator {
     double totalMeals = 0.0;
     if (mealCounts != null) {
       for (var u in users) {
-        totalMeals += mealCounts[u.id] ?? 0.0;
+        totalMeals += mealCounts[u.id.toLowerCase()] ?? mealCounts[u.id] ?? 0.0;
       }
     }
 
@@ -146,8 +146,9 @@ class MessSettlementCalculator extends BaseSettlementCalculator {
       // Bazar cost exists but no meal records — distribute equally as fallback (avoid divide by zero)
       final fallbackShare = roundTo2Decimals(totalBazarAmount / users.length);
       for (var u in users) {
-        shareMap[u.id] = roundTo2Decimals((shareMap[u.id] ?? 0.0) + fallbackShare);
-        itemLogs[u.id]?.add(BalanceItem(title: "Bazar (pending meals)", amount: fallbackShare, type: 'share', isCredit: false));
+        final nid = u.id.toLowerCase();
+        shareMap[nid] = roundTo2Decimals((shareMap[nid] ?? 0.0) + fallbackShare);
+        itemLogs[nid]?.add(BalanceItem(title: "Bazar (pending meals)", amount: fallbackShare, type: 'share', isCredit: false));
       }
     }
 
