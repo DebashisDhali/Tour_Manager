@@ -412,6 +412,7 @@ class SyncService {
                       category: (se['category'] ?? 'Others').toString(),
                       messCostType: Value(se['mess_cost_type']?.toString()),
                       isSynced: const Value(true),
+                      isDeleted: Value(se['isDeleted'] == true || se['is_deleted'] == true || se['is_deleted'] == 1),
                       createdAt: Value(
                           DateTime.tryParse(se['date']?.toString() ?? '') ??
                               (se['created_at'] != null
@@ -435,6 +436,7 @@ class SyncService {
                                   ss['amount']?.toString() ?? '0') ??
                               0.0,
                           isSynced: const Value(true),
+                          isDeleted: Value(ss['isDeleted'] == true || ss['is_deleted'] == true || ss['is_deleted'] == 1),
                         ),
                         mode: InsertMode.insertOrReplace);
                   }
@@ -453,6 +455,7 @@ class SyncService {
                                   sp['amount']?.toString() ?? '0') ??
                               0.0,
                           isSynced: const Value(true),
+                          isDeleted: Value(sp['isDeleted'] == true || sp['is_deleted'] == true || sp['is_deleted'] == 1),
                         ),
                         mode: InsertMode.insertOrReplace);
                   }
@@ -481,6 +484,7 @@ class SyncService {
                           ? DateTime.parse(ss['date'].toString())
                           : DateTime.now()),
                       isSynced: const Value(true),
+                      isDeleted: Value(ss['isDeleted'] == true || ss['is_deleted'] == true || ss['is_deleted'] == 1),
                     ),
                     mode: InsertMode.insertOrReplace);
               }
@@ -508,6 +512,7 @@ class SyncService {
                           ? DateTime.parse(inc['date'].toString())
                           : DateTime.now()),
                       isSynced: const Value(true),
+                      isDeleted: Value(inc['isDeleted'] == true || inc['is_deleted'] == true || inc['is_deleted'] == 1),
                     ),
                     mode: InsertMode.insertOrReplace);
               }

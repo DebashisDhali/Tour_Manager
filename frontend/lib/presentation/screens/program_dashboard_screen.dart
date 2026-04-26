@@ -117,26 +117,25 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
     .watch();
 
     return StreamBuilder<List<ProgramIncome>>(
-      stream: db.programIncomes.select().watch(), 
+      stream: (db.select(db.programIncomes)..where((t) => t.isDeleted.equals(false))).watch(), 
       builder: (context, incomeSnap) {
-        final incomes = (incomeSnap.data ?? []).where((i) => i.tourId == widget.tourId).toList();
-        final totalCollected = incomes.fold(0.0, (sum, item) => sum + item.amount);
+        final incomes = (incomeSnap.data ?? []).where((i) => i.tourId.toLowerCase() == widget.tourId.toLowerCase()).toList();
 
         return StreamBuilder<List<Expense>>(
-          stream: db.expenses.select().watch(),
+          stream: (db.select(db.expenses)..where((t) => t.tourId.equals(widget.tourId) & t.isDeleted.equals(false))).watch(),
           builder: (context, expenseSnap) {
-            final expenses = (expenseSnap.data ?? []).where((e) => e.tourId == widget.tourId).toList();
+            final expenses = (expenseSnap.data ?? []).where((e) => e.tourId.toLowerCase() == widget.tourId.toLowerCase() && e.isDeleted == false).toList();
             final totalSpent = expenses.fold(0.0, (sum, item) => sum + item.amount);
 
             return StreamBuilder<List<Settlement>>(
-              stream: db.settlements.select().watch(),
+              stream: (db.select(db.settlements)..where((t) => t.tourId.equals(widget.tourId) & t.isDeleted.equals(false))).watch(),
               builder: (context, settlementSnap) {
-                final settlements = (settlementSnap.data ?? []).where((s) => s.tourId == widget.tourId).toList();
-                
+                final settlements = (settlementSnap.data ?? []).where((s) => s.tourId.toLowerCase() == widget.tourId.toLowerCase()).toList();
+                final totalCollected = incomes.fold(0.0, (sum, item) => sum + item.amount);
                 final currentBalance = totalCollected - totalSpent; 
 
                 return StreamBuilder<List<ExpensePayer>>(
-                  stream: db.expensePayers.select().watch(),
+                  stream: (db.select(db.expensePayers)..where((t) => t.isDeleted.equals(false))).watch(),
                   builder: (context, payerSnap) {
                     final allPayers = (payerSnap.data ?? []).toList();
 
@@ -187,12 +186,12 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
                                     .where((e) => e.payerId?.toLowerCase() == uid)
                                     .fold(0.0, (sum, e) => sum + e.amount);
                                 
-                                // 2. ExpensePayers (multi payer mode)
+                                // 2. ExpensePayers (multi-payer mode)
                                 spent += allPayers
                                     .where((p) => p.userId.toLowerCase() == uid && expenseIds.contains(p.expenseId.toLowerCase()))
                                     .fold(0.0, (sum, p) => sum + p.amount);
                                 
-                                userBalances[user] = collected + received - given - spent;
+                                userBalances[user] = (collected + received) - (given + spent);
                               }
 
                           // Sort: Most positive (Cash in hand) first, then most negative (Reimbursable)

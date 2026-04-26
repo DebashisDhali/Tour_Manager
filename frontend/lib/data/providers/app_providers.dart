@@ -245,13 +245,6 @@ final expensesProvider = StreamProvider.family
     }
 
     return uniqueByExpenseId.values.toList();
-  }).distinct((previous, next) {
-    // Prevent duplicate emissions by comparing list lengths and IDs
-    if (previous.length != next.length) return false;
-    for (int i = 0; i < previous.length; i++) {
-      if (previous[i].expense.id != next[i].expense.id) return false;
-    }
-    return true;
   });
 });
 

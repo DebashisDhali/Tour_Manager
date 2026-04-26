@@ -734,15 +734,25 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           final settlements = ref.read(tourSettlementsProvider(widget.tourId)).value ?? [];
           final otherExpenses = ref.read(tourExpensesProvider(widget.tourId)).value ?? [];
           
+          final otherPayers = ref.read(databaseProvider).expensePayers.select().get();
+          
           final uid = _selectedPayerId!.toLowerCase();
           final collected = incomes.where((i) => i.collectedBy.toLowerCase() == uid).fold(0.0, (sum, i) => sum + i.amount);
           final received = settlements.where((s) => s.toId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
           final given = settlements.where((s) => s.fromId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
-          final spent = otherExpenses
+          
+          final expenseIds = otherExpenses.map((e) => e.id.toLowerCase()).toSet();
+          double spent = otherExpenses
               .where((e) => e.payerId?.toLowerCase() == uid && e.id.toLowerCase() != widget.initialExpense?.id.toLowerCase())
               .fold(0.0, (sum, e) => sum + e.amount);
           
-          final currentBalance = collected + received - given - spent;
+          // Also check multi-payer records
+          final payers = await otherPayers;
+          spent += payers
+              .where((p) => p.userId.toLowerCase() == uid && expenseIds.contains(p.expenseId.toLowerCase()) && p.expenseId.toLowerCase() != widget.initialExpense?.id.toLowerCase())
+              .fold(0.0, (sum, p) => sum + p.amount);
+          
+          final currentBalance = (collected + received) - (given + spent);
 
           if (totalAmount > currentBalance + 0.01) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -755,7 +765,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           // Check for each payer in multi-payer mode
           final incomes = ref.read(tourIncomesProvider(widget.tourId)).value ?? [];
           final settlements = ref.read(tourSettlementsProvider(widget.tourId)).value ?? [];
-          final otherExpenses = ref.read(tourExpensesProvider(widget.tourId)).value ?? [];
+          final otherPayers = ref.read(databaseProvider).expensePayers.select().get();
+          final payers = await otherPayers;
+          final expenseIds = otherExpenses.map((e) => e.id.toLowerCase()).toSet();
 
           for (final entry in _payerAmounts.entries) {
             final uid = entry.key.toLowerCase();
@@ -765,11 +777,16 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             final collected = incomes.where((i) => i.collectedBy.toLowerCase() == uid).fold(0.0, (sum, i) => sum + i.amount);
             final received = settlements.where((s) => s.toId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
             final given = settlements.where((s) => s.fromId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
-            final spent = otherExpenses
+            
+            double spent = otherExpenses
                 .where((e) => e.payerId?.toLowerCase() == uid && e.id.toLowerCase() != widget.initialExpense?.id.toLowerCase())
                 .fold(0.0, (sum, e) => sum + e.amount);
             
-            final currentBalance = collected + received - given - spent;
+            spent += payers
+                .where((p) => p.userId.toLowerCase() == uid && expenseIds.contains(p.expenseId.toLowerCase()) && p.expenseId.toLowerCase() != widget.initialExpense?.id.toLowerCase())
+                .fold(0.0, (sum, p) => sum + p.amount);
+            
+            final currentBalance = (collected + received) - (given + spent);
 
             if (amount > currentBalance + 0.01) {
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
