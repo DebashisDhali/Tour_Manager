@@ -146,7 +146,7 @@ class SyncService {
                     'name': u.name,
                     'phone': u.phone,
                     'email': u.email,
-                    'avatarUrl': u.avatarUrl,
+                    'avatar_url': u.avatarUrl,
                     'purpose': u.purpose
                   })
               .toList(),
@@ -154,85 +154,85 @@ class SyncService {
               .map((t) => {
                     'id': t.id.toLowerCase(),
                     'name': t.name,
-                    'createdBy': t.createdBy.toLowerCase(),
-                    'inviteCode': t.inviteCode,
-                    'startDate': t.startDate?.toIso8601String(),
-                    'endDate': t.endDate?.toIso8601String(),
+                    'created_by': t.createdBy.toLowerCase(),
+                    'invite_code': t.inviteCode,
+                    'start_date': t.startDate?.toIso8601String(),
+                    'end_date': t.endDate?.toIso8601String(),
                     'purpose': t.purpose,
-                    'isDeleted': t.isDeleted,
+                    'is_deleted': t.isDeleted,
                   })
               .toList(),
           'expenses': unsyncedExpenses
               .map((e) => {
                     'id': e.id.toLowerCase(),
-                    'tourId': e.tourId.toLowerCase(),
-                'payerId': _hasId(e.payerId) ? e.payerId!.toLowerCase() : null,
+                    'tour_id': e.tourId.toLowerCase(),
+                    'payer_id': _hasId(e.payerId) ? e.payerId!.toLowerCase() : null,
                     'amount': e.amount,
                     'title': e.title,
                     'category': e.category,
-                    'messCostType': e.messCostType,
-                    'createdAt': e.createdAt.toIso8601String(),
-                    'isDeleted': e.isDeleted,
+                    'mess_cost_type': e.messCostType,
+                    'date': e.createdAt.toIso8601String(),
+                    'is_deleted': e.isDeleted,
                   })
               .toList(),
           'splits': unsyncedSplits
               .map((s) => {
                     'id': s.id.toLowerCase(),
-                    'expenseId': s.expenseId.toLowerCase(),
-                    'userId': s.userId.toLowerCase(),
+                    'expense_id': s.expenseId.toLowerCase(),
+                    'user_id': s.userId.toLowerCase(),
                     'amount': s.amount,
-                    'isDeleted': s.isDeleted,
+                    'is_deleted': s.isDeleted,
                   })
               .toList(),
           'payers': unsyncedPayers
               .map((p) => {
                     'id': p.id.toLowerCase(),
-                    'expenseId': p.expenseId.toLowerCase(),
-                    'userId': p.userId.toLowerCase(),
+                    'expense_id': p.expenseId.toLowerCase(),
+                    'user_id': p.userId.toLowerCase(),
                     'amount': p.amount,
-                    'isDeleted': p.isDeleted,
+                    'is_deleted': p.isDeleted,
                   })
               .toList(),
           'members': unsyncedMembers
               .map((m) => {
-                    'tourId': m.tourId,
-                    'userId': m.userId,
-                    'leftAt': m.leftAt?.toIso8601String(),
-                    'mealCount': m.mealCount,
+                    'tour_id': m.tourId,
+                    'user_id': m.userId,
+                    'left_at': m.leftAt?.toIso8601String(),
+                    'meal_count': m.mealCount,
                     'role': m.role,
                     'status': m.status,
-                    'isDeleted': m.isDeleted,
+                    'is_deleted': m.isDeleted,
                   })
               .toList(),
           'settlements': unsyncedSettlements
               .map((s) => {
                     'id': s.id,
-                    'tourId': s.tourId,
-                    'fromId': s.fromId,
-                    'toId': s.toId,
+                    'tour_id': s.tourId,
+                    'from_id': s.fromId,
+                    'to_id': s.toId,
                     'amount': s.amount,
                     'date': s.date.toIso8601String(),
-                    'isDeleted': s.isDeleted,
+                    'is_deleted': s.isDeleted,
                   })
               .toList(),
           'incomes': unsyncedIncomes
               .map((i) => {
                     'id': i.id,
-                    'tourId': i.tourId,
+                    'tour_id': i.tourId,
                     'amount': i.amount,
                     'source': i.source,
                     'description': i.description,
-                    'collectedBy': i.collectedBy,
+                    'collected_by': i.collectedBy,
                     'date': i.date.toIso8601String(),
-                    'isDeleted': i.isDeleted,
+                    'is_deleted': i.isDeleted,
                   })
               .toList(),
           'joinRequests': unsyncedJoinRequests
               .map((jr) => {
                     'id': jr.id,
-                    'tourId': jr.tourId,
-                    'userId': jr.userId,
-                    'userName': jr.userName,
+                    'tour_id': jr.tourId,
+                    'user_id': jr.userId,
+                    'user_name': jr.userName,
                     'status': jr.status,
                   })
               .toList(),
