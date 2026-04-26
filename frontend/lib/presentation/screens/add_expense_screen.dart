@@ -737,6 +737,60 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     );
   }
 
+  Future<bool> _showPocketPaymentDialog(double currentBalance, double totalAmount) async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+            SizedBox(width: 12),
+            Text("Insufficient Funds", style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "You only have ৳${currentBalance.toStringAsFixed(0)} in hand from the program fund.",
+              style: const TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.withValues(alpha: 0.2)),
+              ),
+              child: Text(
+                "Do you want to pay the remaining ৳${(totalAmount - currentBalance).toStringAsFixed(0)} from your own pocket?",
+                style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.orange),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text("Yes, Pay from Pocket"),
+          ),
+        ],
+      ),
+    ) ?? false;
+  }
+
   Future<void> _saveExpense(List<MemberWithStatus> members, models.Tour activeTour) async {
     if (_isSaving) return;
     if (_formKey.currentState!.validate()) {
@@ -770,14 +824,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           
           final currentBalance = (collected + received) - (given + spent);
 
-          if (totalAmount > currentBalance + 0.01) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text("Insufficient funds! Payer has only ৳${currentBalance.toStringAsFixed(0)} in hand."),
-              backgroundColor: Colors.redAccent,
-            ));
-            return;
+          if (activeTour.purpose.toLowerCase() == 'event' && totalAmount > currentBalance + 0.01) {
+            final confirmed = await _showPocketPaymentDialog(currentBalance, totalAmount);
+            if (!mounted) return;
+            if (!confirmed) {
+              setState(() => _isSaving = false);
+              return;
+            }
           }
-        } else if (_isMultiPayer) {
+        } else if (_isMultiPayer && activeTour.purpose.toLowerCase() == 'event') {
           // Check for each payer in multi-payer mode
           final incomes = ref.read(tourIncomesProvider(widget.tourId)).value ?? [];
           final settlements = ref.read(tourSettlementsProvider(widget.tourId)).value ?? [];
@@ -814,11 +869,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             final currentBalance = (collected + received) - (given + spent);
 
             if (amount > currentBalance + 0.01) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text("Insufficient funds for ${members.firstWhere((m) => m.user.id.toLowerCase() == uid).user.name}! (Has ৳${currentBalance.toStringAsFixed(0)})"),
-                backgroundColor: Colors.redAccent,
-              ));
-              return;
+              final confirmed = await _showPocketPaymentDialog(currentBalance, amount);
+              if (!mounted) return;
+              if (!confirmed) {
+                setState(() => _isSaving = false);
+                return;
+              }
             }
           }
         }
