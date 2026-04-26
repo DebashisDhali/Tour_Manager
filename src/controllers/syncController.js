@@ -213,19 +213,18 @@ exports.syncData = async (req, res) => {
             console.log(`  🤝 ${settlements.length} settlement(s)`);
             for (const s of settlements) {
               try {
-                const tourId = s.tourId.toLowerCase();
+                const tourId = (s.tour_id || s.tourId || "").toLowerCase();
                 const role = roleMap[tourId] || 'none';
                 if (role !== 'admin' && role !== 'editor') throw new Error("Permission Denied");
 
                 if (s.isDeleted) {
-                  await Settlement.update({ is_deleted: true, updated_at: now }, { where: { id: s.id.toLowerCase() } });
+                  await Settlement.update({ is_deleted: true, updated_at: now }, { where: { id: (s.id || "").toLowerCase() } });
                 } else {
-                  const tourId = (s.tour_id || s.tourId).toLowerCase();
                   await Settlement.upsert({
-                    id: s.id.toLowerCase(), 
+                    id: (s.id || "").toLowerCase(), 
                     tour_id: tourId, 
-                    from_id: (s.from_id || s.fromId).toLowerCase(), 
-                    to_id: (s.to_id || s.toId).toLowerCase(), 
+                    from_id: (s.from_id || s.fromId || "").toLowerCase(), 
+                    to_id: (s.to_id || s.toId || "").toLowerCase(), 
                     amount: s.amount, date: s.date || now
                   });
                 }
@@ -238,20 +237,19 @@ exports.syncData = async (req, res) => {
             console.log(`  💵 ${incomes.length} income(s)`);
             for (const i of incomes) {
               try {
-                const tourId = i.tourId.toLowerCase();
+                const tourId = (i.tour_id || i.tourId || "").toLowerCase();
                 const role = roleMap[tourId] || 'none';
                 if (role !== 'admin' && role !== 'editor') throw new Error("Permission Denied");
 
                 if (i.isDeleted) {
-                  await ProgramIncome.update({ is_deleted: true, updated_at: now }, { where: { id: i.id.toLowerCase() } });
+                  await ProgramIncome.update({ is_deleted: true, updated_at: now }, { where: { id: (i.id || "").toLowerCase() } });
                 } else {
-                  const tourId = (i.tour_id || i.tourId).toLowerCase();
                   await ProgramIncome.upsert({
-                    id: i.id.toLowerCase(), 
+                    id: (i.id || "").toLowerCase(), 
                     tour_id: tourId, 
                     amount: i.amount, source: i.source,
                     description: i.description, 
-                    collected_by: (i.collected_by || i.collectedBy).toLowerCase(), 
+                    collected_by: (i.collected_by || i.collectedBy || "").toLowerCase(), 
                     date: i.date || now
                   });
                 }
