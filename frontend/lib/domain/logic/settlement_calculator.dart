@@ -198,20 +198,28 @@ class SettlementCalculator {
     final deduplicatedExpenses = uniqueExpenses.values.toList();
 
     final Map<String, ExpenseSplit> uniqueSplits = {};
+    final Set<String> seenUserSplits = {}; // composite key: expenseId_userId
+
     for (var s in splits) {
       if (s.isDeleted) continue;
       final normalizedId = s.id.toLowerCase();
       final normalizedExpId = s.expenseId.toLowerCase();
+      final normalizedUserId = s.userId.toLowerCase();
       
       // Safety: Only include splits for expenses that are active in this calculation
       if (!uniqueExpenses.containsKey(normalizedExpId)) continue;
+
+      // Deduplication: One split per user per expense
+      final contentKey = "${normalizedExpId}_$normalizedUserId";
+      if (seenUserSplits.contains(contentKey)) continue;
 
       if (!uniqueSplits.containsKey(normalizedId)) {
         uniqueSplits[normalizedId] = s.copyWith(
           id: normalizedId,
           expenseId: normalizedExpId,
-          userId: s.userId.toLowerCase(),
+          userId: normalizedUserId,
         );
+        seenUserSplits.add(contentKey);
       }
     }
     final deduplicatedSplits = uniqueSplits.values.toList();

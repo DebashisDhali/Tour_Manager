@@ -385,7 +385,7 @@ class AppDatabase extends _$AppDatabase {
 
   Future<List<ExpenseSplit>> getSplitsByTour(String tourId) {
     final query = select(expenseSplits).join([
-      innerJoin(expenses, expenses.id.equalsExp(expenseSplits.expenseId)),
+      innerJoin(expenses, expenses.id.lower().equalsExp(expenseSplits.expenseId.lower())),
     ])
       ..where(expenses.tourId.equals(tourId) & 
               expenseSplits.isDeleted.equals(false) & 
@@ -395,17 +395,17 @@ class AppDatabase extends _$AppDatabase {
 
   Future<List<ExpensePayer>> getPayersByTour(String tourId) {
     final query = select(expensePayers).join([
-      innerJoin(expenses, expenses.id.equalsExp(expensePayers.expenseId)),
+      innerJoin(expenses, expenses.id.lower().equalsExp(expensePayers.expenseId.lower())),
     ])
-      ..where(expenses.tourId.equals(tourId) & expensePayers.isDeleted.equals(false));
+      ..where(expenses.tourId.lower().equals(tourId.toLowerCase()) & expensePayers.isDeleted.equals(false));
     return query.map((row) => row.readTable(expensePayers)).get();
   }
 
   Stream<List<ExpensePayer>> watchPayersByTour(String tourId) {
     final query = select(expensePayers).join([
-      innerJoin(expenses, expenses.id.equalsExp(expensePayers.expenseId)),
+      innerJoin(expenses, expenses.id.lower().equalsExp(expensePayers.expenseId.lower())),
     ])
-      ..where(expenses.tourId.equals(tourId) & expensePayers.isDeleted.equals(false));
+      ..where(expenses.tourId.lower().equals(tourId.toLowerCase()) & expensePayers.isDeleted.equals(false));
     return query.map((row) => row.readTable(expensePayers)).watch();
   }
 
@@ -443,10 +443,10 @@ class AppDatabase extends _$AppDatabase {
       await into(expenses).insert(expense, mode: InsertMode.insertOrReplace);
       
       // Soft-delete existing splits and payers to notify the server during next sync
-      await (update(expenseSplits)..where((t) => t.expenseId.equals(expense.id)))
+      await (update(expenseSplits)..where((t) => t.expenseId.lower().equals(expense.id.toLowerCase())))
           .write(const ExpenseSplitsCompanion(
               isDeleted: Value(true), isSynced: Value(false)));
-      await (update(expensePayers)..where((t) => t.expenseId.equals(expense.id)))
+      await (update(expensePayers)..where((t) => t.expenseId.lower().equals(expense.id.toLowerCase())))
           .write(const ExpensePayersCompanion(
               isDeleted: Value(true), isSynced: Value(false)));
 
@@ -461,13 +461,13 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> deleteExpenseWithDetails(String expenseId) {
     return transaction(() async {
-      await (update(expenses)..where((t) => t.id.equals(expenseId))).write(
+      await (update(expenses)..where((t) => t.id.lower().equals(expenseId.toLowerCase()))).write(
           const ExpensesCompanion(
               isDeleted: Value(true), isSynced: Value(false)));
-      await (update(expenseSplits)..where((t) => t.expenseId.equals(expenseId)))
+      await (update(expenseSplits)..where((t) => t.expenseId.lower().equals(expenseId.toLowerCase())))
           .write(const ExpenseSplitsCompanion(
               isDeleted: Value(true), isSynced: Value(false)));
-      await (update(expensePayers)..where((t) => t.expenseId.equals(expenseId)))
+      await (update(expensePayers)..where((t) => t.expenseId.lower().equals(expenseId.toLowerCase())))
           .write(const ExpensePayersCompanion(
               isDeleted: Value(true), isSynced: Value(false)));
     });

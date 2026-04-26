@@ -391,7 +391,7 @@ final tourSplitsProvider = StreamProvider.family
   final db = ref.watch(databaseProvider);
   final query = db.select(db.expenseSplits).join([
     innerJoin(
-        db.expenses, db.expenses.id.equalsExp(db.expenseSplits.expenseId)),
+        db.expenses, db.expenses.id.lower().equalsExp(db.expenseSplits.expenseId.lower())),
   ])
     ..where(db.expenses.tourId.lower().equals(tourId.toLowerCase()) &
         db.expenses.isDeleted.equals(false) &
@@ -405,7 +405,7 @@ final tourPayersProvider = StreamProvider.family
   final db = ref.watch(databaseProvider);
   final query = db.select(db.expensePayers).join([
     innerJoin(
-        db.expenses, db.expenses.id.equalsExp(db.expensePayers.expenseId)),
+        db.expenses, db.expenses.id.lower().equalsExp(db.expensePayers.expenseId.lower())),
   ])
     ..where(db.expenses.tourId.lower().equals(tourId.toLowerCase()) &
         db.expenses.isDeleted.equals(false) &
