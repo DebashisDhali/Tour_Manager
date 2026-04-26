@@ -387,7 +387,7 @@ class AppDatabase extends _$AppDatabase {
     final query = select(expenseSplits).join([
       innerJoin(expenses, expenses.id.lower().equalsExp(expenseSplits.expenseId.lower())),
     ])
-      ..where(expenses.tourId.equals(tourId) & 
+      ..where(expenses.tourId.lower().equals(tourId.toLowerCase()) & 
               expenseSplits.isDeleted.equals(false) & 
               expenses.isDeleted.equals(false));
     return query.map((row) => row.readTable(expenseSplits)).get();
@@ -481,6 +481,34 @@ class AppDatabase extends _$AppDatabase {
           .go();
       await (delete(expenses)..where((t) => t.id.equals(expenseId))).go();
     });
+  }
+
+  /// Repairs orphaned expense splits for a tour by removing splits for users
+  /// who are NOT members of the tour. This fixes the 2/348 discrepancy caused
+  /// by ghost splits from other tours or removed members being counted.
+  Future<int> repairOrphanedSplitsForTour(String tourId) async {
+    final tid = tourId.toLowerCase();
+    // Delete splits where:
+    // 1. The split's expenseId belongs to this tour
+    // 2. The split's userId is NOT a member of this tour
+    final rowsAffected = await customUpdate(
+      '''
+      DELETE FROM expense_splits
+      WHERE is_deleted = 0
+        AND LOWER(expense_id) IN (
+          SELECT LOWER(id) FROM expenses
+          WHERE LOWER(tour_id) = ? AND is_deleted = 0
+        )
+        AND LOWER(user_id) NOT IN (
+          SELECT LOWER(user_id) FROM tour_members
+          WHERE LOWER(tour_id) = ? AND is_deleted = 0
+        )
+      ''',
+      variables: [Variable.withString(tid), Variable.withString(tid)],
+      updates: {expenseSplits},
+    );
+    print('🔧 Repair: Removed $rowsAffected orphaned splits for tour $tid');
+    return rowsAffected;
   }
 
   Future<void> createSettlement(Settlement settlement) =>

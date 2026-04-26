@@ -226,18 +226,32 @@ class SettlementScreen extends ConsumerWidget {
               children: [
                 IconButton(
                   onPressed: () async {
+                    final db = ref.read(databaseProvider);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Repairing data integrity...")),
+                      const SnackBar(
+                        content: Text("🔧 Scanning for orphaned data..."),
+                        duration: Duration(seconds: 2),
+                      ),
                     );
+                    // Step 1: Delete ghost splits (users not in this tour)
+                    final removed = await db.repairOrphanedSplitsForTour(tourId);
+                    // Step 2: Re-fetch all data fresh
                     ref.invalidate(tourExpensesProvider(tourId));
                     ref.invalidate(tourSplitsProvider(tourId));
                     ref.invalidate(tourIncomesProvider(tourId));
                     ref.invalidate(tourPayersProvider(tourId));
-                    
-                    await Future.delayed(const Duration(seconds: 1));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Integrity repair complete.")),
-                    );
+                    ref.invalidate(tourUsersProvider(tourId));
+                    await Future.delayed(const Duration(milliseconds: 500));
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(removed > 0
+                              ? "✅ Repaired! Removed $removed ghost record(s). Recalculating..."
+                              : "✅ No issues found. Data looks clean."),
+                          backgroundColor: removed > 0 ? Colors.green : Colors.blueGrey,
+                        ),
+                      );
+                    }
                   },
                   icon: const Icon(Icons.build_circle_outlined, size: 20),
                   tooltip: "Sync & Repair",
