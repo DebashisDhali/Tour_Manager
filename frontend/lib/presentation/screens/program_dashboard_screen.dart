@@ -220,15 +220,15 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
                                 elevation: 2,
                                 margin: const EdgeInsets.only(bottom: 8),
                                 shape: RoundedRectangleBorder(
-                                  side: BorderSide(color: isPositive ? Colors.green.withValues(alpha: 0.5) : Colors.orange.withValues(alpha: 0.5)),
+                                  side: BorderSide(color: isPositive ? Colors.green.withValues(alpha: 0.5) : Colors.red.withValues(alpha: 0.5)),
                                   borderRadius: BorderRadius.circular(12)
                                 ),
                                 child: ListTile(
                                   leading: CircleAvatar(
-                                    backgroundColor: isPositive ? Colors.green.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
+                                    backgroundColor: isPositive ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
                                     child: Text(
                                       user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
-                                      style: TextStyle(color: isPositive ? Colors.green : Colors.orange, fontWeight: FontWeight.bold),
+                                      style: TextStyle(color: isPositive ? Colors.green : Colors.red, fontWeight: FontWeight.bold),
                                     ),
                                   ),
                                   title: Text(user.name, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -238,11 +238,11 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
                                   trailing: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                     decoration: BoxDecoration(
-                                      color: isPositive ? Colors.green : Colors.orange,
+                                      color: isPositive ? Colors.green : Colors.red,
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Text(
-                                      "${isPositive ? 'Cash In Hand' : 'Claimable'}: ৳${balance.abs().toStringAsFixed(0)}",
+                                      "${isPositive ? 'Cash In Hand' : 'Claimable'}: ${isPositive ? '৳' : '-৳'}${balance.abs().toStringAsFixed(0)}",
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         color: Colors.white,

@@ -1947,7 +1947,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                       strokeWidth: 2,
                       valueColor: AlwaysStoppedAnimation<Color>(isPos
                           ? Colors.green
-                          : (isNeg ? Colors.orange : Colors.grey.shade300)),
+                          : (isNeg ? Colors.red : Colors.grey.shade300)),
                     ),
                     CircleAvatar(
                       radius: 20,
@@ -1966,13 +1966,13 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                 Text(
                   bal.abs() < 1
                       ? "Settled"
-                      : "৳${bal.abs().toStringAsFixed(0)}",
+                      : (isNeg ? "-৳${bal.abs().toStringAsFixed(0)}" : "৳${bal.toStringAsFixed(0)}"),
                   style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
                       color: isPos
                           ? Colors.green
-                          : (isNeg ? Colors.orange : Colors.grey)),
+                          : (isNeg ? Colors.red : Colors.grey)),
                 ),
               ],
             ),
