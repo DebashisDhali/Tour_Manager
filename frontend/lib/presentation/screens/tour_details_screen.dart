@@ -1008,15 +1008,16 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                         .toList();
                         
                     if (expPayers.isNotEmpty) {
-                      final names = expPayers.map((p) {
+                      final uniqueUserIds = expPayers.map((p) => p.userId.toLowerCase()).toSet();
+                      final names = uniqueUserIds.map((uid) {
                         try {
                           return (allUsersAsync.value ?? [])
-                              .firstWhere((u) => u.id.toLowerCase() == p.userId.toLowerCase())
+                              .firstWhere((u) => u.id.toLowerCase() == uid)
                               .name;
                         } catch (e) {
-                          return "User";
+                          return null;
                         }
-                      }).where((name) => name != "User").toList();
+                      }).whereType<String>().toList();
 
                       if (names.isNotEmpty) {
                         if (names.length == 1) {

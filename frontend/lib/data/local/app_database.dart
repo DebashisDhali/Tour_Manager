@@ -429,12 +429,15 @@ class AppDatabase extends _$AppDatabase {
       Expense expense, List<ExpenseSplit> splits, List<ExpensePayer> payers) {
     return transaction(() async {
       await into(expenses).insert(expense, mode: InsertMode.insertOrReplace);
-      await (delete(expenseSplits)
-            ..where((t) => t.expenseId.equals(expense.id)))
-          .go();
-      await (delete(expensePayers)
-            ..where((t) => t.expenseId.equals(expense.id)))
-          .go();
+      
+      // Soft-delete existing splits and payers to notify the server during next sync
+      await (update(expenseSplits)..where((t) => t.expenseId.equals(expense.id)))
+          .write(const ExpenseSplitsCompanion(
+              isDeleted: Value(true), isSynced: Value(false)));
+      await (update(expensePayers)..where((t) => t.expenseId.equals(expense.id)))
+          .write(const ExpensePayersCompanion(
+              isDeleted: Value(true), isSynced: Value(false)));
+
       for (final split in splits) {
         await into(expenseSplits).insert(split);
       }

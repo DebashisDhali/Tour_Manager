@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:drift/drift.dart' hide Column, Table;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../data/local/app_database.dart' as models;
@@ -34,6 +35,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   final Map<String, double> _splitAmounts = {};
   Set<String> _involvedMemberIds = {};
 
+  bool _isSaving = false;
+
   @override
   void initState() {
     super.initState();
@@ -50,7 +53,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   Future<void> _loadExistingDetails() async {
     final database = ref.read(databaseProvider);
     final payers = await (database.select(database.expensePayers)
-          ..where((t) => t.expenseId.equals(widget.initialExpense!.id)))
+          ..where((t) => t.expenseId.equals(widget.initialExpense!.id) & t.isDeleted.equals(false)))
         .get();
     if (payers.length > 1) {
       setState(() {
@@ -68,7 +71,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     }
 
     final splits = await (database.select(database.expenseSplits)
-          ..where((t) => t.expenseId.equals(widget.initialExpense!.id)))
+          ..where((t) => t.expenseId.equals(widget.initialExpense!.id) & t.isDeleted.equals(false)))
         .get();
     final total = widget.initialExpense!.amount;
     final expectedEqual = total / (splits.isEmpty ? 1 : splits.length);
@@ -98,6 +101,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   Widget build(BuildContext context) {
     final tourAsync = ref.watch(singleTourProvider(widget.tourId));
     final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
+    final incomesAsync = ref.watch(tourIncomesProvider(widget.tourId));
+    final settlementsAsync = ref.watch(tourSettlementsProvider(widget.tourId));
+    final expensesAsync = ref.watch(tourExpensesProvider(widget.tourId));
 
     return tourAsync.when(
       data: (tour) {
@@ -125,6 +131,25 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             final activeMembers = members
                 .where((m) => m.status.toLowerCase().trim() == 'active')
                 .toList();
+
+            // Balance Calculation
+            final incomes = incomesAsync.value ?? [];
+            final settlements = settlementsAsync.value ?? [];
+            final otherExpenses = expensesAsync.value ?? [];
+            final Map<String, double> userBalances = {};
+
+            for (final m in members) {
+              final uid = m.user.id.toLowerCase();
+              final collected = incomes.where((i) => i.collectedBy.toLowerCase() == uid).fold(0.0, (sum, i) => sum + i.amount);
+              final received = settlements.where((s) => s.toId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
+              final given = settlements.where((s) => s.fromId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
+              // Exclude current expense if editing
+              final spent = otherExpenses
+                  .where((e) => e.payerId?.toLowerCase() == uid && e.id.toLowerCase() != widget.initialExpense?.id.toLowerCase())
+                  .fold(0.0, (sum, e) => sum + e.amount);
+              
+              userBalances[uid] = collected + received - given - spent;
+            }
             if (_selectedPayerId == null ||
                 !members.any((m) => m.user.id == _selectedPayerId)) {
               _selectedPayerId = activeMembers.isNotEmpty
@@ -297,10 +322,19 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                           child: Row(
                                             children: [
                                               Expanded(
-                                                  child: Text(m.user.name,
-                                                      style: const TextStyle(
-                                                          fontWeight: FontWeight
-                                                              .bold))),
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(m.user.name,
+                                                          style: const TextStyle(
+                                                              fontWeight: FontWeight
+                                                                  .bold)),
+                                                      Text(
+                                                        "Balance: ৳${(userBalances[m.user.id.toLowerCase()] ?? 0.0).toStringAsFixed(0)}",
+                                                        style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                                      ),
+                                                    ],
+                                                  )),
                                               const SizedBox(width: 12),
                                               SizedBox(
                                                 width: 120,
@@ -333,17 +367,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                               )
                             : DropdownButtonFormField<String>(
                                 value: _selectedPayerId,
-                                items: members
-                                    .where((m) =>
-                                        m.status.toLowerCase().trim() ==
-                                            'active' ||
-                                        (widget.initialExpense != null &&
-                                            _payerAmounts
-                                                .containsKey(m.user.id)))
-                                    .map((m) => DropdownMenuItem(
-                                        value: m.user.id,
-                                        child: Text(m.user.name)))
-                                    .toList(),
                                 onChanged: (v) => setState(() {
                                   _selectedPayerId = v!;
                                   _payerAmounts = {
@@ -352,6 +375,33 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                         0.0
                                   };
                                 }),
+                                items: members
+                                    .where((m) =>
+                                        m.status.toLowerCase().trim() ==
+                                            'active' ||
+                                        (widget.initialExpense != null &&
+                                            _payerAmounts
+                                                .containsKey(m.user.id)))
+                                    .map((m) {
+                                  final bal = userBalances[m.user.id.toLowerCase()] ?? 0.0;
+                                  return DropdownMenuItem(
+                                    value: m.user.id,
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(m.user.name),
+                                        Text(
+                                          " ৳${bal.toStringAsFixed(0)}",
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: bal > 0 ? Colors.green : Colors.orange,
+                                            fontWeight: FontWeight.bold
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
                                 decoration: _getInputDecoration(
                                     hint: "Select Payer",
                                     icon: Icons.person_rounded,
@@ -555,14 +605,18 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       SizedBox(
                         height: 64,
                         child: FilledButton.icon(
-                          onPressed: () => _saveExpense(members, activeTour),
-                          icon: Icon(widget.initialExpense == null
-                              ? Icons.add_task_rounded
-                              : Icons.save_rounded),
+                          onPressed: _isSaving ? null : () => _saveExpense(members, activeTour),
+                          icon: _isSaving 
+                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              : Icon(widget.initialExpense == null
+                                  ? Icons.add_task_rounded
+                                  : Icons.save_rounded),
                           label: Text(
-                              widget.initialExpense == null
-                                  ? "Add Expense"
-                                  : "Update Details",
+                              _isSaving 
+                                  ? "Saving..." 
+                                  : (widget.initialExpense == null
+                                      ? "Add Expense"
+                                      : "Update Details"),
                               style: const TextStyle(
                                   fontSize: 18, fontWeight: FontWeight.bold)),
                           style: FilledButton.styleFrom(
@@ -668,51 +722,117 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   }
 
   Future<void> _saveExpense(List<MemberWithStatus> members, models.Tour activeTour) async {
+    if (_isSaving) return;
     if (_formKey.currentState!.validate()) {
-      final totalAmount = double.parse(_amountController.text);
-      final paidSum = _payerAmounts.values.fold(0.0, (sum, v) => sum + v);
-      if ((paidSum - totalAmount).abs() > 0.01) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text("Payment sum ($paidSum৳) != $totalAmount৳")));
-        return;
-      }
+      setState(() => _isSaving = true);
+      try {
+        final totalAmount = double.parse(_amountController.text);
 
-      if (_isCustomSplit) {
-        final splitSum = _splitAmounts.values.fold(0.0, (sum, v) => sum + v);
-        if ((splitSum - totalAmount).abs() > 0.1) {
+        // Balance Check Logic
+        if (!_isMultiPayer && _selectedPayerId != null) {
+          final incomes = ref.read(tourIncomesProvider(widget.tourId)).value ?? [];
+          final settlements = ref.read(tourSettlementsProvider(widget.tourId)).value ?? [];
+          final otherExpenses = ref.read(tourExpensesProvider(widget.tourId)).value ?? [];
+          
+          final uid = _selectedPayerId!.toLowerCase();
+          final collected = incomes.where((i) => i.collectedBy.toLowerCase() == uid).fold(0.0, (sum, i) => sum + i.amount);
+          final received = settlements.where((s) => s.toId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
+          final given = settlements.where((s) => s.fromId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
+          final spent = otherExpenses
+              .where((e) => e.payerId?.toLowerCase() == uid && e.id.toLowerCase() != widget.initialExpense?.id.toLowerCase())
+              .fold(0.0, (sum, e) => sum + e.amount);
+          
+          final currentBalance = collected + received - given - spent;
+
+          if (totalAmount > currentBalance + 0.01) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text("Insufficient funds! Payer has only ৳${currentBalance.toStringAsFixed(0)} in hand."),
+              backgroundColor: Colors.redAccent,
+            ));
+            return;
+          }
+        } else if (_isMultiPayer) {
+          // Check for each payer in multi-payer mode
+          final incomes = ref.read(tourIncomesProvider(widget.tourId)).value ?? [];
+          final settlements = ref.read(tourSettlementsProvider(widget.tourId)).value ?? [];
+          final otherExpenses = ref.read(tourExpensesProvider(widget.tourId)).value ?? [];
+
+          for (final entry in _payerAmounts.entries) {
+            final uid = entry.key.toLowerCase();
+            final amount = entry.value;
+            if (amount <= 0) continue;
+
+            final collected = incomes.where((i) => i.collectedBy.toLowerCase() == uid).fold(0.0, (sum, i) => sum + i.amount);
+            final received = settlements.where((s) => s.toId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
+            final given = settlements.where((s) => s.fromId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
+            final spent = otherExpenses
+                .where((e) => e.payerId?.toLowerCase() == uid && e.id.toLowerCase() != widget.initialExpense?.id.toLowerCase())
+                .fold(0.0, (sum, e) => sum + e.amount);
+            
+            final currentBalance = collected + received - given - spent;
+
+            if (amount > currentBalance + 0.01) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text("Insufficient funds for ${members.firstWhere((m) => m.user.id.toLowerCase() == uid).user.name}! (Has ৳${currentBalance.toStringAsFixed(0)})"),
+                backgroundColor: Colors.redAccent,
+              ));
+              return;
+            }
+          }
+        }
+
+        final paidSum = _payerAmounts.values.fold(0.0, (sum, v) => sum + v);
+        if ((paidSum - totalAmount).abs() > 0.01) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text("Split sum ($splitSum৳) != $totalAmount৳")));
+              content: Text("Payment sum ($paidSum৳) != $totalAmount৳")));
           return;
         }
-      }
 
-      final database = ref.read(databaseProvider);
-      final expenseId = (widget.initialExpense?.id ?? const Uuid().v4()).toLowerCase();
+        if (_isCustomSplit) {
+          final splitSum = _splitAmounts.values.fold(0.0, (sum, v) => sum + v);
+          if ((splitSum - totalAmount).abs() > 0.1) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text("Split sum ($splitSum৳) != $totalAmount৳")));
+            return;
+          }
+        }
 
-      List<models.ExpenseSplit> splits = [];
-      if (!_isCustomSplit) {
-        // IMPORTANT: Never lock splits for Mess Bazar expenses!
-        // They must remain dynamic (no splits) so the engine distributes them by meals.
-        final isMessBazar = activeTour.purpose.toLowerCase() == 'mess' && _messCostType != 'fixed';
-        
-        if (!isMessBazar) {
-          final splitAmount = totalAmount /
-              (_involvedMemberIds.isEmpty ? 1 : _involvedMemberIds.length);
-          splits = members
-              .where((m) => _involvedMemberIds.contains(m.user.id))
-              .map((m) => models.ExpenseSplit(
+        final database = ref.read(databaseProvider);
+        final expenseId = (widget.initialExpense?.id ?? const Uuid().v4()).toLowerCase();
+
+        List<models.ExpenseSplit> splits = [];
+        if (!_isCustomSplit) {
+          final isMessBazar = activeTour.purpose.toLowerCase() == 'mess' && _messCostType != 'fixed';
+          if (!isMessBazar) {
+            final splitAmount = totalAmount /
+                (_involvedMemberIds.isEmpty ? 1 : _involvedMemberIds.length);
+            splits = members
+                .where((m) => _involvedMemberIds.contains(m.user.id))
+                .map((m) => models.ExpenseSplit(
+                    id: const Uuid().v4().toLowerCase(),
+                    expenseId: expenseId,
+                    userId: m.user.id.toLowerCase(),
+                    amount: splitAmount,
+                    isSynced: false,
+                    isDeleted: false))
+                .toList();
+          }
+        } else {
+          splits = _splitAmounts.entries
+              .where((e) => _involvedMemberIds.contains(e.key))
+              .map((e) => models.ExpenseSplit(
                   id: const Uuid().v4().toLowerCase(),
                   expenseId: expenseId,
-                  userId: m.user.id.toLowerCase(),
-                  amount: splitAmount,
+                  userId: e.key.toLowerCase(),
+                  amount: e.value,
                   isSynced: false,
                   isDeleted: false))
               .toList();
         }
-      } else {
-        splits = _splitAmounts.entries
-            .where((e) => _involvedMemberIds.contains(e.key))
-            .map((e) => models.ExpenseSplit(
+
+        final payers = _payerAmounts.entries
+            .where((e) => e.value > 0)
+            .map((e) => models.ExpensePayer(
                 id: const Uuid().v4().toLowerCase(),
                 expenseId: expenseId,
                 userId: e.key.toLowerCase(),
@@ -720,46 +840,37 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 isSynced: false,
                 isDeleted: false))
             .toList();
-      }
 
-      final payers = _payerAmounts.entries
-          .where((e) => e.value > 0)
-          .map((e) => models.ExpensePayer(
-              id: const Uuid().v4().toLowerCase(),
-              expenseId: expenseId,
-              userId: e.key.toLowerCase(),
-              amount: e.value,
-              isSynced: false,
-              isDeleted: false))
-          .toList();
+        final expense = models.Expense(
+            id: expenseId,
+            tourId: widget.tourId,
+            payerId: _isMultiPayer ? null : _selectedPayerId,
+            amount: totalAmount,
+            title: _titleController.text,
+            category: _category,
+            messCostType: _messCostType,
+            isSynced: false,
+            isDeleted: false,
+            createdAt: widget.initialExpense?.createdAt ?? DateTime.now());
 
-      final expense = models.Expense(
-          id: expenseId,
-          tourId: widget.tourId,
-          payerId: _isMultiPayer ? null : _selectedPayerId,
-          amount: totalAmount,
-          title: _titleController.text,
-          category: _category,
-          messCostType: _messCostType,
-          isSynced: false,
-          isDeleted: false,
-          createdAt: widget.initialExpense?.createdAt ?? DateTime.now());
-
-      if (widget.initialExpense == null) {
-        await database.addExpenseWithDetails(expense, splits, payers);
-      } else {
-        await database.updateExpenseWithDetails(expense, splits, payers);
-      }
-
-      if (mounted) {
-        final currentUserId = ref.read(currentUserProvider).value?.id;
-        if (currentUserId != null) {
-          ref
-              .read(syncServiceProvider)
-              .startSync(currentUserId)
-              .catchError((e) => debugPrint(e.toString()));
+        if (widget.initialExpense == null) {
+          await database.addExpenseWithDetails(expense, splits, payers);
+        } else {
+          await database.updateExpenseWithDetails(expense, splits, payers);
         }
-        Navigator.pop(context);
+
+        if (mounted) {
+          final currentUserId = ref.read(currentUserProvider).value?.id;
+          if (currentUserId != null) {
+            ref
+                .read(syncServiceProvider)
+                .startSync(currentUserId)
+                .catchError((e) => debugPrint(e.toString()));
+          }
+          Navigator.pop(context);
+        }
+      } finally {
+        if (mounted) setState(() => _isSaving = false);
       }
     }
   }
