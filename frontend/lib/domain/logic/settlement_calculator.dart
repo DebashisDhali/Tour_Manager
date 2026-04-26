@@ -206,10 +206,19 @@ class SettlementCalculator {
       final normalizedExpId = s.expenseId.toLowerCase();
       final normalizedUserId = s.userId.toLowerCase();
       
-      // Safety: Only include splits for expenses that are active in this calculation
-      if (!uniqueExpenses.containsKey(normalizedExpId)) continue;
+      // CRITICAL INTEGRITY CHECK: 
+      // 1. Must belong to an active expense in THIS tour
+      // 2. Must belong to an active user in THIS tour
+      if (!uniqueExpenses.containsKey(normalizedExpId)) {
+        print("DEBUG: Purging orphaned split for unknown expense $normalizedExpId");
+        continue;
+      }
+      if (!uniqueUsers.containsKey(normalizedUserId)) {
+        print("DEBUG: Purging split for user $normalizedUserId who is not in this project");
+        continue;
+      }
 
-      // Deduplication: One split per user per expense
+      // 3. Deduplication: One split per user per expense
       final contentKey = "${normalizedExpId}_$normalizedUserId";
       if (seenUserSplits.contains(contentKey)) continue;
 
@@ -261,7 +270,8 @@ class SettlementCalculator {
     // 1. Select the appropriate calculator based on purpose
     BaseSettlementCalculator calculator;
     
-    switch (purpose?.toLowerCase()) {
+    final normalizedPurpose = purpose?.trim().toLowerCase();
+    switch (normalizedPurpose) {
       case 'mess':
         calculator = MessSettlementCalculator();
         break;

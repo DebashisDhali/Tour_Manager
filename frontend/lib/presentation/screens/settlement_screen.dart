@@ -199,32 +199,73 @@ class SettlementScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       children: [
+        PremiumCard(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          margin: const EdgeInsets.only(bottom: 16),
+          color: config.color.withValues(alpha: 0.1),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline_rounded, size: 14, color: config.color),
+              const SizedBox(width: 8),
+              Text(
+                "Mode: ${config.name} (${isMess ? 'Meal-based' : 'Equal Split'})",
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: config.color.withValues(alpha: 0.8),
+                ),
+              ),
+            ],
+          ),
+        ),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildSectionTitle("${config.label} Summary", config.color),
-            Tooltip(
-              message:
-                  myMember == null ? 'Only members can download receipts' : '',
-              child: TextButton.icon(
-                onPressed: myMember != null
-                    ? () {
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) =>
-                                    FinalReceiptScreen(tourId: tourId)));
-                      }
-                    : null,
-                icon: const Icon(Icons.download_rounded, size: 18),
-                label: const Text("Export Report",
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                style: TextButton.styleFrom(
-                  foregroundColor:
-                      myMember != null ? config.color : Colors.grey,
+            Row(
+              children: [
+                IconButton(
+                  onPressed: () async {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Repairing data integrity...")),
+                    );
+                    ref.invalidate(tourExpensesProvider(tourId));
+                    ref.invalidate(tourSplitsProvider(tourId));
+                    ref.invalidate(tourIncomesProvider(tourId));
+                    ref.invalidate(tourPayersProvider(tourId));
+                    
+                    await Future.delayed(const Duration(seconds: 1));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Integrity repair complete.")),
+                    );
+                  },
+                  icon: const Icon(Icons.build_circle_outlined, size: 20),
+                  tooltip: "Sync & Repair",
+                  color: config.color,
                 ),
-              ),
-            )
+                Tooltip(
+                  message: myMember == null ? 'Only members can download receipts' : '',
+                  child: TextButton.icon(
+                    onPressed: myMember != null
+                        ? () {
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        FinalReceiptScreen(tourId: tourId)));
+                          }
+                        : null,
+                    icon: const Icon(Icons.download_rounded, size: 18),
+                    label: const Text("Export",
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    style: TextButton.styleFrom(
+                      foregroundColor:
+                          myMember != null ? config.color : Colors.grey,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
         PremiumCard(
