@@ -117,6 +117,66 @@ class _AllocateFundDialogState extends ConsumerState<AllocateFundDialog> {
     );
   }
 
+  Future<void> _showInsufficientFundsDialog(double currentBalance) async {
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Row(
+          children: [
+            Icon(Icons.error_outline_rounded, color: Colors.red, size: 28),
+            SizedBox(width: 12),
+            Text("Transfer Blocked", style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "You cannot transfer funds you don't have in hand.",
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.red.withValues(alpha: 0.1)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.account_balance_wallet_rounded, color: Colors.red, size: 20),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Current Balance", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text("৳${currentBalance.toStringAsFixed(0)}", 
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              "Please collect more funds or settle pending expenses before making this transfer.",
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("I Understand"),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _saveAllocation() async {
     if (_formKey.currentState!.validate()) {
       final amount = double.tryParse(_amountController.text) ?? 0.0;
@@ -143,10 +203,7 @@ class _AllocateFundDialogState extends ConsumerState<AllocateFundDialog> {
 
       if (amount > currentBalance + 0.01) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text("Insufficient funds! You have only ৳${currentBalance.toStringAsFixed(0)} in hand."),
-            backgroundColor: Colors.redAccent,
-          ));
+          await _showInsufficientFundsDialog(currentBalance);
         }
         return;
       }
