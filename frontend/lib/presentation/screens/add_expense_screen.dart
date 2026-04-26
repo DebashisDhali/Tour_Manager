@@ -104,6 +104,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     final incomesAsync = ref.watch(tourIncomesProvider(widget.tourId));
     final settlementsAsync = ref.watch(tourSettlementsProvider(widget.tourId));
     final expensesAsync = ref.watch(tourExpensesProvider(widget.tourId));
+    final payersAsync = ref.watch(tourPayersProvider(widget.tourId));
 
     return tourAsync.when(
       data: (tour) {
@@ -136,6 +137,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             final incomes = incomesAsync.value ?? [];
             final settlements = settlementsAsync.value ?? [];
             final otherExpenses = expensesAsync.value ?? [];
+            final allPayers = payersAsync.value ?? [];
             final Map<String, double> userBalances = {};
 
             for (final m in members) {
@@ -143,10 +145,24 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               final collected = incomes.where((i) => i.collectedBy.toLowerCase() == uid).fold(0.0, (sum, i) => sum + i.amount);
               final received = settlements.where((s) => s.toId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
               final given = settlements.where((s) => s.fromId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
-              // Exclude current expense if editing
-              final spent = otherExpenses
-                  .where((e) => e.payerId?.toLowerCase() == uid && e.id.toLowerCase() != widget.initialExpense?.id.toLowerCase())
-                  .fold(0.0, (sum, e) => sum + e.amount);
+              
+              double spent = 0.0;
+              for (final e in otherExpenses) {
+                if (e.id.toLowerCase() == widget.initialExpense?.id.toLowerCase()) continue;
+                
+                final eId = e.id.toLowerCase();
+                final ePayers = allPayers.where((p) => p.expenseId.toLowerCase() == eId).toList();
+                
+                if (ePayers.isNotEmpty) {
+                  spent += ePayers
+                      .where((p) => p.userId.toLowerCase() == uid)
+                      .fold(0.0, (sum, p) => sum + p.amount);
+                } else {
+                  if (e.payerId?.toLowerCase() == uid) {
+                    spent += e.amount;
+                  }
+                }
+              }
               
               userBalances[uid] = collected + received - given - spent;
             }
@@ -765,10 +781,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           // Check for each payer in multi-payer mode
           final incomes = ref.read(tourIncomesProvider(widget.tourId)).value ?? [];
           final settlements = ref.read(tourSettlementsProvider(widget.tourId)).value ?? [];
-          final otherPayers = ref.read(databaseProvider).expensePayers.select().get();
-          final payers = await otherPayers;
+          final allPayers = ref.read(tourPayersProvider(widget.tourId)).value ?? [];
           final otherExpenses = ref.read(tourExpensesProvider(widget.tourId)).value ?? [];
-          final expenseIds = otherExpenses.map((e) => e.id.toLowerCase()).toSet();
 
           for (final entry in _payerAmounts.entries) {
             final uid = entry.key.toLowerCase();
@@ -779,13 +793,23 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             final received = settlements.where((s) => s.toId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
             final given = settlements.where((s) => s.fromId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
             
-            double spent = otherExpenses
-                .where((e) => e.payerId?.toLowerCase() == uid && e.id.toLowerCase() != widget.initialExpense?.id.toLowerCase())
-                .fold(0.0, (sum, e) => sum + e.amount);
-            
-            spent += payers
-                .where((p) => p.userId.toLowerCase() == uid && expenseIds.contains(p.expenseId.toLowerCase()) && p.expenseId.toLowerCase() != widget.initialExpense?.id.toLowerCase())
-                .fold(0.0, (sum, p) => sum + p.amount);
+            double spent = 0.0;
+            for (final e in otherExpenses) {
+              if (e.id.toLowerCase() == widget.initialExpense?.id.toLowerCase()) continue;
+              
+              final eId = e.id.toLowerCase();
+              final ePayers = allPayers.where((p) => p.expenseId.toLowerCase() == eId).toList();
+              
+              if (ePayers.isNotEmpty) {
+                spent += ePayers
+                    .where((p) => p.userId.toLowerCase() == uid)
+                    .fold(0.0, (sum, p) => sum + p.amount);
+              } else {
+                if (e.payerId?.toLowerCase() == uid) {
+                  spent += e.amount;
+                }
+              }
+            }
             
             final currentBalance = (collected + received) - (given + spent);
 

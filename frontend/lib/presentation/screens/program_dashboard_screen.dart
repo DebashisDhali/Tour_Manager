@@ -178,18 +178,25 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
                                 final received = settlements.where((s) => s.toId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
                                 final given = settlements.where((s) => s.fromId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
                                 
-                                // Correct Spent Calculation: Expense.payerId + ExpensePayers
+                                // Correct Spent Calculation: Avoid double counting
                                 double spent = 0.0;
                                 
-                                // 1. Direct payerId (single payer mode)
-                                spent += expenses
-                                    .where((e) => e.payerId?.toLowerCase() == uid)
-                                    .fold(0.0, (sum, e) => sum + e.amount);
-                                
-                                // 2. ExpensePayers (multi-payer mode)
-                                spent += allPayers
-                                    .where((p) => p.userId.toLowerCase() == uid && expenseIds.contains(p.expenseId.toLowerCase()))
-                                    .fold(0.0, (sum, p) => sum + p.amount);
+                                for (final e in expenses) {
+                                  final eId = e.id.toLowerCase();
+                                  final expensePayers = allPayers.where((p) => p.expenseId.toLowerCase() == eId).toList();
+                                  
+                                  if (expensePayers.isNotEmpty) {
+                                    // Use multi-payer data if it exists
+                                    spent += expensePayers
+                                        .where((p) => p.userId.toLowerCase() == uid)
+                                        .fold(0.0, (sum, p) => sum + p.amount);
+                                  } else {
+                                    // Fallback to single payerId for old data
+                                    if (e.payerId?.toLowerCase() == uid) {
+                                      spent += e.amount;
+                                    }
+                                  }
+                                }
                                 
                                 userBalances[user] = (collected + received) - (given + spent);
                               }
