@@ -59,7 +59,7 @@ exports.syncData = async (req, res) => {
               } else {
                 await User.upsert({
                   id: u.id.toLowerCase(), name: u.name, phone: u.phone, email: u.email,
-                  avatar_url: u.avatarUrl
+                  avatar_url: u.avatar_url || u.avatarUrl
                 });
               }
             } catch (e) { recordPushError('User', u.id, e); }
@@ -88,7 +88,7 @@ exports.syncData = async (req, res) => {
                   console.log(`    🚶 User ${normalizedUserId} left tour ${t.id}`);
                 }
               } else {
-                const creatorId = t.createdBy ? t.createdBy.toLowerCase() : null;
+                const creatorId = (t.created_by || t.createdBy) ? (t.created_by || t.createdBy).toLowerCase() : null;
                 
                 // If tour exists and user is not Admin/Editor, block update
                 const existingTour = await Tour.findByPk(tourId);
@@ -105,8 +105,10 @@ exports.syncData = async (req, res) => {
 
                 await Tour.upsert({
                   id: tourId, name: t.name, created_by: creatorId,
-                  invite_code: t.inviteCode || null, start_date: t.startDate || null,
-                  end_date: t.endDate || null, purpose: t.purpose || 'tour',
+                  invite_code: t.invite_code || t.inviteCode || null, 
+                  start_date: t.start_date || t.startDate || null,
+                  end_date: t.end_date || t.endDate || null, 
+                  purpose: t.purpose || 'tour',
                 });
 
                 if (creatorId) {
@@ -125,16 +127,18 @@ exports.syncData = async (req, res) => {
           console.log(`  👫 ${members.length} member(s)`);
           for (const m of members) {
             try {
+              const tourId = (m.tour_id || m.tourId).toLowerCase();
+              const mUserId = (m.user_id || m.userId).toLowerCase();
               if (m.isDeleted) {
                 await TourMember.destroy({ 
-                  where: { tour_id: m.tourId.toLowerCase(), user_id: m.userId.toLowerCase() } 
+                  where: { tour_id: tourId, user_id: mUserId } 
                 });
               } else {
                 await TourMember.upsert({
-                  tour_id: m.tourId.toLowerCase(), user_id: m.userId.toLowerCase(),
-                  status: m.status || (m.leftAt ? 'removed' : 'active'),
-                  removed_at: m.leftAt || null, role: m.role || 'viewer',
-                  meal_count: m.mealCount || 0.0,
+                  tour_id: tourId, user_id: mUserId,
+                  status: m.status || (m.left_at || m.leftAt ? 'removed' : 'active'),
+                  removed_at: m.left_at || m.leftAt || null, role: m.role || 'viewer',
+                  meal_count: m.meal_count || m.mealCount || 0.0,
                   joined_at: now,
                 });
               }
@@ -147,7 +151,7 @@ exports.syncData = async (req, res) => {
             console.log(`  💰 ${expenses.length} expense(s)`);
             for (const e of expenses) {
               try {
-                const tourId = e.tourId.toLowerCase();
+                const tourId = (e.tour_id || e.tourId).toLowerCase();
                 const role = roleMap[tourId] || 'none';
                 if (role !== 'admin' && role !== 'editor') throw new Error("Permission Denied: Only Admin or Editor can modify expenses");
 
@@ -157,10 +161,11 @@ exports.syncData = async (req, res) => {
                   await Expense.upsert({
                     id: e.id.toLowerCase(), 
                     tour_id: tourId, 
-                    payer_id: e.payerId ? e.payerId.toLowerCase() : null, 
+                    payer_id: (e.payer_id || e.payerId) ? (e.payer_id || e.payerId).toLowerCase() : null, 
                     amount: e.amount,
-                    title: e.title, category: e.category, mess_cost_type: e.messCostType, 
-                    date: e.createdAt || now
+                    title: e.title, category: e.category, 
+                    mess_cost_type: e.mess_cost_type || e.messCostType, 
+                    date: e.date || e.createdAt || now
                   });
                 }
               } catch (err) { recordPushError('Expense', e.id, err); }
@@ -177,8 +182,8 @@ exports.syncData = async (req, res) => {
               try {
                 await ExpenseSplit.upsert({
                   id: s.id.toLowerCase(), 
-                  expense_id: s.expenseId.toLowerCase(), 
-                  user_id: s.userId.toLowerCase(), 
+                  expense_id: (s.expense_id || s.expenseId).toLowerCase(), 
+                  user_id: (s.user_id || s.userId).toLowerCase(), 
                   amount: s.amount
                 });
               } catch (err) { recordPushError('Split', s.id, err); }
@@ -195,8 +200,8 @@ exports.syncData = async (req, res) => {
               try {
                 await ExpensePayer.upsert({
                   id: p.id.toLowerCase(), 
-                  expense_id: p.expenseId.toLowerCase(), 
-                  user_id: p.userId.toLowerCase(), 
+                  expense_id: (p.expense_id || p.expenseId).toLowerCase(), 
+                  user_id: (p.user_id || p.userId).toLowerCase(), 
                   amount: p.amount
                 });
               } catch (err) { recordPushError('Payer', p.id, err); }
@@ -215,11 +220,12 @@ exports.syncData = async (req, res) => {
                 if (s.isDeleted) {
                   await Settlement.update({ is_deleted: true, updated_at: now }, { where: { id: s.id.toLowerCase() } });
                 } else {
+                  const tourId = (s.tour_id || s.tourId).toLowerCase();
                   await Settlement.upsert({
                     id: s.id.toLowerCase(), 
                     tour_id: tourId, 
-                    from_id: s.fromId.toLowerCase(), 
-                    to_id: s.toId.toLowerCase(), 
+                    from_id: (s.from_id || s.fromId).toLowerCase(), 
+                    to_id: (s.to_id || s.toId).toLowerCase(), 
                     amount: s.amount, date: s.date || now
                   });
                 }
@@ -239,12 +245,13 @@ exports.syncData = async (req, res) => {
                 if (i.isDeleted) {
                   await ProgramIncome.update({ is_deleted: true, updated_at: now }, { where: { id: i.id.toLowerCase() } });
                 } else {
+                  const tourId = (i.tour_id || i.tourId).toLowerCase();
                   await ProgramIncome.upsert({
                     id: i.id.toLowerCase(), 
                     tour_id: tourId, 
                     amount: i.amount, source: i.source,
                     description: i.description, 
-                    collected_by: i.collectedBy.toLowerCase(), 
+                    collected_by: (i.collected_by || i.collectedBy).toLowerCase(), 
                     date: i.date || now
                   });
                 }
@@ -262,9 +269,9 @@ exports.syncData = async (req, res) => {
               try {
                 await JoinRequest.upsert({
                   id: jr.id.toLowerCase(), 
-                  tour_id: jr.tourId.toLowerCase(), 
-                  user_id: jr.userId.toLowerCase(), 
-                  user_name: jr.userName || 'Unknown', 
+                  tour_id: (jr.tour_id || jr.tourId).toLowerCase(), 
+                  user_id: (jr.user_id || jr.userId).toLowerCase(), 
+                  user_name: jr.user_name || jr.userName || 'Unknown', 
                   status: jr.status || 'pending'
                 });
               } catch (err) { recordPushError('JoinRequest', jr.id, err); }
