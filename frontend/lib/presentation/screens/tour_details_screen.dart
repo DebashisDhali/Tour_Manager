@@ -655,42 +655,122 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
   void _showAddOptionsSheet(Tour tour) {
     final config = PurposeConfig.getConfig(tour.purpose);
     showModalBottomSheet(
-        context: context,
-        builder: (context) => Column(
-              mainAxisSize: MainAxisSize.min,
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            )
+          ],
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              "Quick Actions",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: -0.5),
+            ),
+            const SizedBox(height: 24),
+            Row(
               children: [
-                ListTile(
-                  leading: Icon(Icons.add_card, color: config.color),
-                  title: const Text("Add Collected Fund"),
-                  onTap: () {
-                    Navigator.pop(context);
-                    showDialog(
+                Expanded(
+                  child: _buildActionItem(
+                    icon: Icons.add_task_rounded,
+                    label: "Income",
+                    color: config.color,
+                    onTap: () {
+                      Navigator.pop(context);
+                      showDialog(
                         context: context,
-                        builder: (_) => AddIncomeDialog(tourId: widget.tourId));
-                  },
+                        builder: (_) => AddIncomeDialog(tourId: widget.tourId),
+                      );
+                    },
+                  ),
                 ),
-                ListTile(
-                  leading: Icon(Icons.add, color: config.color),
-                  title: const Text("Add Expense"),
-                  onTap: () {
-                    Navigator.pop(context);
-                    navigateWithTransition(context,
-                        builder: () => AddExpenseScreen(tourId: widget.tourId));
-                  },
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildActionItem(
+                    icon: Icons.add_rounded,
+                    label: "Expense",
+                    color: Colors.orange,
+                    onTap: () {
+                      Navigator.pop(context);
+                      navigateWithTransition(context,
+                          builder: () => AddExpenseScreen(tourId: widget.tourId));
+                    },
+                  ),
                 ),
-                ListTile(
-                  leading: Icon(Icons.send, color: config.color),
-                  title: const Text("Allocate Fund to Member"),
-                  onTap: () {
-                    Navigator.pop(context);
-                    showDialog(
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildActionItem(
+                    icon: Icons.swap_calls_rounded,
+                    label: "Transfer",
+                    color: Colors.teal,
+                    onTap: () {
+                      Navigator.pop(context);
+                      showDialog(
                         context: context,
-                        builder: (_) =>
-                            AllocateFundDialog(tourId: widget.tourId));
-                  },
+                        builder: (_) => AllocateFundDialog(tourId: widget.tourId),
+                      );
+                    },
+                  ),
                 ),
               ],
-            ));
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionItem({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 32),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _generateAndShowCode(BuildContext context, Tour tour) async {
@@ -1710,75 +1790,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
           const SizedBox(height: 16),
           _buildMemberStatusList(sortedUsers, userBalances, config),
           const SizedBox(height: 32),
-          const Text("Quick Actions",
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.5)),
-          const SizedBox(height: 16),
-          Builder(builder: (context) {
-            final myMember =
-                members.where((m) => m.user.id == me?.id).firstOrNull;
-            final isEditor = me?.id == tour.createdBy ||
-                myMember?.role == 'admin' ||
-                myMember?.role == 'editor';
 
-            if (!isEditor) {
-              return Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.orange.withValues(alpha: 0.2)),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.lock_outline, color: Colors.orange, size: 20),
-                    SizedBox(width: 8),
-                    Expanded(
-                        child: Text(
-                            "You are a Viewer. Viewers cannot add or edit expenses.",
-                            style:
-                                TextStyle(fontSize: 12, color: Colors.orange))),
-                  ],
-                ),
-              );
-            }
-
-            return Row(
-              children: [
-                Expanded(
-                    child: _buildDashboardQuickButton(
-                        Icons.add_task_rounded,
-                        "Income",
-                        config.color,
-                        () => showDialog(
-                            context: context,
-                            builder: (_) =>
-                                AddIncomeDialog(tourId: widget.tourId)))),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: _buildDashboardQuickButton(
-                        Icons.add_rounded,
-                        "Expense",
-                        Colors.orange,
-                        () => navigateWithTransition(context,
-                            builder: () =>
-                                AddExpenseScreen(tourId: widget.tourId)))),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: _buildDashboardQuickButton(
-                        Icons.swap_calls_rounded,
-                        "Transfer",
-                        Colors.teal,
-                        () => showDialog(
-                            context: context,
-                            builder: (_) =>
-                                AllocateFundDialog(tourId: widget.tourId)))),
-              ],
-            );
-          }),
-          const SizedBox(height: 32),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [

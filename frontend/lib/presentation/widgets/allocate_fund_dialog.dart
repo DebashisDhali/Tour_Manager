@@ -38,7 +38,7 @@ class _AllocateFundDialogState extends ConsumerState<AllocateFundDialog> {
       setState(() {
         _members = users;
         try {
-          // Default Giver is Me
+          // Giver is ALWAYS Me (The current user)
           _selectedGiverId = users.firstWhere((u) => u.isMe).id;
         } catch (_) {
           if (users.isNotEmpty) _selectedGiverId = users.first.id;
@@ -64,18 +64,19 @@ class _AllocateFundDialogState extends ConsumerState<AllocateFundDialog> {
             children: [
               const ActionHelpText(
                   'Choose who is giving money, who is receiving, enter the amount, and then tap Transfer.'),
-              DropdownButtonFormField<String>(
-                value: _selectedGiverId,
-                decoration: const InputDecoration(labelText: "From (Giver)"),
-                items: _members.map((user) {
-                  return DropdownMenuItem(
-                    value: user.id,
-                    child: Text(user.name, overflow: TextOverflow.ellipsis),
-                  );
-                }).toList(),
-                onChanged: (val) => setState(() => _selectedGiverId = val),
-                validator: (value) => value == null ? 'Required' : null,
+              // Display Giver Name instead of Dropdown (since it's always 'Me')
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  backgroundColor: config.color.withValues(alpha: 0.1),
+                  child: Icon(Icons.person, color: config.color),
+                ),
+                title: const Text("From (You)", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                subtitle: Text(_members.firstWhere((u) => u.id == _selectedGiverId).name, 
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ),
+              const Divider(),
+              const SizedBox(height: 16),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _selectedReceiverId,
@@ -119,6 +120,36 @@ class _AllocateFundDialogState extends ConsumerState<AllocateFundDialog> {
   Future<void> _saveAllocation() async {
     if (_formKey.currentState!.validate()) {
       final amount = double.tryParse(_amountController.text) ?? 0.0;
+      
+      // Calculate current user's balance to ensure they have funds to transfer
+      final incomes = ref.read(tourIncomesProvider(widget.tourId)).value ?? [];
+      final settlements = ref.read(tourSettlementsProvider(widget.tourId)).value ?? [];
+      final expenses = ref.read(tourExpensesProvider(widget.tourId)).value ?? [];
+      final payers = ref.read(tourPayersProvider(widget.tourId)).value ?? [];
+      
+      final uid = _selectedGiverId!.toLowerCase();
+      
+      final col = incomes.where((i) => i.collectedBy.toLowerCase() == uid).fold(0.0, (sum, i) => sum + i.amount);
+      final rec = settlements.where((s) => s.toId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
+      final giv = settlements.where((s) => s.fromId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
+      
+      final singlePayerSpt = expenses
+          .where((e) => e.payerId?.toLowerCase() == uid)
+          .fold(0.0, (sum, e) => sum + e.amount);
+      final multiPayerSpt =
+          payers.where((p) => p.userId.toLowerCase() == uid).fold(0.0, (sum, p) => sum + p.amount);
+          
+      final currentBalance = (col + rec) - (giv + singlePayerSpt + multiPayerSpt);
+
+      if (amount > currentBalance + 0.01) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text("Insufficient funds! You have only ৳${currentBalance.toStringAsFixed(0)} in hand."),
+            backgroundColor: Colors.redAccent,
+          ));
+        }
+        return;
+      }
 
       final settlement = Settlement(
         id: const Uuid().v4(),
