@@ -767,6 +767,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           final settlements = ref.read(tourSettlementsProvider(widget.tourId)).value ?? [];
           final otherPayers = ref.read(databaseProvider).expensePayers.select().get();
           final payers = await otherPayers;
+          final otherExpenses = ref.read(tourExpensesProvider(widget.tourId)).value ?? [];
           final expenseIds = otherExpenses.map((e) => e.id.toLowerCase()).toSet();
 
           for (final entry in _payerAmounts.entries) {
