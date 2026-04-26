@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'dart:typed_data';
+
 import '../../data/local/app_database.dart' as models;
 import '../../data/utils/export_delegate.dart';
 import '../../domain/logic/settlement_calculator.dart';
@@ -19,158 +19,7 @@ class FinalReceiptScreen extends ConsumerWidget {
     required this.tourId,
   });
 
-  Future<void> _printReceipt(
-    models.Tour tour,
-    List<models.User> users,
-    List<models.Expense> expenses,
-    List<models.ExpenseSplit> splits,
-    List<models.ExpensePayer> tourPayers,
-    List<models.Settlement> previousSettlements,
-    List<SettlementInstruction> settlementInstructions,
-    String? purpose,
-    Map<String, double> mealCounts,
-    List<models.ProgramIncome> incomes,
-  ) async {
-    final calculator = SettlementCalculator();
-    final balanceMap = calculator.getFullBalances(
-      expenses: expenses,
-      splits: splits,
-      expensePayers: tourPayers,
-      users: users,
-      previousSettlements: previousSettlements,
-      purpose: purpose,
-      mealCounts: mealCounts,
-      incomes: incomes,
-    );
-    final config = PurposeConfig.getConfig(purpose);
-    final pdf = pw.Document();
-
-    final totalCost = expenses.fold(0.0, (sum, e) => sum + e.amount);
-
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        build: (pw.Context context) {
-          return pw.Padding(
-            padding: const pw.EdgeInsets.all(24),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Center(
-                  child: pw.Text('${config.label.toUpperCase()} COST RECEIPT',
-                      style: pw.TextStyle(
-                          fontSize: 24, fontWeight: pw.FontWeight.bold)),
-                ),
-                pw.SizedBox(height: 8),
-                pw.Center(
-                  child: pw.Text(tour.name,
-                      style: const pw.TextStyle(fontSize: 18)),
-                ),
-                pw.Center(
-                  child: pw.Text(
-                    tour.startDate == null
-                        ? 'Active Period'
-                        : '${DateFormat('MMM dd, yyyy').format(tour.startDate!)} - ${DateFormat('MMM dd, yyyy').format(tour.endDate ?? tour.startDate!)}',
-                    style: const pw.TextStyle(fontSize: 12),
-                  ),
-                ),
-                pw.SizedBox(height: 24),
-                pw.Divider(),
-                pw.SizedBox(height: 12),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Total ${config.label} Cost:',
-                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                    pw.Text('${totalCost.toStringAsFixed(0)} BDT'),
-                  ],
-                ),
-                pw.SizedBox(height: 24),
-                pw.Text('MEMBER CONTRIBUTIONS',
-                    style: pw.TextStyle(
-                        fontSize: 14, fontWeight: pw.FontWeight.bold)),
-                pw.SizedBox(height: 8),
-                pw.TableHelper.fromTextArray(
-                  headers: ['Name', 'Paid', 'Settled', 'Share', 'Balance'],
-                  cellAlignment: pw.Alignment.centerRight,
-                  headerAlignment: pw.Alignment.centerRight,
-                  data: users.map<List<String>>((u) {
-                    final nid = u.id.toLowerCase();
-                    final balanceDetails = balanceMap[nid] ?? balanceMap[u.id];
-                    final paidOnExpenses = balanceDetails?.paid ?? 0.0;
-                    final share = balanceDetails?.share ?? 0.0;
-                    final adjustment = balanceDetails?.settled ?? 0.0;
-                    final balance = balanceDetails?.net ?? 0.0;
-
-                    return [
-                      u.name,
-                      paidOnExpenses.toStringAsFixed(0),
-                      '${adjustment >= 0 ? '+' : ''}${adjustment.toStringAsFixed(0)}',
-                      share.toStringAsFixed(0),
-                      '${balance >= 0 ? '+' : ''}${balance.toStringAsFixed(0)}',
-                    ];
-                  }).toList(),
-                ),
-                pw.SizedBox(height: 24),
-                pw.Text('SETTLEMENT PLAN',
-                    style: pw.TextStyle(
-                        fontSize: 14, fontWeight: pw.FontWeight.bold)),
-                pw.SizedBox(height: 8),
-                if (settlementInstructions.isEmpty)
-                  pw.Text('• All debts settled!')
-                else
-                  ...settlementInstructions.map((s) => pw.Text(
-                      '• ${s.payerName} pays ${s.amount.toStringAsFixed(0)} to ${s.receiverName}')),
-                pw.Spacer(),
-                pw.Divider(),
-                pw.Center(
-                  child: pw.Text('Generated by Manager',
-                      style: const pw.TextStyle(
-                          fontSize: 10, color: PdfColors.grey)),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-
-    await Printing.layoutPdf(
-        onLayout: (PdfPageFormat format) async => pdf.save());
-  }
-
-  Future<void> _shareReceipt(
-    models.Tour tour,
-    List<models.User> users,
-    List<models.Expense> expenses,
-    List<models.ExpenseSplit> splits,
-    List<models.ExpensePayer> tourPayers,
-    List<models.Settlement> previousSettlements,
-    List<SettlementInstruction> settlementInstructions,
-    String? purpose,
-    Map<String, double> mealCounts,
-    List<models.ProgramIncome> incomes,
-  ) async {
-    final config = PurposeConfig.getConfig(purpose);
-    final pdfBytes = await _generatePdfBytes(
-        tour,
-        users,
-        expenses,
-        splits,
-        tourPayers,
-        previousSettlements,
-        settlementInstructions,
-        purpose,
-        mealCounts,
-        incomes);
-
-    final fileName = "${tour.name.replaceAll(' ', '_')}_Receipt.pdf";
-
-    await ExportDelegate.shareFile(pdfBytes, fileName,
-        subject: '${config.label} Cost Receipt: ${tour.name}');
-  }
-
-  Future<Uint8List> _generatePdfBytes(
+  Future<pw.Document> _buildPdfDocument(
     models.Tour tour,
     List<models.User> users,
     List<models.Expense> expenses,
@@ -196,6 +45,7 @@ class FinalReceiptScreen extends ConsumerWidget {
     final config = PurposeConfig.getConfig(purpose);
     final pdf = pw.Document();
     final totalCost = expenses.fold(0.0, (sum, e) => sum + e.amount);
+    final totalFund = incomes.fold(0.0, (s, i) => s + i.amount);
 
     pdf.addPage(
       pw.Page(
@@ -231,13 +81,40 @@ class FinalReceiptScreen extends ConsumerWidget {
                     pw.Text('${totalCost.toStringAsFixed(0)} BDT'),
                   ],
                 ),
+                if (purpose?.toLowerCase() == 'event') ...[
+                  pw.SizedBox(height: 4),
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text('Total Collected Fund:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      pw.Text('${totalFund.toStringAsFixed(0)} BDT'),
+                    ],
+                  ),
+                  pw.SizedBox(height: 4),
+                  pw.Row(
+                    mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                    children: [
+                      pw.Text('Surplus/Deficit:',
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      pw.Text('${(totalFund - totalCost).toStringAsFixed(0)} BDT',
+                        style: pw.TextStyle(color: (totalFund - totalCost) >= 0 ? PdfColors.green : PdfColors.red)),
+                    ],
+                  ),
+                ],
                 pw.SizedBox(height: 24),
                 pw.Text('MEMBER CONTRIBUTIONS',
                     style: pw.TextStyle(
                         fontSize: 14, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 8),
                 pw.TableHelper.fromTextArray(
-                  headers: ['Name', 'Paid', 'Settled', 'Share', 'Balance'],
+                  headers: [
+                    'Name',
+                    purpose?.toLowerCase() == 'event' ? 'Spent' : 'Paid',
+                    purpose?.toLowerCase() == 'event' ? 'HandCash' : 'Settled',
+                    'Share',
+                    'Balance'
+                  ],
                   cellAlignment: pw.Alignment.centerRight,
                   headerAlignment: pw.Alignment.centerRight,
                   data: users.map<List<String>>((u) {
@@ -279,7 +156,67 @@ class FinalReceiptScreen extends ConsumerWidget {
         },
       ),
     );
-    return pdf.save();
+    return pdf;
+  }
+
+  Future<void> _printReceipt(
+    models.Tour tour,
+    List<models.User> users,
+    List<models.Expense> expenses,
+    List<models.ExpenseSplit> splits,
+    List<models.ExpensePayer> tourPayers,
+    List<models.Settlement> previousSettlements,
+    List<SettlementInstruction> settlementInstructions,
+    String? purpose,
+    Map<String, double> mealCounts,
+    List<models.ProgramIncome> incomes,
+  ) async {
+    final pdf = await _buildPdfDocument(
+        tour,
+        users,
+        expenses,
+        splits,
+        tourPayers,
+        previousSettlements,
+        settlementInstructions,
+        purpose,
+        mealCounts,
+        incomes);
+
+    await Printing.layoutPdf(
+        onLayout: (PdfPageFormat format) async => pdf.save());
+  }
+
+  Future<void> _shareReceipt(
+    models.Tour tour,
+    List<models.User> users,
+    List<models.Expense> expenses,
+    List<models.ExpenseSplit> splits,
+    List<models.ExpensePayer> tourPayers,
+    List<models.Settlement> previousSettlements,
+    List<SettlementInstruction> settlementInstructions,
+    String? purpose,
+    Map<String, double> mealCounts,
+    List<models.ProgramIncome> incomes,
+  ) async {
+    final config = PurposeConfig.getConfig(purpose);
+    final pdf = await _buildPdfDocument(
+        tour,
+        users,
+        expenses,
+        splits,
+        tourPayers,
+        previousSettlements,
+        settlementInstructions,
+        purpose,
+        mealCounts,
+        incomes);
+    final pdfBytes = await pdf.save();
+
+    final fileName = "${tour.name.replaceAll(' ', '_')}_Receipt.pdf";
+
+    await ExportDelegate.shareFile(pdfBytes, fileName,
+        subject: '${config.label} Cost Receipt: ${tour.name}');
   }
 
   @override
@@ -309,13 +246,19 @@ class FinalReceiptScreen extends ConsumerWidget {
     final tourMembers = ref.watch(tourMembersProvider(tourId)).value ?? [];
     final incomes = ref.watch(tourIncomesProvider(tourId)).value ?? [];
 
-    if (tour == null)
+    if (tour == null) {
       return const Scaffold(body: Center(child: Text("Project not found")));
+    }
 
     final mealCounts = {for (var m in tourMembers) m.user.id: m.mealCount};
-    final myId = ref.watch(currentUserProvider).value?.id;
-    final myMember = tourMembers.where((m) => m.user.id == myId).firstOrNull;
-    final isMember = myMember != null;
+    final me = ref.watch(currentUserProvider).value;
+    final myMember = tourMembers.where((m) => m.user.id == me?.id).firstOrNull;
+    
+    // Allow Creator, Admins, and Editors to share even if they aren't 'members' in the list
+    final isAllowedToShare = me?.id == tour.createdBy || 
+                             myMember?.role == 'admin' || 
+                             myMember?.role == 'editor' ||
+                             myMember != null;
 
     final calculator = SettlementCalculator();
     final settlementInstructions = calculator.calculate(
@@ -334,10 +277,10 @@ class FinalReceiptScreen extends ConsumerWidget {
         title: Text("${PurposeConfig.getConfig(tour.purpose).label} Statement"),
         actions: [
           Tooltip(
-            message: isMember ? '' : 'Only members can share receipts',
+            message: isAllowedToShare ? '' : 'Only members can share receipts',
             child: IconButton(
               icon: const Icon(Icons.share),
-              onPressed: isMember
+              onPressed: isAllowedToShare
                   ? () => _shareReceipt(
                       tour,
                       users,
@@ -353,10 +296,10 @@ class FinalReceiptScreen extends ConsumerWidget {
             ),
           ),
           Tooltip(
-            message: isMember ? '' : 'Only members can print receipts',
+            message: isAllowedToShare ? '' : 'Only members can print receipts',
             child: IconButton(
               icon: const Icon(Icons.print),
-              onPressed: isMember
+              onPressed: isAllowedToShare
                   ? () => _printReceipt(
                       tour,
                       users,
@@ -390,7 +333,7 @@ class FinalReceiptScreen extends ConsumerWidget {
                 mealCounts,
                 incomes),
             const SizedBox(height: 40),
-            if (!isMember)
+            if (!isAllowedToShare)
               Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -508,6 +451,7 @@ class FinalReceiptScreen extends ConsumerWidget {
     final totalCost = expenses.fold(0.0, (sum, e) => sum + e.amount);
     final config = PurposeConfig.getConfig(purpose);
     final isMess = purpose?.toLowerCase() == 'mess';
+    final isEvent = purpose?.toLowerCase() == 'event';
 
     // Mess-specific calculations (Aligned with MessSettlementCalculator)
     double totalMealCost = 0.0;
@@ -525,7 +469,8 @@ class FinalReceiptScreen extends ConsumerWidget {
                        type == 'fixed' || 
                        category == 'maid' || 
                        category == 'wifi' || 
-                       category == 'others';
+                       category == 'others' ||
+                       category.contains("vara");
 
         bool isCustomSplit = splitExpenseIds.contains(e.id.toLowerCase());
         
@@ -552,7 +497,7 @@ class FinalReceiptScreen extends ConsumerWidget {
 
     final totalMeals = mealCounts.values.fold(0.0, (s, c) => s + c);
     final mealRate = totalMeals > 0 ? standardMealCost / totalMeals : 0.0;
-    final fixedPerPerson = users.isNotEmpty ? standardFixedCost / users.length : 0.0;
+
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24),
@@ -566,7 +511,7 @@ class FinalReceiptScreen extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          Text(isMess ? "MESS MONTHLY STATEMENT" : "FINAL RECEIPT",
+          Text(isMess ? "MESS MONTHLY STATEMENT" : (isEvent ? "EVENT FINANCIAL STATEMENT" : "FINAL RECEIPT"),
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 2)),
           const SizedBox(height: 4),
           const Divider(),
@@ -705,6 +650,86 @@ class FinalReceiptScreen extends ConsumerWidget {
             }),
             const Divider(height: 20),
             _buildRow("Total", "৳${totalCost.toStringAsFixed(0)}", config.color, isBold: true),
+          ] else if (isEvent) ...[
+            // ── EVENT SUMMARY METRICS ──
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: Colors.purple.shade50, borderRadius: BorderRadius.circular(8)),
+              child: Column(
+                children: [
+                  Row(children: [
+                    Expanded(child: _buildMetricTile("Total Fund", "৳${incomes.fold(0.0, (s, i) => s + i.amount).toStringAsFixed(0)}", Colors.purple)),
+                    Expanded(child: _buildMetricTile("Total Spent", "৳${totalCost.toStringAsFixed(0)}", Colors.orange)),
+                  ]),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    Expanded(
+                      child: _buildMetricTile(
+                        (incomes.fold(0.0, (s, i) => s + i.amount) - totalCost) >= 0 ? "Surplus" : "Deficit",
+                        "৳${(incomes.fold(0.0, (s, i) => s + i.amount) - totalCost).abs().toStringAsFixed(0)}",
+                        (incomes.fold(0.0, (s, i) => s + i.amount) - totalCost) >= 0 ? Colors.green : Colors.red,
+                      ),
+                    ),
+                    Expanded(child: _buildMetricTile("Members", "${users.length}", Colors.blue)),
+                  ]),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Align(
+                alignment: Alignment.centerLeft,
+                child: Text("MEMBER FINANCIAL BREAKDOWN",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.5))),
+            const SizedBox(height: 12),
+            Table(
+              border: TableBorder(
+                horizontalInside: BorderSide(color: Colors.grey.shade100, width: 0.5),
+                bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+              ),
+              columnWidths: const {
+                0: FlexColumnWidth(2.5),
+                1: FlexColumnWidth(1.5),
+                2: FlexColumnWidth(1.5),
+                3: FlexColumnWidth(1.5),
+                4: FlexColumnWidth(1.5),
+              },
+              children: [
+                TableRow(
+                  decoration: BoxDecoration(color: config.color.withValues(alpha: 0.05)),
+                  children: [
+                    _buildTableHeaderCell("Name", Alignment.centerLeft),
+                    _buildTableHeaderCell("Spent ৳", Alignment.centerRight),
+                    _buildTableHeaderCell("HandCash ৳", Alignment.centerRight),
+                    _buildTableHeaderCell("Share ৳", Alignment.centerRight),
+                    _buildTableHeaderCell("Balance", Alignment.centerRight),
+                  ],
+                ),
+                ...users.map((u) {
+                  final nid = u.id.toLowerCase();
+                  final balanceDetails = balanceMap[nid] ?? balanceMap[u.id];
+                  final balance = balanceDetails?.net ?? 0.0;
+                  final share = balanceDetails?.share ?? 0.0;
+                  final paidOnExpenses = balanceDetails?.paid ?? 0.0;
+                  final adjustment = balanceDetails?.settled ?? 0.0;
+                  return TableRow(children: [
+                    _buildTableCell(u.name, Alignment.centerLeft, isBold: true),
+                    _buildTableCell(paidOnExpenses.toStringAsFixed(0), Alignment.centerRight),
+                    _buildTableCell(
+                      "${adjustment >= 0 ? '+' : ''}${adjustment.toStringAsFixed(0)}",
+                      Alignment.centerRight,
+                      color: adjustment == 0 ? Colors.grey : (adjustment > 0 ? Colors.green : Colors.orange),
+                    ),
+                    _buildTableCell(share.toStringAsFixed(0), Alignment.centerRight),
+                    _buildTableCell(
+                      "${balance >= 0 ? '+' : ''}${balance.toStringAsFixed(0)}",
+                      Alignment.centerRight,
+                      isBold: true,
+                      color: balance.abs() < 0.1 ? Colors.grey : (balance > 0 ? Colors.green : Colors.red),
+                    ),
+                  ]);
+                }),
+              ],
+            ),
           ] else ...[
             _buildRow("Total ${config.label} Cost", "${totalCost.toStringAsFixed(0)} ৳", config.color, isBold: true),
             _buildRow("Total Members", "${users.length}", config.color),
@@ -798,28 +823,6 @@ class FinalReceiptScreen extends ConsumerWidget {
                 style: TextStyle(fontSize: 10, fontStyle: FontStyle.italic)),
           ),
           const SizedBox(height: 10),
-          _buildZigZagBottom(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRow(String label, String value, Color color,
-      {bool isBold = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label,
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: isBold ? color : Colors.black)),
         ],
       ),
     );
@@ -828,54 +831,85 @@ class FinalReceiptScreen extends ConsumerWidget {
   Widget _buildMetricTile(String label, String value, Color color) {
     return Column(
       children: [
-        Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
-        Text(label, style: const TextStyle(fontSize: 9, color: Colors.grey)),
+        Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 2),
+        Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
       ],
     );
   }
 
-  Widget _buildZigZagBottom() {
-    return Row(
-      children: List.generate(
-          20,
-          (index) => Expanded(
-                child: Container(
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(5),
-                      bottomRight: Radius.circular(5),
-                    ),
-                  ),
-                ),
-              )),
+  Widget _buildRow(String label, String value, Color color,
+      {bool isBold = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+                  color: color)),
+        ],
+      ),
     );
   }
 
-  Widget _buildTableHeaderCell(String value, Alignment alignment) {
+  Widget _buildTableHeaderCell(String text, Alignment alignment) {
     return Container(
       padding: const EdgeInsets.all(8),
       alignment: alignment,
-      child: Text(value,
-          style: const TextStyle(
-              fontWeight: FontWeight.bold, fontSize: 10, color: Colors.grey)),
+      child: Text(text,
+          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
     );
   }
 
-  Widget _buildTableCell(String value, Alignment alignment,
+  Widget _buildTableCell(String text, Alignment alignment,
       {bool isBold = false, Color? color}) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      padding: const EdgeInsets.all(8),
       alignment: alignment,
-      child: Text(
-        value,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-          color: color,
-        ),
-      ),
+      child: Text(text,
+          style: TextStyle(
+              fontSize: 10,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              color: color)),
+    );
+  }
+}
+
+class DottedLine extends StatelessWidget {
+  final double height;
+  final Color color;
+
+  const DottedLine({super.key, this.height = 1, this.color = Colors.grey});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        final boxWidth = constraints.constrainWidth();
+        const dashWidth = 4.0;
+        final dashHeight = height;
+        final dashCount = (boxWidth / (2 * dashWidth)).floor();
+        return Flex(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          direction: Axis.horizontal,
+          children: List.generate(dashCount, (_) {
+            return SizedBox(
+              width: dashWidth,
+              height: dashHeight,
+              child: DecoratedBox(
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.3)),
+              ),
+            );
+          }),
+        );
+      },
     );
   }
 }
