@@ -82,41 +82,62 @@ class SyncService {
 
       final localOnlyTourIds = await _getLocalOnlyTourIds();
 
-        final unsyncedTours = allUnsyncedTours
+      final unsyncedTours = allUnsyncedTours
           .where((t) =>
-            _hasId(t.id) && _hasId(t.createdBy) &&
-            !localOnlyTourIds.contains(t.id))
+              _hasId(t.id) &&
+              _hasId(t.createdBy) &&
+              !localOnlyTourIds.contains(t.id))
           .toList();
 
       final unsyncedExpenses = allUnsyncedExpenses
-          .where((e) => _hasId(e.id) && _hasId(e.tourId) &&
-            !localOnlyTourIds.contains(e.tourId))
+          .where((e) =>
+              _hasId(e.id) &&
+              _hasId(e.tourId) &&
+              !localOnlyTourIds.contains(e.tourId))
           .toList();
       final syncExpenseIds = unsyncedExpenses.map((e) => e.id).toSet();
 
       final unsyncedSplits = allUnsyncedSplits
-          .where((s) => _hasId(s.id) && _hasId(s.expenseId) && _hasId(s.userId) &&
-            syncExpenseIds.contains(s.expenseId))
+          .where((s) =>
+              _hasId(s.id) &&
+              _hasId(s.expenseId) &&
+              _hasId(s.userId) &&
+              syncExpenseIds.contains(s.expenseId))
           .toList();
       final unsyncedPayers = allUnsyncedPayers
-          .where((p) => _hasId(p.id) && _hasId(p.expenseId) && _hasId(p.userId) &&
-            syncExpenseIds.contains(p.expenseId))
+          .where((p) =>
+              _hasId(p.id) &&
+              _hasId(p.expenseId) &&
+              _hasId(p.userId) &&
+              syncExpenseIds.contains(p.expenseId))
           .toList();
       final unsyncedMembers = allUnsyncedMembers
-          .where((m) => _hasId(m.tourId) && _hasId(m.userId) &&
-            !localOnlyTourIds.contains(m.tourId))
+          .where((m) =>
+              _hasId(m.tourId) &&
+              _hasId(m.userId) &&
+              !localOnlyTourIds.contains(m.tourId))
           .toList();
       final unsyncedSettlements = allUnsyncedSettlements
-          .where((s) => _hasId(s.id) && _hasId(s.tourId) && _hasId(s.fromId) &&
-            _hasId(s.toId) && !localOnlyTourIds.contains(s.tourId))
+          .where((s) =>
+              _hasId(s.id) &&
+              _hasId(s.tourId) &&
+              _hasId(s.fromId) &&
+              _hasId(s.toId) &&
+              !localOnlyTourIds.contains(s.tourId))
           .toList();
       final unsyncedIncomes = allUnsyncedIncomes
-          .where((i) => _hasId(i.id) && _hasId(i.tourId) && _hasId(i.collectedBy) &&
-            !localOnlyTourIds.contains(i.tourId))
+          .where((i) =>
+              _hasId(i.id) &&
+              _hasId(i.tourId) &&
+              _hasId(i.collectedBy) &&
+              !localOnlyTourIds.contains(i.tourId))
           .toList();
       final unsyncedJoinRequests = allUnsyncedJoinRequests
-          .where((jr) => _hasId(jr.id) && _hasId(jr.tourId) && _hasId(jr.userId) &&
-            !localOnlyTourIds.contains(jr.tourId))
+          .where((jr) =>
+              _hasId(jr.id) &&
+              _hasId(jr.tourId) &&
+              _hasId(jr.userId) &&
+              !localOnlyTourIds.contains(jr.tourId))
           .toList();
 
       final referencedUserIds = <String>{userId};
@@ -132,8 +153,9 @@ class SyncService {
       referencedUserIds.addAll(unsyncedIncomes.map((i) => i.collectedBy));
       referencedUserIds.addAll(unsyncedJoinRequests.map((jr) => jr.userId));
 
-        final unsyncedUsers = allUnsyncedUsers
-          .where((u) => _hasId(u.id) && (referencedUserIds.contains(u.id) || u.isMe))
+      final unsyncedUsers = allUnsyncedUsers
+          .where((u) =>
+              _hasId(u.id) && (referencedUserIds.contains(u.id) || u.isMe))
           .toList();
 
       final response = await dio.post('$baseUrl/sync', data: {
@@ -166,7 +188,8 @@ class SyncService {
               .map((e) => {
                     'id': e.id.toLowerCase(),
                     'tour_id': e.tourId.toLowerCase(),
-                    'payer_id': _hasId(e.payerId) ? e.payerId!.toLowerCase() : null,
+                    'payer_id':
+                        _hasId(e.payerId) ? e.payerId!.toLowerCase() : null,
                     'amount': e.amount,
                     'title': e.title,
                     'category': e.category,
@@ -333,6 +356,9 @@ class SyncService {
                   inviteCode: inviteCodeField,
                   createdBy: st['created_by'] ?? '',
                   purpose: Value(st['purpose'] ?? 'tour'),
+                  isDeleted: Value(st['isDeleted'] == true ||
+                      st['is_deleted'] == true ||
+                      st['is_deleted'] == 1),
                   isSynced: const Value(true),
                 ),
                 mode: InsertMode.insertOrReplace);
@@ -366,6 +392,9 @@ class SyncService {
                       purpose: Value(su['purpose']),
                       isMe: Value(su['id'].toString().toLowerCase() ==
                           userId.toLowerCase()),
+                      isDeleted: Value(su['isDeleted'] == true ||
+                          su['is_deleted'] == true ||
+                          su['is_deleted'] == 1),
                       isSynced: const Value(true),
                     ),
                     mode: InsertMode.insertOrReplace);
@@ -390,6 +419,9 @@ class SyncService {
                       mealCount: Value(double.tryParse(
                               su['meal_count']?.toString() ?? '0') ??
                           0.0),
+                      isDeleted: Value(su['isDeleted'] == true ||
+                          su['is_deleted'] == true ||
+                          su['is_deleted'] == 1),
                       isSynced: const Value(true),
                     ),
                     mode: InsertMode.insertOrReplace);
@@ -412,7 +444,9 @@ class SyncService {
                       category: (se['category'] ?? 'Others').toString(),
                       messCostType: Value(se['mess_cost_type']?.toString()),
                       isSynced: const Value(true),
-                      isDeleted: Value(se['isDeleted'] == true || se['is_deleted'] == true || se['is_deleted'] == 1),
+                      isDeleted: Value(se['isDeleted'] == true ||
+                          se['is_deleted'] == true ||
+                          se['is_deleted'] == 1),
                       createdAt: Value(
                           DateTime.tryParse(se['date']?.toString() ?? '') ??
                               (se['created_at'] != null
@@ -429,14 +463,18 @@ class SyncService {
                     batch.insert(
                         db.expenseSplits,
                         ExpenseSplitsCompanion.insert(
-                          id: (ss['id'] ?? "${se['id']}_${ss['user_id']}").toString().toLowerCase(),
+                          id: (ss['id'] ?? "${se['id']}_${ss['user_id']}")
+                              .toString()
+                              .toLowerCase(),
                           expenseId: se['id'].toString().toLowerCase(),
                           userId: ss['user_id'].toString().toLowerCase(),
                           amount: double.tryParse(
                                   ss['amount']?.toString() ?? '0') ??
                               0.0,
                           isSynced: const Value(true),
-                          isDeleted: Value(ss['isDeleted'] == true || ss['is_deleted'] == true || ss['is_deleted'] == 1),
+                          isDeleted: Value(ss['isDeleted'] == true ||
+                              ss['is_deleted'] == true ||
+                              ss['is_deleted'] == 1),
                         ),
                         mode: InsertMode.insertOrReplace);
                   }
@@ -448,14 +486,18 @@ class SyncService {
                     batch.insert(
                         db.expensePayers,
                         ExpensePayersCompanion.insert(
-                          id: (sp['id'] ?? "${se['id']}_${sp['user_id']}").toString().toLowerCase(),
+                          id: (sp['id'] ?? "${se['id']}_${sp['user_id']}")
+                              .toString()
+                              .toLowerCase(),
                           expenseId: se['id'].toString().toLowerCase(),
                           userId: sp['user_id'].toString().toLowerCase(),
                           amount: double.tryParse(
                                   sp['amount']?.toString() ?? '0') ??
                               0.0,
                           isSynced: const Value(true),
-                          isDeleted: Value(sp['isDeleted'] == true || sp['is_deleted'] == true || sp['is_deleted'] == 1),
+                          isDeleted: Value(sp['isDeleted'] == true ||
+                              sp['is_deleted'] == true ||
+                              sp['is_deleted'] == 1),
                         ),
                         mode: InsertMode.insertOrReplace);
                   }
@@ -473,7 +515,10 @@ class SyncService {
                 batch.insert(
                     db.settlements,
                     SettlementsCompanion.insert(
-                      id: (ss['id'] ?? "${st['id']}_${fromId}_${toId}_${ss['amount']}").toString().toLowerCase(),
+                      id: (ss['id'] ??
+                              "${st['id']}_${fromId}_${toId}_${ss['amount']}")
+                          .toString()
+                          .toLowerCase(),
                       tourId: (st['id'] ?? '').toString().toLowerCase(),
                       fromId: fromId.toLowerCase(),
                       toId: toId.toLowerCase(),
@@ -484,7 +529,9 @@ class SyncService {
                           ? DateTime.parse(ss['date'].toString())
                           : DateTime.now()),
                       isSynced: const Value(true),
-                      isDeleted: Value(ss['isDeleted'] == true || ss['is_deleted'] == true || ss['is_deleted'] == 1),
+                      isDeleted: Value(ss['isDeleted'] == true ||
+                          ss['is_deleted'] == true ||
+                          ss['is_deleted'] == 1),
                     ),
                     mode: InsertMode.insertOrReplace);
               }
@@ -498,7 +545,10 @@ class SyncService {
                 batch.insert(
                     db.programIncomes,
                     ProgramIncomesCompanion.insert(
-                      id: (inc['id'] ?? "${st['id']}_${inc['source']}_${inc['amount']}").toString().toLowerCase(),
+                      id: (inc['id'] ??
+                              "${st['id']}_${inc['source']}_${inc['amount']}")
+                          .toString()
+                          .toLowerCase(),
                       tourId: (st['id'] ?? '').toString().toLowerCase(),
                       amount:
                           double.tryParse(inc['amount']?.toString() ?? '0') ??
@@ -507,12 +557,15 @@ class SyncService {
                       description: Value((inc['description'] ?? '').toString()),
                       collectedBy:
                           (inc['collected_by'] ?? inc['collectedBy'] ?? '')
-                              .toString().toLowerCase(),
+                              .toString()
+                              .toLowerCase(),
                       date: Value(inc['date'] != null
                           ? DateTime.parse(inc['date'].toString())
                           : DateTime.now()),
                       isSynced: const Value(true),
-                      isDeleted: Value(inc['isDeleted'] == true || inc['is_deleted'] == true || inc['is_deleted'] == 1),
+                      isDeleted: Value(inc['isDeleted'] == true ||
+                          inc['is_deleted'] == true ||
+                          inc['is_deleted'] == 1),
                     ),
                     mode: InsertMode.insertOrReplace);
               }
@@ -527,8 +580,11 @@ class SyncService {
                     JoinRequestsCompanion.insert(
                       id: (jr['id'] ?? '').toString().toLowerCase(),
                       tourId: (st['id'] ?? '').toString().toLowerCase(),
-                      userId: (jr['userId'] ?? jr['user_id'] ?? '').toString().toLowerCase(),
-                      userName: (jr['userName'] ?? jr['user_name'] ?? 'Unknown').toString(),
+                      userId: (jr['userId'] ?? jr['user_id'] ?? '')
+                          .toString()
+                          .toLowerCase(),
+                      userName: (jr['userName'] ?? jr['user_name'] ?? 'Unknown')
+                          .toString(),
                       status: jr['status'] ?? 'pending',
                     ),
                     mode: InsertMode.insertOrReplace);
@@ -744,7 +800,9 @@ class SyncService {
 
                       await db.into(db.expenseSplits).insert(
                           ExpenseSplit(
-                            id: (sp['id'] ?? const Uuid().v4()).toString().toLowerCase(),
+                            id: (sp['id'] ?? const Uuid().v4())
+                                .toString()
+                                .toLowerCase(),
                             expenseId: exId,
                             userId: sUserId.toLowerCase(),
                             amount: double.tryParse(
@@ -770,7 +828,9 @@ class SyncService {
 
                       await db.into(db.expensePayers).insert(
                           ExpensePayer(
-                            id: (pay['id'] ?? const Uuid().v4()).toString().toLowerCase(),
+                            id: (pay['id'] ?? const Uuid().v4())
+                                .toString()
+                                .toLowerCase(),
                             expenseId: exId,
                             userId: pUserId.toLowerCase(),
                             amount: double.tryParse(
@@ -803,7 +863,9 @@ class SyncService {
 
                   await db.into(db.settlements).insert(
                       Settlement(
-                        id: (stItem['id'] ?? const Uuid().v4()).toString().toLowerCase(),
+                        id: (stItem['id'] ?? const Uuid().v4())
+                            .toString()
+                            .toLowerCase(),
                         tourId: tourData['id'].toString().toLowerCase(),
                         fromId: fId.toLowerCase(),
                         toId: tId.toLowerCase(),
@@ -842,7 +904,8 @@ class SyncService {
                         description: (inc['description'] ?? '').toString(),
                         collectedBy:
                             (inc['collected_by'] ?? inc['collectedBy'] ?? '')
-                                .toString().toLowerCase(),
+                                .toString()
+                                .toLowerCase(),
                         date: inc['date'] != null
                             ? DateTime.parse(inc['date'].toString())
                             : DateTime.now(),
@@ -1039,20 +1102,19 @@ class SyncService {
 
       final totalAmount = expense.amount;
       final newCount = existingSplits.length + 1;
-      
+
       // Calculate precise equal share (round down to 2 decimals)
       final equalAmount = (totalAmount / newCount * 100).floor() / 100.0;
       // Calculate the remainder leftover from rounding
-      final remainder = (totalAmount - (equalAmount * newCount) * 100).round() / 100.0;
+      final remainder =
+          (totalAmount - (equalAmount * newCount) * 100).round() / 100.0;
 
       // Update existing splits
       for (int i = 0; i < existingSplits.length; i++) {
         final split = existingSplits[i];
         // Give the remainder to the first person to keep the total exact
-        final currentAmount = i == 0 ? 
-            (equalAmount + remainder) : 
-            equalAmount;
-            
+        final currentAmount = i == 0 ? (equalAmount + remainder) : equalAmount;
+
         await (db.update(db.expenseSplits)..where((s) => s.id.equals(split.id)))
             .write(ExpenseSplitsCompanion(
           amount: Value(currentAmount),
