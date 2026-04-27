@@ -362,6 +362,7 @@ exports.syncData = async (req, res) => {
     const [tours, expenses, splits, payers, settlements, incomes, joinRequests, members] = await Promise.all([
       Tour.findAll({ 
         where: { 
+          is_deleted: false,
           id: { [Op.in]: tourIds }, 
           [Op.or]: [
             { id: { [Op.in]: Array.from(fullPullTourIds) } },
@@ -435,6 +436,7 @@ exports.syncData = async (req, res) => {
       }),
       JoinRequest.findAll({ 
         where: { 
+          is_deleted: false,
           tour_id: { [Op.in]: tourIds }, 
           [Op.or]: [
             { tour_id: { [Op.in]: Array.from(fullPullTourIds) } },
@@ -445,6 +447,7 @@ exports.syncData = async (req, res) => {
       }),
       TourMember.findAll({ 
         where: { 
+          is_deleted: false,
           tour_id: { [Op.in]: tourIds }, 
           [Op.or]: [
             { tour_id: { [Op.in]: Array.from(fullPullTourIds) } },
