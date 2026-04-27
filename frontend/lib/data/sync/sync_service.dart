@@ -593,8 +593,26 @@ class SyncService {
           }
         });
 
-        // Deletions are now handled exclusively via the 'isDeleted' flag on individual records
-        // to prevent accidental data loss during incremental syncs.
+        // Handle server-side deletions (e.g. tour deleted by another user)
+        // by checking against the authoritative allTourIds list.
+        final allTourIdsList = response.data['allTourIds'] as List?;
+        if (allTourIdsList != null) {
+          final Set<String> activeServerTourIds = 
+              allTourIdsList.map((e) => e.toString().toLowerCase()).toSet();
+          
+          final localTours = await db.getAllTours();
+          final localOnlyTourIds = await _getLocalOnlyTourIds();
+          
+          for (final lt in localTours) {
+            final lowerId = lt.id.toLowerCase();
+            // If a tour is synced (not local-only) and the server doesn't list it as active,
+            // it means it was deleted or we were removed from it.
+            if (!localOnlyTourIds.contains(lowerId) && !activeServerTourIds.contains(lowerId)) {
+               debugPrint("🗑️ Pruning local tour not found on server: \${lt.name} ($lowerId)");
+               await db.hardDeleteTourWithDetails(lt.id);
+            }
+          }
+        }
 
         if (response.data['timestamp'] != null) {
           await db.setSyncMetadata(
