@@ -93,7 +93,13 @@ async function initDb() {
     console.log('🔄 Connecting to Database...');
     await sequelize.authenticate();
     console.log('✅ Database connected.');
-    // NOTE: Do NOT use alter:true at runtime on Vercel — it's too slow and causes timeout.
+    
+    // Run schema sync with alter:true to add missing columns (like is_deleted for JoinRequest)
+    // This is safe because Sequelize only adds missing columns, doesn't delete data
+    console.log('🔄 Syncing schema...');
+    await sequelize.sync({ alter: true });
+    console.log('✅ Schema synchronized.');
+    
     isDbInitialized = true;
     console.log('✅ Database ready.');
   } catch (dbErr) {
