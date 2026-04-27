@@ -31,6 +31,10 @@ module.exports = (sequelize) => {
     meal_count: {
        type: DataTypes.DECIMAL(10, 2),
        defaultValue: 0.0
+    },
+    is_deleted: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
     }
   }, {
     tableName: 'TourMembers', 
