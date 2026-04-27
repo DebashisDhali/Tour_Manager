@@ -96,6 +96,12 @@ exports.syncData = async (req, res) => {
                   throw new Error("Permission denied: Viewer cannot edit tour details");
                 }
 
+                // If tour exists and is already deleted, DO NOT revive it via a regular sync push
+                if (existingTour && existingTour.is_deleted) {
+                  console.log(`    🚫 Tour ${tourId} is already deleted on server. Skipping push.`);
+                  continue;
+                }
+
                 if (creatorId) {
                   await User.findOrCreate({
                     where: { id: creatorId },
@@ -109,6 +115,7 @@ exports.syncData = async (req, res) => {
                   start_date: t.start_date || t.startDate || null,
                   end_date: t.end_date || t.endDate || null, 
                   purpose: t.purpose || 'tour',
+                  is_deleted: false // Explicitly set to false during regular push
                 });
 
                 if (creatorId) {
@@ -158,6 +165,13 @@ exports.syncData = async (req, res) => {
                 if (e.isDeleted) {
                   await Expense.update({ is_deleted: true, updated_at: now }, { where: { id: e.id.toLowerCase() } });
                 } else {
+                  // Guard: Don't let regular push revive a deleted expense
+                  const existingExpense = await Expense.findByPk(e.id.toLowerCase());
+                  if (existingExpense && existingExpense.is_deleted) {
+                    console.log(`    🚫 Expense ${e.id} is already deleted on server. Skipping push.`);
+                    continue;
+                  }
+
                   await Expense.upsert({
                     id: e.id.toLowerCase(), 
                     tour_id: tourId, 
@@ -220,6 +234,11 @@ exports.syncData = async (req, res) => {
                 if (s.isDeleted) {
                   await Settlement.update({ is_deleted: true, updated_at: now }, { where: { id: (s.id || "").toLowerCase() } });
                 } else {
+                  const existingSettlement = await Settlement.findByPk((s.id || "").toLowerCase());
+                  if (existingSettlement && existingSettlement.is_deleted) {
+                    console.log(`    🚫 Settlement ${s.id} is already deleted on server. Skipping push.`);
+                    continue;
+                  }
                   await Settlement.upsert({
                     id: (s.id || "").toLowerCase(), 
                     tour_id: tourId, 
@@ -244,6 +263,11 @@ exports.syncData = async (req, res) => {
                 if (i.isDeleted) {
                   await ProgramIncome.update({ is_deleted: true, updated_at: now }, { where: { id: (i.id || "").toLowerCase() } });
                 } else {
+                  const existingIncome = await ProgramIncome.findByPk((i.id || "").toLowerCase());
+                  if (existingIncome && existingIncome.is_deleted) {
+                    console.log(`    🚫 Income ${i.id} is already deleted on server. Skipping push.`);
+                    continue;
+                  }
                   await ProgramIncome.upsert({
                     id: (i.id || "").toLowerCase(), 
                     tour_id: tourId, 
@@ -314,7 +338,16 @@ exports.syncData = async (req, res) => {
     console.log('📥 Starting PULL phase...');
     
     const activeTourRecords = await TourMember.findAll({
-      where: { user_id: normalizedUserId, status: 'active' },
+      where: { 
+        user_id: normalizedUserId, 
+        status: 'active',
+        is_deleted: false 
+      },
+      include: [{
+        model: Tour,
+        where: { is_deleted: false },
+        attributes: []
+      }],
       attributes: ['tour_id'],
       raw: true
     });

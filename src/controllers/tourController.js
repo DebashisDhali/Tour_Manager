@@ -298,7 +298,12 @@ exports.deleteTour = async (req, res) => {
       return res.status(403).json({ error: 'Only the creator can delete this tour' });
     }
 
-    await tour.destroy();
+    await tour.update({ is_deleted: true, updated_at: new Date() });
+    // Also soft-delete all memberships for this tour to ensure they don't show up in sync
+    await TourMember.update(
+      { is_deleted: true, status: 'removed', removed_at: new Date(), updated_at: new Date() },
+      { where: { tour_id: tourId } }
+    );
     res.json({ message: 'Tour deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
