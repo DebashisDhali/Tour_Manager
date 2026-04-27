@@ -320,7 +320,10 @@ exports.syncData = async (req, res) => {
     });
 
     const ownerTourRecords = await Tour.findAll({
-      where: { created_by: normalizedUserId },
+      where: { 
+        created_by: normalizedUserId,
+        is_deleted: false
+      },
       attributes: ['id'],
       raw: true,
     });
