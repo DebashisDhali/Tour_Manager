@@ -53,7 +53,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   Future<void> _loadExistingDetails() async {
     final database = ref.read(databaseProvider);
     final payers = await (database.select(database.expensePayers)
-          ..where((t) => t.expenseId.equals(widget.initialExpense!.id) & t.isDeleted.equals(false)))
+          ..where((t) =>
+              t.expenseId.equals(widget.initialExpense!.id) &
+              t.isDeleted.equals(false)))
         .get();
     if (payers.length > 1) {
       setState(() {
@@ -71,7 +73,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     }
 
     final splits = await (database.select(database.expenseSplits)
-          ..where((t) => t.expenseId.equals(widget.initialExpense!.id) & t.isDeleted.equals(false)))
+          ..where((t) =>
+              t.expenseId.equals(widget.initialExpense!.id) &
+              t.isDeleted.equals(false)))
         .get();
     final total = widget.initialExpense!.amount;
     final expectedEqual = total / (splits.isEmpty ? 1 : splits.length);
@@ -142,17 +146,26 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
             for (final m in members) {
               final uid = m.user.id.toLowerCase();
-              final collected = incomes.where((i) => i.collectedBy.toLowerCase() == uid).fold(0.0, (sum, i) => sum + i.amount);
-              final received = settlements.where((s) => s.toId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
-              final given = settlements.where((s) => s.fromId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
-              
+              final collected = incomes
+                  .where((i) => i.collectedBy.toLowerCase() == uid)
+                  .fold(0.0, (sum, i) => sum + i.amount);
+              final received = settlements
+                  .where((s) => s.toId.toLowerCase() == uid)
+                  .fold(0.0, (sum, s) => sum + s.amount);
+              final given = settlements
+                  .where((s) => s.fromId.toLowerCase() == uid)
+                  .fold(0.0, (sum, s) => sum + s.amount);
+
               double spent = 0.0;
               for (final e in otherExpenses) {
-                if (e.id.toLowerCase() == widget.initialExpense?.id.toLowerCase()) continue;
-                
+                if (e.id.toLowerCase() ==
+                    widget.initialExpense?.id.toLowerCase()) continue;
+
                 final eId = e.id.toLowerCase();
-                final ePayers = allPayers.where((p) => p.expenseId.toLowerCase() == eId).toList();
-                
+                final ePayers = allPayers
+                    .where((p) => p.expenseId.toLowerCase() == eId)
+                    .toList();
+
                 if (ePayers.isNotEmpty) {
                   spent += ePayers
                       .where((p) => p.userId.toLowerCase() == uid)
@@ -163,7 +176,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   }
                 }
               }
-              
+
               userBalances[uid] = collected + received - given - spent;
             }
             if (_selectedPayerId == null ||
@@ -273,7 +286,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                       value: 'meal',
                                       label: const Text('Bazar (Meal)',
                                           style: TextStyle(fontSize: 12)),
-                                      icon: const Icon(Icons.shopping_basket_rounded,
+                                      icon: const Icon(
+                                          Icons.shopping_basket_rounded,
                                           size: 16)),
                                   ButtonSegment(
                                       value: 'fixed',
@@ -339,18 +353,21 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                             children: [
                                               Expanded(
                                                   child: Column(
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                                    children: [
-                                                      Text(m.user.name,
-                                                          style: const TextStyle(
-                                                              fontWeight: FontWeight
-                                                                  .bold)),
-                                                      Text(
-                                                        "Balance: ৳${(userBalances[m.user.id.toLowerCase()] ?? 0.0).toStringAsFixed(0)}",
-                                                        style: const TextStyle(fontSize: 10, color: Colors.grey),
-                                                      ),
-                                                    ],
-                                                  )),
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(m.user.name,
+                                                      style: const TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.bold)),
+                                                  Text(
+                                                    "Balance: ৳${(userBalances[m.user.id.toLowerCase()] ?? 0.0).toStringAsFixed(0)}",
+                                                    style: const TextStyle(
+                                                        fontSize: 10,
+                                                        color: Colors.grey),
+                                                  ),
+                                                ],
+                                              )),
                                               const SizedBox(width: 12),
                                               SizedBox(
                                                 width: 120,
@@ -399,21 +416,29 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                             _payerAmounts
                                                 .containsKey(m.user.id)))
                                     .map((m) {
-                                  final bal = userBalances[m.user.id.toLowerCase()] ?? 0.0;
+                                  final bal =
+                                      userBalances[m.user.id.toLowerCase()] ??
+                                          0.0;
+                                  final isEventCategory =
+                                      activeTour.purpose.toLowerCase() ==
+                                          'event';
                                   return DropdownMenuItem(
                                     value: m.user.id,
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(m.user.name),
-                                        Text(
-                                          " ৳${bal.toStringAsFixed(0)}",
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: bal > 0 ? Colors.green : Colors.orange,
-                                            fontWeight: FontWeight.bold
+                                        if (isEventCategory)
+                                          Text(
+                                            " ৳${bal.toStringAsFixed(0)}",
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: bal > 0
+                                                    ? Colors.green
+                                                    : Colors.orange,
+                                                fontWeight: FontWeight.bold),
                                           ),
-                                        ),
                                       ],
                                     ),
                                   );
@@ -559,8 +584,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             if (v != null) {
                               setState(() {
                                 _category = v;
-                                if (_category.toLowerCase().trim() == 'rent' && 
-                                    activeTour.purpose.toLowerCase() == 'mess') {
+                                if (_category.toLowerCase().trim() == 'rent' &&
+                                    activeTour.purpose.toLowerCase() ==
+                                        'mess') {
                                   _messCostType = 'fixed';
                                 }
                               });
@@ -587,18 +613,19 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                 ),
                               );
 
-                                if (result != null && mounted) {
-                                  _titleController.text = result['title'] ?? '';
-                                  _amountController.text =
-                                      result['amount']?.toString() ?? '';
-                                  _category = result['category'] ?? _category;
-                                  
-                                  if (_category.toLowerCase().trim() == 'rent' &&
-                                      activeTour.purpose.toLowerCase() == 'mess') {
-                                    _messCostType = 'fixed';
-                                  }
-                                  setState(() {});
+                              if (result != null && mounted) {
+                                _titleController.text = result['title'] ?? '';
+                                _amountController.text =
+                                    result['amount']?.toString() ?? '';
+                                _category = result['category'] ?? _category;
+
+                                if (_category.toLowerCase().trim() == 'rent' &&
+                                    activeTour.purpose.toLowerCase() ==
+                                        'mess') {
+                                  _messCostType = 'fixed';
                                 }
+                                setState(() {});
+                              }
                             },
                             icon: const Icon(Icons.receipt_long_rounded),
                             label: const Text(
@@ -621,15 +648,21 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       SizedBox(
                         height: 64,
                         child: FilledButton.icon(
-                          onPressed: _isSaving ? null : () => _saveExpense(members, activeTour),
-                          icon: _isSaving 
-                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          onPressed: _isSaving
+                              ? null
+                              : () => _saveExpense(members, activeTour),
+                          icon: _isSaving
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white))
                               : Icon(widget.initialExpense == null
                                   ? Icons.add_task_rounded
                                   : Icons.save_rounded),
                           label: Text(
-                              _isSaving 
-                                  ? "Saving..." 
+                              _isSaving
+                                  ? "Saving..."
                                   : (widget.initialExpense == null
                                       ? "Add Expense"
                                       : "Update Details"),
@@ -737,61 +770,71 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     );
   }
 
-  Future<bool> _showPocketPaymentDialog(double currentBalance, double totalAmount) async {
+  Future<bool> _showPocketPaymentDialog(
+      double currentBalance, double totalAmount) async {
     return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
-            SizedBox(width: 12),
-            Text("Insufficient Funds", style: TextStyle(fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "You only have ৳${currentBalance.toStringAsFixed(0)} in hand from the program fund.",
-              style: const TextStyle(fontSize: 16),
+          context: context,
+          builder: (context) => AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            title: const Row(
+              children: [
+                Icon(Icons.warning_amber_rounded,
+                    color: Colors.orange, size: 28),
+                SizedBox(width: 12),
+                Text("Insufficient Funds",
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
             ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange.withValues(alpha: 0.2)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "You only have ৳${currentBalance.toStringAsFixed(0)} in hand from the program fund.",
+                  style: const TextStyle(fontSize: 16),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border:
+                        Border.all(color: Colors.orange.withValues(alpha: 0.2)),
+                  ),
+                  child: Text(
+                    "Do you want to pay the remaining ৳${(totalAmount - currentBalance).toStringAsFixed(0)} from your own pocket?",
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, color: Colors.orange),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child:
+                    const Text("Cancel", style: TextStyle(color: Colors.grey)),
               ),
-              child: Text(
-                "Do you want to pay the remaining ৳${(totalAmount - currentBalance).toStringAsFixed(0)} from your own pocket?",
-                style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.orange),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text("Yes, Pay from Pocket"),
               ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text("Yes, Pay from Pocket"),
-          ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
   }
 
-  Future<void> _saveExpense(List<MemberWithStatus> members, models.Tour activeTour) async {
+  Future<void> _saveExpense(
+      List<MemberWithStatus> members, models.Tour activeTour) async {
     if (_isSaving) return;
     if (_formKey.currentState!.validate()) {
       setState(() => _isSaving = true);
@@ -800,61 +843,94 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
         // Balance Check Logic
         if (!_isMultiPayer && _selectedPayerId != null) {
-          final incomes = ref.read(tourIncomesProvider(widget.tourId)).value ?? [];
-          final settlements = ref.read(tourSettlementsProvider(widget.tourId)).value ?? [];
-          final otherExpenses = ref.read(tourExpensesProvider(widget.tourId)).value ?? [];
-          
-          final otherPayers = ref.read(databaseProvider).expensePayers.select().get();
-          
+          final incomes =
+              ref.read(tourIncomesProvider(widget.tourId)).value ?? [];
+          final settlements =
+              ref.read(tourSettlementsProvider(widget.tourId)).value ?? [];
+          final otherExpenses =
+              ref.read(tourExpensesProvider(widget.tourId)).value ?? [];
+
+          final otherPayers =
+              ref.read(databaseProvider).expensePayers.select().get();
+
           final uid = _selectedPayerId!.toLowerCase();
-          final collected = incomes.where((i) => i.collectedBy.toLowerCase() == uid).fold(0.0, (sum, i) => sum + i.amount);
-          final received = settlements.where((s) => s.toId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
-          final given = settlements.where((s) => s.fromId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
-          
-          final expenseIds = otherExpenses.map((e) => e.id.toLowerCase()).toSet();
+          final collected = incomes
+              .where((i) => i.collectedBy.toLowerCase() == uid)
+              .fold(0.0, (sum, i) => sum + i.amount);
+          final received = settlements
+              .where((s) => s.toId.toLowerCase() == uid)
+              .fold(0.0, (sum, s) => sum + s.amount);
+          final given = settlements
+              .where((s) => s.fromId.toLowerCase() == uid)
+              .fold(0.0, (sum, s) => sum + s.amount);
+
+          final expenseIds =
+              otherExpenses.map((e) => e.id.toLowerCase()).toSet();
           double spent = otherExpenses
-              .where((e) => e.payerId?.toLowerCase() == uid && e.id.toLowerCase() != widget.initialExpense?.id.toLowerCase())
+              .where((e) =>
+                  e.payerId?.toLowerCase() == uid &&
+                  e.id.toLowerCase() != widget.initialExpense?.id.toLowerCase())
               .fold(0.0, (sum, e) => sum + e.amount);
-          
+
           // Also check multi-payer records
           final payers = await otherPayers;
           spent += payers
-              .where((p) => p.userId.toLowerCase() == uid && expenseIds.contains(p.expenseId.toLowerCase()) && p.expenseId.toLowerCase() != widget.initialExpense?.id.toLowerCase())
+              .where((p) =>
+                  p.userId.toLowerCase() == uid &&
+                  expenseIds.contains(p.expenseId.toLowerCase()) &&
+                  p.expenseId.toLowerCase() !=
+                      widget.initialExpense?.id.toLowerCase())
               .fold(0.0, (sum, p) => sum + p.amount);
-          
+
           final currentBalance = (collected + received) - (given + spent);
 
-          if (activeTour.purpose.toLowerCase() == 'event' && totalAmount > currentBalance + 0.01) {
-            final confirmed = await _showPocketPaymentDialog(currentBalance, totalAmount);
+          if (activeTour.purpose.toLowerCase() == 'event' &&
+              totalAmount > currentBalance + 0.01) {
+            final confirmed =
+                await _showPocketPaymentDialog(currentBalance, totalAmount);
             if (!mounted) return;
             if (!confirmed) {
               setState(() => _isSaving = false);
               return;
             }
           }
-        } else if (_isMultiPayer && activeTour.purpose.toLowerCase() == 'event') {
+        } else if (_isMultiPayer &&
+            activeTour.purpose.toLowerCase() == 'event') {
           // Check for each payer in multi-payer mode
-          final incomes = ref.read(tourIncomesProvider(widget.tourId)).value ?? [];
-          final settlements = ref.read(tourSettlementsProvider(widget.tourId)).value ?? [];
-          final allPayers = ref.read(tourPayersProvider(widget.tourId)).value ?? [];
-          final otherExpenses = ref.read(tourExpensesProvider(widget.tourId)).value ?? [];
+          final incomes =
+              ref.read(tourIncomesProvider(widget.tourId)).value ?? [];
+          final settlements =
+              ref.read(tourSettlementsProvider(widget.tourId)).value ?? [];
+          final allPayers =
+              ref.read(tourPayersProvider(widget.tourId)).value ?? [];
+          final otherExpenses =
+              ref.read(tourExpensesProvider(widget.tourId)).value ?? [];
 
           for (final entry in _payerAmounts.entries) {
             final uid = entry.key.toLowerCase();
             final amount = entry.value;
             if (amount <= 0) continue;
 
-            final collected = incomes.where((i) => i.collectedBy.toLowerCase() == uid).fold(0.0, (sum, i) => sum + i.amount);
-            final received = settlements.where((s) => s.toId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
-            final given = settlements.where((s) => s.fromId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
-            
+            final collected = incomes
+                .where((i) => i.collectedBy.toLowerCase() == uid)
+                .fold(0.0, (sum, i) => sum + i.amount);
+            final received = settlements
+                .where((s) => s.toId.toLowerCase() == uid)
+                .fold(0.0, (sum, s) => sum + s.amount);
+            final given = settlements
+                .where((s) => s.fromId.toLowerCase() == uid)
+                .fold(0.0, (sum, s) => sum + s.amount);
+
             double spent = 0.0;
             for (final e in otherExpenses) {
-              if (e.id.toLowerCase() == widget.initialExpense?.id.toLowerCase()) continue;
-              
+              if (e.id.toLowerCase() == widget.initialExpense?.id.toLowerCase())
+                continue;
+
               final eId = e.id.toLowerCase();
-              final ePayers = allPayers.where((p) => p.expenseId.toLowerCase() == eId).toList();
-              
+              final ePayers = allPayers
+                  .where((p) => p.expenseId.toLowerCase() == eId)
+                  .toList();
+
               if (ePayers.isNotEmpty) {
                 spent += ePayers
                     .where((p) => p.userId.toLowerCase() == uid)
@@ -865,11 +941,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 }
               }
             }
-            
+
             final currentBalance = (collected + received) - (given + spent);
 
             if (amount > currentBalance + 0.01) {
-              final confirmed = await _showPocketPaymentDialog(currentBalance, amount);
+              final confirmed =
+                  await _showPocketPaymentDialog(currentBalance, amount);
               if (!mounted) return;
               if (!confirmed) {
                 setState(() => _isSaving = false);
@@ -896,11 +973,13 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         }
 
         final database = ref.read(databaseProvider);
-        final expenseId = (widget.initialExpense?.id ?? const Uuid().v4()).toLowerCase();
+        final expenseId =
+            (widget.initialExpense?.id ?? const Uuid().v4()).toLowerCase();
 
         List<models.ExpenseSplit> splits = [];
         if (!_isCustomSplit) {
-          final isMessBazar = activeTour.purpose.toLowerCase() == 'mess' && _messCostType != 'fixed';
+          final isMessBazar = activeTour.purpose.toLowerCase() == 'mess' &&
+              _messCostType != 'fixed';
           if (!isMessBazar) {
             final splitAmount = totalAmount /
                 (_involvedMemberIds.isEmpty ? 1 : _involvedMemberIds.length);
