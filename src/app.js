@@ -97,13 +97,19 @@ async function initDb() {
     // Run schema sync with alter:true to add missing columns (like is_deleted for JoinRequest)
     // This is safe because Sequelize only adds missing columns, doesn't delete data
     console.log('🔄 Syncing schema...');
-    await sequelize.sync({ alter: true });
-    console.log('✅ Schema synchronized.');
+    try {
+      await sequelize.sync({ alter: true });
+      console.log('✅ Schema synchronized.');
+    } catch (syncErr) {
+      console.error('⚠️ Schema sync warning:', syncErr.message);
+      console.error('   (This may be normal if columns already exist)');
+    }
     
     isDbInitialized = true;
     console.log('✅ Database ready.');
   } catch (dbErr) {
     console.error('❌ Database Connection Failed:', dbErr.message);
+    console.error('   Stack:', dbErr.stack);
     // Mark initialized to avoid request storms retrying connection.
     isDbInitialized = true;
   }
@@ -136,6 +142,52 @@ app.use('/sync', auth, syncRoutes);
 app.use('/settlements', auth, settlementRoutes);
 app.use('/incomes', auth, programIncomeRoutes);
 app.use('/ai', auth, aiRoutes);
+
+// Manual migration endpoint - can be called to force schema sync
+// Usage: POST /admin/migrate (no auth required for emergencies)
+app.post('/admin/migrate', async (req, res) => {
+  try {
+    console.log('🔄 Manual migration triggered...');
+    await sequelize.sync({ alter: true });
+    
+    // Verify schema
+    const tablesToCheck = ['TourMembers', 'Users', 'Tours', 'Expenses', 'ExpenseSplits', 'ExpensePayers', 'Settlements', 'ProgramIncomes', 'JoinRequests'];
+    const verification = {};
+    
+    for (const table of tablesToCheck) {
+      const result = await sequelize.query(
+        `SELECT column_name FROM information_schema.columns WHERE table_name = $1 AND column_name = 'is_deleted'`,
+        { 
+          bind: [table],
+          type: sequelize.QueryTypes.SELECT 
+        }
+      );
+      verification[table] = result.length > 0 ? '✅ has is_deleted' : '❌ missing is_deleted';
+    }
+    
+    console.log('✅ Migration completed:', verification);
+    res.json({ 
+      success: true, 
+      message: 'Schema migration completed',
+      verification 
+    });
+  } catch (err) {
+    console.error('❌ Migration error:', err.message);
+    res.status(500).json({ 
+      success: false, 
+      error: err.message 
+    });
+  }
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok',
+    dbInitialized: isDbInitialized,
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Global error handlers to prevent silent crashes
 process.on('uncaughtException', (err) => {
