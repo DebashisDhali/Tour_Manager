@@ -372,6 +372,7 @@ exports.syncData = async (req, res) => {
       }),
       Expense.findAll({ 
         where: { 
+          is_deleted: false,
           tour_id: { [Op.in]: tourIds }, 
           [Op.or]: [
             { tour_id: { [Op.in]: Array.from(fullPullTourIds) } },
@@ -383,10 +384,11 @@ exports.syncData = async (req, res) => {
       ExpenseSplit.findAll({ 
         include: [{
           model: Expense,
-          where: { tour_id: { [Op.in]: tourIds } },
+          where: { tour_id: { [Op.in]: tourIds }, is_deleted: false },
           attributes: []
         }],
         where: { 
+          is_deleted: false,
           [Op.or]: [
             { '$Expense.tour_id$': { [Op.in]: Array.from(fullPullTourIds) } },
             { updated_at: { [Op.gt]: lastSyncDate } }
@@ -397,10 +399,11 @@ exports.syncData = async (req, res) => {
       ExpensePayer.findAll({ 
         include: [{
           model: Expense,
-          where: { tour_id: { [Op.in]: tourIds } },
+          where: { tour_id: { [Op.in]: tourIds }, is_deleted: false },
           attributes: []
         }],
         where: { 
+          is_deleted: false,
           [Op.or]: [
             { '$Expense.tour_id$': { [Op.in]: Array.from(fullPullTourIds) } },
             { updated_at: { [Op.gt]: lastSyncDate } }
@@ -410,6 +413,7 @@ exports.syncData = async (req, res) => {
       }),
       Settlement.findAll({ 
         where: { 
+          is_deleted: false,
           tour_id: { [Op.in]: tourIds }, 
           [Op.or]: [
             { tour_id: { [Op.in]: Array.from(fullPullTourIds) } },
@@ -420,6 +424,7 @@ exports.syncData = async (req, res) => {
       }),
       ProgramIncome.findAll({ 
         where: { 
+          is_deleted: false,
           tour_id: { [Op.in]: tourIds }, 
           [Op.or]: [
             { tour_id: { [Op.in]: Array.from(fullPullTourIds) } },
