@@ -35,7 +35,7 @@ class _AddIncomeDialogState extends ConsumerState<AddIncomeDialog> {
 
   Future<void> _loadData() async {
     final db = ref.read(databaseProvider);
-    final users = await db.getTourUsers(widget.tourId);
+    final users = await db.getTourActiveUsers(widget.tourId);
     if (mounted) {
       setState(() {
         _members = users;

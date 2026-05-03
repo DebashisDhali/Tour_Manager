@@ -593,6 +593,22 @@ class $ToursTable extends Tours with TableInfo<$ToursTable, Tour> {
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant('tour'));
+  static const VerificationMeta _isManagerLedMeta =
+      const VerificationMeta('isManagerLed');
+  @override
+  late final GeneratedColumn<bool> isManagerLed = GeneratedColumn<bool>(
+      'is_manager_led', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("is_manager_led" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _managerIdMeta =
+      const VerificationMeta('managerId');
+  @override
+  late final GeneratedColumn<String> managerId = GeneratedColumn<String>(
+      'manager_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _isSyncedMeta =
       const VerificationMeta('isSynced');
   @override
@@ -628,6 +644,8 @@ class $ToursTable extends Tours with TableInfo<$ToursTable, Tour> {
         inviteCode,
         createdBy,
         purpose,
+        isManagerLed,
+        managerId,
         isSynced,
         isDeleted,
         updatedAt
@@ -677,6 +695,16 @@ class $ToursTable extends Tours with TableInfo<$ToursTable, Tour> {
       context.handle(_purposeMeta,
           purpose.isAcceptableOrUnknown(data['purpose']!, _purposeMeta));
     }
+    if (data.containsKey('is_manager_led')) {
+      context.handle(
+          _isManagerLedMeta,
+          isManagerLed.isAcceptableOrUnknown(
+              data['is_manager_led']!, _isManagerLedMeta));
+    }
+    if (data.containsKey('manager_id')) {
+      context.handle(_managerIdMeta,
+          managerId.isAcceptableOrUnknown(data['manager_id']!, _managerIdMeta));
+    }
     if (data.containsKey('is_synced')) {
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
@@ -712,6 +740,10 @@ class $ToursTable extends Tours with TableInfo<$ToursTable, Tour> {
           .read(DriftSqlType.string, data['${effectivePrefix}created_by'])!,
       purpose: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}purpose'])!,
+      isManagerLed: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_manager_led'])!,
+      managerId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}manager_id']),
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
       isDeleted: attachedDatabase.typeMapping
@@ -735,6 +767,8 @@ class Tour extends DataClass implements Insertable<Tour> {
   final String? inviteCode;
   final String createdBy;
   final String purpose;
+  final bool isManagerLed;
+  final String? managerId;
   final bool isSynced;
   final bool isDeleted;
   final DateTime? updatedAt;
@@ -746,6 +780,8 @@ class Tour extends DataClass implements Insertable<Tour> {
       this.inviteCode,
       required this.createdBy,
       required this.purpose,
+      required this.isManagerLed,
+      this.managerId,
       required this.isSynced,
       required this.isDeleted,
       this.updatedAt});
@@ -765,6 +801,10 @@ class Tour extends DataClass implements Insertable<Tour> {
     }
     map['created_by'] = Variable<String>(createdBy);
     map['purpose'] = Variable<String>(purpose);
+    map['is_manager_led'] = Variable<bool>(isManagerLed);
+    if (!nullToAbsent || managerId != null) {
+      map['manager_id'] = Variable<String>(managerId);
+    }
     map['is_synced'] = Variable<bool>(isSynced);
     map['is_deleted'] = Variable<bool>(isDeleted);
     if (!nullToAbsent || updatedAt != null) {
@@ -788,6 +828,10 @@ class Tour extends DataClass implements Insertable<Tour> {
           : Value(inviteCode),
       createdBy: Value(createdBy),
       purpose: Value(purpose),
+      isManagerLed: Value(isManagerLed),
+      managerId: managerId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(managerId),
       isSynced: Value(isSynced),
       isDeleted: Value(isDeleted),
       updatedAt: updatedAt == null && nullToAbsent
@@ -807,6 +851,8 @@ class Tour extends DataClass implements Insertable<Tour> {
       inviteCode: serializer.fromJson<String?>(json['inviteCode']),
       createdBy: serializer.fromJson<String>(json['createdBy']),
       purpose: serializer.fromJson<String>(json['purpose']),
+      isManagerLed: serializer.fromJson<bool>(json['isManagerLed']),
+      managerId: serializer.fromJson<String?>(json['managerId']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       isDeleted: serializer.fromJson<bool>(json['isDeleted']),
       updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
@@ -823,6 +869,8 @@ class Tour extends DataClass implements Insertable<Tour> {
       'inviteCode': serializer.toJson<String?>(inviteCode),
       'createdBy': serializer.toJson<String>(createdBy),
       'purpose': serializer.toJson<String>(purpose),
+      'isManagerLed': serializer.toJson<bool>(isManagerLed),
+      'managerId': serializer.toJson<String?>(managerId),
       'isSynced': serializer.toJson<bool>(isSynced),
       'isDeleted': serializer.toJson<bool>(isDeleted),
       'updatedAt': serializer.toJson<DateTime?>(updatedAt),
@@ -837,6 +885,8 @@ class Tour extends DataClass implements Insertable<Tour> {
           Value<String?> inviteCode = const Value.absent(),
           String? createdBy,
           String? purpose,
+          bool? isManagerLed,
+          Value<String?> managerId = const Value.absent(),
           bool? isSynced,
           bool? isDeleted,
           Value<DateTime?> updatedAt = const Value.absent()}) =>
@@ -848,6 +898,8 @@ class Tour extends DataClass implements Insertable<Tour> {
         inviteCode: inviteCode.present ? inviteCode.value : this.inviteCode,
         createdBy: createdBy ?? this.createdBy,
         purpose: purpose ?? this.purpose,
+        isManagerLed: isManagerLed ?? this.isManagerLed,
+        managerId: managerId.present ? managerId.value : this.managerId,
         isSynced: isSynced ?? this.isSynced,
         isDeleted: isDeleted ?? this.isDeleted,
         updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
@@ -862,6 +914,10 @@ class Tour extends DataClass implements Insertable<Tour> {
           data.inviteCode.present ? data.inviteCode.value : this.inviteCode,
       createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
       purpose: data.purpose.present ? data.purpose.value : this.purpose,
+      isManagerLed: data.isManagerLed.present
+          ? data.isManagerLed.value
+          : this.isManagerLed,
+      managerId: data.managerId.present ? data.managerId.value : this.managerId,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
       isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -878,6 +934,8 @@ class Tour extends DataClass implements Insertable<Tour> {
           ..write('inviteCode: $inviteCode, ')
           ..write('createdBy: $createdBy, ')
           ..write('purpose: $purpose, ')
+          ..write('isManagerLed: $isManagerLed, ')
+          ..write('managerId: $managerId, ')
           ..write('isSynced: $isSynced, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('updatedAt: $updatedAt')
@@ -886,8 +944,19 @@ class Tour extends DataClass implements Insertable<Tour> {
   }
 
   @override
-  int get hashCode => Object.hash(id, name, startDate, endDate, inviteCode,
-      createdBy, purpose, isSynced, isDeleted, updatedAt);
+  int get hashCode => Object.hash(
+      id,
+      name,
+      startDate,
+      endDate,
+      inviteCode,
+      createdBy,
+      purpose,
+      isManagerLed,
+      managerId,
+      isSynced,
+      isDeleted,
+      updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -899,6 +968,8 @@ class Tour extends DataClass implements Insertable<Tour> {
           other.inviteCode == this.inviteCode &&
           other.createdBy == this.createdBy &&
           other.purpose == this.purpose &&
+          other.isManagerLed == this.isManagerLed &&
+          other.managerId == this.managerId &&
           other.isSynced == this.isSynced &&
           other.isDeleted == this.isDeleted &&
           other.updatedAt == this.updatedAt);
@@ -912,6 +983,8 @@ class ToursCompanion extends UpdateCompanion<Tour> {
   final Value<String?> inviteCode;
   final Value<String> createdBy;
   final Value<String> purpose;
+  final Value<bool> isManagerLed;
+  final Value<String?> managerId;
   final Value<bool> isSynced;
   final Value<bool> isDeleted;
   final Value<DateTime?> updatedAt;
@@ -924,6 +997,8 @@ class ToursCompanion extends UpdateCompanion<Tour> {
     this.inviteCode = const Value.absent(),
     this.createdBy = const Value.absent(),
     this.purpose = const Value.absent(),
+    this.isManagerLed = const Value.absent(),
+    this.managerId = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -937,6 +1012,8 @@ class ToursCompanion extends UpdateCompanion<Tour> {
     this.inviteCode = const Value.absent(),
     required String createdBy,
     this.purpose = const Value.absent(),
+    this.isManagerLed = const Value.absent(),
+    this.managerId = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -952,6 +1029,8 @@ class ToursCompanion extends UpdateCompanion<Tour> {
     Expression<String>? inviteCode,
     Expression<String>? createdBy,
     Expression<String>? purpose,
+    Expression<bool>? isManagerLed,
+    Expression<String>? managerId,
     Expression<bool>? isSynced,
     Expression<bool>? isDeleted,
     Expression<DateTime>? updatedAt,
@@ -965,6 +1044,8 @@ class ToursCompanion extends UpdateCompanion<Tour> {
       if (inviteCode != null) 'invite_code': inviteCode,
       if (createdBy != null) 'created_by': createdBy,
       if (purpose != null) 'purpose': purpose,
+      if (isManagerLed != null) 'is_manager_led': isManagerLed,
+      if (managerId != null) 'manager_id': managerId,
       if (isSynced != null) 'is_synced': isSynced,
       if (isDeleted != null) 'is_deleted': isDeleted,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -980,6 +1061,8 @@ class ToursCompanion extends UpdateCompanion<Tour> {
       Value<String?>? inviteCode,
       Value<String>? createdBy,
       Value<String>? purpose,
+      Value<bool>? isManagerLed,
+      Value<String?>? managerId,
       Value<bool>? isSynced,
       Value<bool>? isDeleted,
       Value<DateTime?>? updatedAt,
@@ -992,6 +1075,8 @@ class ToursCompanion extends UpdateCompanion<Tour> {
       inviteCode: inviteCode ?? this.inviteCode,
       createdBy: createdBy ?? this.createdBy,
       purpose: purpose ?? this.purpose,
+      isManagerLed: isManagerLed ?? this.isManagerLed,
+      managerId: managerId ?? this.managerId,
       isSynced: isSynced ?? this.isSynced,
       isDeleted: isDeleted ?? this.isDeleted,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -1023,6 +1108,12 @@ class ToursCompanion extends UpdateCompanion<Tour> {
     if (purpose.present) {
       map['purpose'] = Variable<String>(purpose.value);
     }
+    if (isManagerLed.present) {
+      map['is_manager_led'] = Variable<bool>(isManagerLed.value);
+    }
+    if (managerId.present) {
+      map['manager_id'] = Variable<String>(managerId.value);
+    }
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
@@ -1048,6 +1139,8 @@ class ToursCompanion extends UpdateCompanion<Tour> {
           ..write('inviteCode: $inviteCode, ')
           ..write('createdBy: $createdBy, ')
           ..write('purpose: $purpose, ')
+          ..write('isManagerLed: $isManagerLed, ')
+          ..write('managerId: $managerId, ')
           ..write('isSynced: $isSynced, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('updatedAt: $updatedAt, ')
@@ -5389,6 +5482,8 @@ typedef $$ToursTableCreateCompanionBuilder = ToursCompanion Function({
   Value<String?> inviteCode,
   required String createdBy,
   Value<String> purpose,
+  Value<bool> isManagerLed,
+  Value<String?> managerId,
   Value<bool> isSynced,
   Value<bool> isDeleted,
   Value<DateTime?> updatedAt,
@@ -5402,6 +5497,8 @@ typedef $$ToursTableUpdateCompanionBuilder = ToursCompanion Function({
   Value<String?> inviteCode,
   Value<String> createdBy,
   Value<String> purpose,
+  Value<bool> isManagerLed,
+  Value<String?> managerId,
   Value<bool> isSynced,
   Value<bool> isDeleted,
   Value<DateTime?> updatedAt,
@@ -5526,6 +5623,12 @@ class $$ToursTableFilterComposer extends Composer<_$AppDatabase, $ToursTable> {
 
   ColumnFilters<String> get purpose => $composableBuilder(
       column: $table.purpose, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get isManagerLed => $composableBuilder(
+      column: $table.isManagerLed, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get managerId => $composableBuilder(
+      column: $table.managerId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnFilters(column));
@@ -5693,6 +5796,13 @@ class $$ToursTableOrderingComposer
   ColumnOrderings<String> get purpose => $composableBuilder(
       column: $table.purpose, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<bool> get isManagerLed => $composableBuilder(
+      column: $table.isManagerLed,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get managerId => $composableBuilder(
+      column: $table.managerId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get isSynced => $composableBuilder(
       column: $table.isSynced, builder: (column) => ColumnOrderings(column));
 
@@ -5732,6 +5842,12 @@ class $$ToursTableAnnotationComposer
 
   GeneratedColumn<String> get purpose =>
       $composableBuilder(column: $table.purpose, builder: (column) => column);
+
+  GeneratedColumn<bool> get isManagerLed => $composableBuilder(
+      column: $table.isManagerLed, builder: (column) => column);
+
+  GeneratedColumn<String> get managerId =>
+      $composableBuilder(column: $table.managerId, builder: (column) => column);
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
@@ -5905,6 +6021,8 @@ class $$ToursTableTableManager extends RootTableManager<
             Value<String?> inviteCode = const Value.absent(),
             Value<String> createdBy = const Value.absent(),
             Value<String> purpose = const Value.absent(),
+            Value<bool> isManagerLed = const Value.absent(),
+            Value<String?> managerId = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<bool> isDeleted = const Value.absent(),
             Value<DateTime?> updatedAt = const Value.absent(),
@@ -5918,6 +6036,8 @@ class $$ToursTableTableManager extends RootTableManager<
             inviteCode: inviteCode,
             createdBy: createdBy,
             purpose: purpose,
+            isManagerLed: isManagerLed,
+            managerId: managerId,
             isSynced: isSynced,
             isDeleted: isDeleted,
             updatedAt: updatedAt,
@@ -5931,6 +6051,8 @@ class $$ToursTableTableManager extends RootTableManager<
             Value<String?> inviteCode = const Value.absent(),
             required String createdBy,
             Value<String> purpose = const Value.absent(),
+            Value<bool> isManagerLed = const Value.absent(),
+            Value<String?> managerId = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<bool> isDeleted = const Value.absent(),
             Value<DateTime?> updatedAt = const Value.absent(),
@@ -5944,6 +6066,8 @@ class $$ToursTableTableManager extends RootTableManager<
             inviteCode: inviteCode,
             createdBy: createdBy,
             purpose: purpose,
+            isManagerLed: isManagerLed,
+            managerId: managerId,
             isSynced: isSynced,
             isDeleted: isDeleted,
             updatedAt: updatedAt,

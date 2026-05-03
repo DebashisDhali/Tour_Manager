@@ -181,6 +181,8 @@ class SyncService {
                     'start_date': t.startDate?.toIso8601String(),
                     'end_date': t.endDate?.toIso8601String(),
                     'purpose': t.purpose,
+                    'is_manager_led': t.isManagerLed,
+                    'manager_id': t.managerId,
                     'is_deleted': t.isDeleted,
                   })
               .toList(),
@@ -195,7 +197,7 @@ class SyncService {
                     'category': e.category,
                     'mess_cost_type': e.messCostType,
                     'date': e.createdAt.toIso8601String(),
-                    'is_deleted': e.isDeleted,
+                    'isDeleted': e.isDeleted,
                   })
               .toList(),
           'splits': unsyncedSplits
@@ -204,7 +206,7 @@ class SyncService {
                     'expense_id': s.expenseId.toLowerCase(),
                     'user_id': s.userId.toLowerCase(),
                     'amount': s.amount,
-                    'is_deleted': s.isDeleted,
+                    'isDeleted': s.isDeleted,
                   })
               .toList(),
           'payers': unsyncedPayers
@@ -213,7 +215,7 @@ class SyncService {
                     'expense_id': p.expenseId.toLowerCase(),
                     'user_id': p.userId.toLowerCase(),
                     'amount': p.amount,
-                    'is_deleted': p.isDeleted,
+                    'isDeleted': p.isDeleted,
                   })
               .toList(),
           'members': unsyncedMembers
@@ -224,7 +226,7 @@ class SyncService {
                     'meal_count': m.mealCount,
                     'role': m.role,
                     'status': m.status,
-                    'is_deleted': m.isDeleted,
+                    'isDeleted': m.isDeleted,
                   })
               .toList(),
           'settlements': unsyncedSettlements
@@ -235,7 +237,7 @@ class SyncService {
                     'to_id': s.toId,
                     'amount': s.amount,
                     'date': s.date.toIso8601String(),
-                    'is_deleted': s.isDeleted,
+                    'isDeleted': s.isDeleted,
                   })
               .toList(),
           'incomes': unsyncedIncomes
@@ -247,7 +249,7 @@ class SyncService {
                     'description': i.description,
                     'collected_by': i.collectedBy,
                     'date': i.date.toIso8601String(),
-                    'is_deleted': i.isDeleted,
+                    'isDeleted': i.isDeleted,
                   })
               .toList(),
           'joinRequests': unsyncedJoinRequests
@@ -347,18 +349,21 @@ class SyncService {
                 ToursCompanion.insert(
                   id: (st['id'] ?? '').toString().toLowerCase(),
                   name: st['name'] ?? 'Unknown Tour',
-                  startDate: Value(st['start_date'] != null
-                      ? DateTime.tryParse(st['start_date'].toString())
+                  startDate: Value((st['startDate'] ?? st['start_date']) != null
+                      ? DateTime.tryParse((st['startDate'] ?? st['start_date']).toString())
                       : null),
-                  endDate: Value(st['end_date'] != null
-                      ? DateTime.tryParse(st['end_date'].toString())
+                  endDate: Value((st['endDate'] ?? st['end_date']) != null
+                      ? DateTime.tryParse((st['endDate'] ?? st['end_date']).toString())
                       : null),
                   inviteCode: inviteCodeField,
                   createdBy: st['created_by'] ?? '',
                   purpose: Value(st['purpose'] ?? 'tour'),
-                  isDeleted: Value(st['isDeleted'] == true ||
-                      st['is_deleted'] == true ||
-                      st['is_deleted'] == 1),
+                  isManagerLed: Value(_parseBool(st['is_manager_led'] ?? st['isManagerLed'])),
+                  managerId: Value(st['manager_id']?.toString() ?? st['managerId']?.toString()),
+                  isDeleted: Value(_parseBool(st['is_deleted'] ?? st['isDeleted'])),
+                  updatedAt: Value((st['updatedAt'] ?? st['updated_at']) != null
+                       ? DateTime.tryParse((st['updatedAt'] ?? st['updated_at']).toString())
+                       : null),
                   isSynced: const Value(true),
                 ),
                 mode: InsertMode.insertOrReplace);
@@ -392,9 +397,7 @@ class SyncService {
                       purpose: Value(su['purpose']),
                       isMe: Value(su['id'].toString().toLowerCase() ==
                           userId.toLowerCase()),
-                      isDeleted: Value(su['isDeleted'] == true ||
-                          su['is_deleted'] == true ||
-                          su['is_deleted'] == 1),
+                      isDeleted: Value(_parseBool(su['isDeleted'] ?? su['is_deleted'])),
                       isSynced: const Value(true),
                     ),
                     mode: InsertMode.insertOrReplace);
@@ -419,9 +422,7 @@ class SyncService {
                       mealCount: Value(double.tryParse(
                               su['meal_count']?.toString() ?? '0') ??
                           0.0),
-                      isDeleted: Value(su['isDeleted'] == true ||
-                          su['is_deleted'] == true ||
-                          su['is_deleted'] == 1),
+                      isDeleted: Value(_parseBool(su['isDeleted'] ?? su['is_deleted'])),
                       isSynced: const Value(true),
                     ),
                     mode: InsertMode.insertOrReplace);
@@ -444,9 +445,7 @@ class SyncService {
                       category: (se['category'] ?? 'Others').toString(),
                       messCostType: Value(se['mess_cost_type']?.toString()),
                       isSynced: const Value(true),
-                      isDeleted: Value(se['isDeleted'] == true ||
-                          se['is_deleted'] == true ||
-                          se['is_deleted'] == 1),
+                      isDeleted: Value(_parseBool(se['isDeleted'] ?? se['is_deleted'])),
                       createdAt: Value(
                           DateTime.tryParse(se['date']?.toString() ?? '') ??
                               (se['created_at'] != null
@@ -495,9 +494,7 @@ class SyncService {
                                   sp['amount']?.toString() ?? '0') ??
                               0.0,
                           isSynced: const Value(true),
-                          isDeleted: Value(sp['isDeleted'] == true ||
-                              sp['is_deleted'] == true ||
-                              sp['is_deleted'] == 1),
+                          isDeleted: Value(_parseBool(sp['isDeleted'] ?? sp['is_deleted'])),
                         ),
                         mode: InsertMode.insertOrReplace);
                   }
@@ -529,9 +526,7 @@ class SyncService {
                           ? DateTime.parse(ss['date'].toString())
                           : DateTime.now()),
                       isSynced: const Value(true),
-                      isDeleted: Value(ss['isDeleted'] == true ||
-                          ss['is_deleted'] == true ||
-                          ss['is_deleted'] == 1),
+                      isDeleted: Value(_parseBool(ss['isDeleted'] ?? ss['is_deleted'])),
                     ),
                     mode: InsertMode.insertOrReplace);
               }
@@ -563,9 +558,7 @@ class SyncService {
                           ? DateTime.parse(inc['date'].toString())
                           : DateTime.now()),
                       isSynced: const Value(true),
-                      isDeleted: Value(inc['isDeleted'] == true ||
-                          inc['is_deleted'] == true ||
-                          inc['is_deleted'] == 1),
+                      isDeleted: Value(_parseBool(inc['isDeleted'] ?? inc['is_deleted'])),
                     ),
                     mode: InsertMode.insertOrReplace);
               }
@@ -692,17 +685,19 @@ class SyncService {
             await db.createTour(Tour(
               id: tourData['id'] ?? '',
               name: tourData['name'] ?? 'Unknown Tour',
-              startDate: tourData['start_date'] != null &&
-                      tourData['start_date'].toString().isNotEmpty
-                  ? DateTime.parse(tourData['start_date'])
+              startDate: (tourData['startDate'] ?? tourData['start_date']) != null &&
+                      (tourData['startDate'] ?? tourData['start_date']).toString().isNotEmpty
+                  ? DateTime.parse((tourData['startDate'] ?? tourData['start_date']).toString())
                   : null,
-              endDate: tourData['end_date'] != null &&
-                      tourData['end_date'].toString().isNotEmpty
-                  ? DateTime.parse(tourData['end_date'])
+              endDate: (tourData['endDate'] ?? tourData['end_date']) != null &&
+                      (tourData['endDate'] ?? tourData['end_date']).toString().isNotEmpty
+                  ? DateTime.parse((tourData['endDate'] ?? tourData['end_date']).toString())
                   : null,
-              inviteCode: tourData['invite_code'] ?? inviteCode,
-              createdBy: tourData['created_by'] ?? userId,
+              inviteCode: tourData['inviteCode'] ?? tourData['invite_code'] ?? inviteCode,
+              createdBy: tourData['createdBy'] ?? tourData['created_by'] ?? userId,
               purpose: tourData['purpose'] ?? 'tour',
+              isManagerLed: _parseBool(tourData['isManagerLed'] ?? tourData['is_manager_led']),
+              managerId: tourData['managerId'] ?? tourData['manager_id'],
               isSynced: true,
               isDeleted: false,
             ));
@@ -1263,5 +1258,16 @@ class SyncService {
       debugPrint("Handle request failed: $e");
       throw Exception(e.toString());
     }
+  }
+
+  bool _parseBool(dynamic value) {
+    if (value == null) return false;
+    if (value is bool) return value;
+    if (value is int) return value == 1;
+    if (value is String) {
+      final s = value.toLowerCase();
+      return s == 'true' || s == '1';
+    }
+    return false;
   }
 }

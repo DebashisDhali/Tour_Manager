@@ -85,6 +85,28 @@ final aiServiceProvider = Provider<AiService>((ref) {
   return AiService(dio, baseUrl);
 });
 
+final isTourLocalOnlyProvider = StreamProvider.family<bool, String>((ref, tourId) {
+  final db = ref.watch(databaseProvider);
+  return db.watchTourLocalOnly(tourId);
+});
+
+final singleTourWithLocalStateProvider = StreamProvider.family<TourWithLocalState?, String>((ref, tourId) {
+  final tourStream = ref.watch(singleTourProvider(tourId).stream);
+  final isLocalStream = ref.watch(isTourLocalOnlyProvider(tourId).stream);
+  
+  return tourStream.asyncMap((tour) async {
+    if (tour == null) return null;
+    final isLocal = await isLocalStream.first;
+    return TourWithLocalState(tour, isLocal);
+  });
+});
+
+class TourWithLocalState {
+  final Tour tour;
+  final bool isLocalOnly;
+  TourWithLocalState(this.tour, this.isLocalOnly);
+}
+
 final currentUserProvider = StreamProvider<User?>((ref) {
   final db = ref.watch(databaseProvider);
   return (db.select(db.users)

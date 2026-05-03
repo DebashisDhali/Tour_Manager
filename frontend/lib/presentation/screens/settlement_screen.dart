@@ -67,8 +67,19 @@ class SettlementScreen extends ConsumerWidget {
 
     if (tour == null) return const Center(child: Text("Data not found"));
 
-    final fallbackUsers = tourMembers.map((m) => m.user).toList();
-    final settlementUsers = users.isNotEmpty ? users : fallbackUsers;
+    final activeMemberUserIds = tourMembers
+        .where((m) => m.status == 'active')
+        .map((m) => m.user.id.toLowerCase())
+        .toSet();
+
+    final fallbackUsers = tourMembers
+        .where((m) => m.status == 'active')
+        .map((m) => m.user)
+        .toList();
+        
+    final settlementUsers = (users.isNotEmpty ? users : fallbackUsers)
+        .where((u) => activeMemberUserIds.contains(u.id.toLowerCase()))
+        .toList();
 
     // Deduplicate expenses for accurate summary display (ID-based to match calculator)
     // KEY FIX: Use lowercase keys to merge potential case-sensitive ghosts
@@ -134,6 +145,22 @@ class SettlementScreen extends ConsumerWidget {
     final purpose = tour.purpose.trim().toLowerCase();
     final isMess = purpose == 'mess';
     final isEvent = purpose == 'event';
+    final isProject = purpose == 'project' || purpose == 'office' || purpose == 'business';
+    final isManagerLed = isMess && tour.isManagerLed;
+    final managerId = tour.managerId?.toLowerCase();
+
+    double totalDeposits = 0.0;
+    double spentFromFund = 0.0;
+    if (isManagerLed && managerId != null) {
+      totalDeposits = previousSettlements
+          .where((s) => !s.isDeleted && s.toId.toLowerCase() == managerId)
+          .fold(0.0, (sum, s) => sum + s.amount);
+      spentFromFund = dedupedExpenses
+          .where((e) => e.payerId?.toLowerCase() == managerId)
+          .fold(0.0, (sum, e) => sum + e.amount);
+    }
+    final cashInHand = totalDeposits - spentFromFund;
+
     final totalFundCollected = incomes.fold(0.0, (sum, i) => sum + i.amount);
     final surplusOrDeficit = totalFundCollected - totalCost;
     final splitExpenseIds = tourSplits.map((s) => s.expenseId.toLowerCase()).toSet();
@@ -286,7 +313,35 @@ class SettlementScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
-                if (isMess) ...[
+              if (isManagerLed) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildSummaryItem(
+                        context,
+                        "Total Deposits",
+                        "৳${totalDeposits.toStringAsFixed(0)}",
+                        Icons.account_balance_rounded,
+                        Colors.indigo,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildSummaryItem(
+                        context,
+                        "Cash in Hand",
+                        "৳${cashInHand.toStringAsFixed(0)}",
+                        Icons.account_balance_wallet_rounded,
+                        cashInHand >= 0 ? Colors.green : Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                const Divider(),
+                const SizedBox(height: 12),
+              ],
+              if (isMess) ...[
                   Row(
                     children: [
                       Expanded(
@@ -334,7 +389,7 @@ class SettlementScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
-                ] else if (isEvent) ...[
+                ] else if (isEvent || (isProject && incomes.isNotEmpty)) ...[
                   Row(
                     children: [
                       Expanded(
@@ -374,7 +429,7 @@ class SettlementScreen extends ConsumerWidget {
                       Expanded(
                         child: _buildSummaryItem(
                           context,
-                          "Members",
+                          "Active Members",
                           settlementUsers.length.toString(),
                           Icons.group_rounded,
                           Colors.teal,
@@ -578,6 +633,23 @@ class SettlementScreen extends ConsumerWidget {
                             Text(u.name,
                                 style: const TextStyle(
                                     fontWeight: FontWeight.bold, fontSize: 15)),
+                            if (isManagerLed && nid == managerId)
+                              Container(
+                                margin: const EdgeInsets.only(left: 8),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: config.color,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  "MANAGER",
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ),
                             if (hasCustomShare) ...[
                               const SizedBox(width: 6),
                               Container(
@@ -697,6 +769,17 @@ class SettlementScreen extends ConsumerWidget {
 
                               return Column(
                                 children: [
+                                  if (isManagerLed) ...[
+                                    _buildBreakdownRow(
+                                      context,
+                                      nid == managerId ? "Total Fund Received" : "Total Deposited",
+                                      "৳${details.settled.abs().toStringAsFixed(0)}",
+                                      Icons.account_balance_wallet_rounded,
+                                      Colors.indigo,
+                                      isDebit: nid != managerId,
+                                    ),
+                                    const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
+                                  ],
                                   if (standardBazar > 0 || userMeals > 0)
                                     _buildBreakdownRow(
                                       context,
@@ -1204,6 +1287,8 @@ class SettlementScreen extends ConsumerWidget {
       purpose: tour.purpose,
       createdBy: tour.createdBy,
       startDate: tour.endDate?.add(const Duration(days: 1)) ?? DateTime.now(),
+      isManagerLed: tour.isManagerLed,
+      managerId: tour.managerId,
       isSynced: false,
       isDeleted: false,
     ));

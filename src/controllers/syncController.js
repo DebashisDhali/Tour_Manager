@@ -74,7 +74,7 @@ exports.syncData = async (req, res) => {
               const tourId = t.id.toLowerCase();
               const role = roleMap[tourId] || 'none';
 
-              if (t.isDeleted) {
+              if (t.isDeleted || t.is_deleted === true) {
                 // Security Guard: Only the creator can destroy/soft-delete the actual tour record
                 const existingTour = await Tour.findByPk(tourId);
                 if (existingTour && existingTour.created_by.toLowerCase() === normalizedUserId) {
@@ -90,10 +90,12 @@ exports.syncData = async (req, res) => {
               } else {
                 const creatorId = (t.created_by || t.createdBy) ? (t.created_by || t.createdBy).toLowerCase() : null;
                 
-                // If tour exists and user is not Admin/Editor, block update
+                // If tour exists and user is not Admin/Editor/Creator, block update
                 const existingTour = await Tour.findByPk(tourId);
-                if (existingTour && role !== 'admin' && role !== 'editor') {
-                  throw new Error("Permission denied: Viewer cannot edit tour details");
+                const isCreator = existingTour && existingTour.created_by.toLowerCase() === normalizedUserId;
+                
+                if (existingTour && !isCreator && role !== 'admin' && role !== 'editor') {
+                  throw new Error("Permission denied: Only Admin, Editor or Creator can edit tour details");
                 }
 
                 // If tour exists and is already deleted, DO NOT revive it via a regular sync push
@@ -109,13 +111,19 @@ exports.syncData = async (req, res) => {
                   });
                 }
 
+                const isTrue = (val) => val === true || val === 1 || val?.toString().toLowerCase() === 'true' || val?.toString() === '1';
+
                 await Tour.upsert({
-                  id: tourId, name: t.name, created_by: creatorId,
+                  id: tourId, 
+                  name: t.name, 
+                  created_by: creatorId,
                   invite_code: t.invite_code || t.inviteCode || null, 
                   start_date: t.start_date || t.startDate || null,
                   end_date: t.end_date || t.endDate || null, 
                   purpose: t.purpose || 'tour',
-                  is_deleted: false // Explicitly set to false during regular push
+                  is_manager_led: isTrue(t.is_manager_led !== undefined ? t.is_manager_led : t.isManagerLed),
+                  manager_id: (t.manager_id || t.managerId || null)?.toString().toLowerCase(),
+                  is_deleted: false 
                 });
 
                 if (creatorId) {
@@ -136,7 +144,7 @@ exports.syncData = async (req, res) => {
             try {
               const tourId = (m.tour_id || m.tourId).toLowerCase();
               const mUserId = (m.user_id || m.userId).toLowerCase();
-              if (m.isDeleted) {
+              if (m.isDeleted || m.is_deleted === true) {
                 await TourMember.destroy({ 
                   where: { tour_id: tourId, user_id: mUserId } 
                 });
@@ -162,7 +170,7 @@ exports.syncData = async (req, res) => {
                 const role = roleMap[tourId] || 'none';
                 if (role !== 'admin' && role !== 'editor') throw new Error("Permission Denied: Only Admin or Editor can modify expenses");
 
-                if (e.isDeleted) {
+                if (e.isDeleted || e.is_deleted === true) {
                   await Expense.update({ is_deleted: true, updated_at: now }, { where: { id: e.id.toLowerCase() } });
                 } else {
                   // Guard: Don't let regular push revive a deleted expense
@@ -189,7 +197,7 @@ exports.syncData = async (req, res) => {
           // Process splits
           if (splits?.length > 0) {
             console.log(`  ✂️  ${splits.length} split(s)`);
-            const toDelete = splits.filter(s => s.isDeleted).map(s => s.id.toLowerCase());
+            const toDelete = splits.filter(s => s.isDeleted || s.is_deleted === true).map(s => s.id.toLowerCase());
             if (toDelete.length > 0) await ExpenseSplit.update({ is_deleted: true, updated_at: now }, { where: { id: toDelete } });
             
             for (const s of splits.filter(s => !s.isDeleted)) {
@@ -207,7 +215,7 @@ exports.syncData = async (req, res) => {
           // Process payers
           if (payers?.length > 0) {
             console.log(`  💳 ${payers.length} payer(s)`);
-            const toDelete = payers.filter(p => p.isDeleted).map(p => p.id.toLowerCase());
+            const toDelete = payers.filter(p => p.isDeleted || p.is_deleted === true).map(p => p.id.toLowerCase());
             if (toDelete.length > 0) await ExpensePayer.update({ is_deleted: true, updated_at: now }, { where: { id: toDelete } });
             
             for (const p of payers.filter(p => !p.isDeleted)) {
@@ -231,7 +239,7 @@ exports.syncData = async (req, res) => {
                 const role = roleMap[tourId] || 'none';
                 if (role !== 'admin' && role !== 'editor') throw new Error("Permission Denied");
 
-                if (s.isDeleted) {
+                if (s.isDeleted || s.is_deleted === true) {
                   await Settlement.update({ is_deleted: true, updated_at: now }, { where: { id: (s.id || "").toLowerCase() } });
                 } else {
                   const existingSettlement = await Settlement.findByPk((s.id || "").toLowerCase());
@@ -260,7 +268,7 @@ exports.syncData = async (req, res) => {
                 const role = roleMap[tourId] || 'none';
                 if (role !== 'admin' && role !== 'editor') throw new Error("Permission Denied");
 
-                if (i.isDeleted) {
+                if (i.isDeleted || i.is_deleted === true) {
                   await ProgramIncome.update({ is_deleted: true, updated_at: now }, { where: { id: (i.id || "").toLowerCase() } });
                 } else {
                   const existingIncome = await ProgramIncome.findByPk((i.id || "").toLowerCase());
@@ -531,6 +539,7 @@ exports.syncData = async (req, res) => {
           category: e.category,
           messCostType: e.mess_cost_type,
           createdAt: e.date,
+          isDeleted: e.is_deleted,
           updatedAt: e.updated_at,
           ExpenseSplits: splits
             .filter(s => s.expense_id.toLowerCase() === expenseIdLower)
@@ -576,6 +585,9 @@ exports.syncData = async (req, res) => {
         createdBy: tour.created_by.toLowerCase(),
         purpose: tour.purpose || 'tour',
         status: tour.status || 'active',
+        isManagerLed: tour.is_manager_led,
+        managerId: tour.manager_id,
+        isDeleted: tour.is_deleted,
         updatedAt: tour.updated_at,
         
         Expenses: tourExpensesWithDetails,

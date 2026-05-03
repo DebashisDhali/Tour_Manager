@@ -37,11 +37,7 @@ dependencies:
   shared_preferences: ^2.5.3
   flutter_markdown: ^0.7.7+1
 
-  # Receipt Scanning & OCR
-  camera: ^0.11.0
-  google_ml_kit: ^0.21.0
-  image: ^4.2.0
-  permission_handler: ^11.4.0
+
 
 dev_dependencies:
   flutter_test:

@@ -35,6 +35,14 @@ module.exports = (sequelize) => {
         type: DataTypes.ENUM('active', 'completed'),
         defaultValue: 'active'
     },
+    is_manager_led: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+    manager_id: {
+        type: DataTypes.UUID,
+        allowNull: true
+    },
     is_deleted: {
         type: DataTypes.BOOLEAN,
         defaultValue: false

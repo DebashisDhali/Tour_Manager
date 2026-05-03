@@ -67,7 +67,6 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
           } else if (_tabController.index == 2) {
             _showAllocateFundDialog();
           } else {
-             // In overview, ask what to do
              _showAddOptionsSheet();
           }
         },
@@ -108,11 +107,11 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
 
   Widget _buildOverviewTab() {
     final db = ref.watch(databaseProvider);
-    
-    // Construct a stream for users to avoid FutureBuilder flickering and repeated calls
     final usersStream = (db.select(db.users).join([
       drift.innerJoin(db.tourMembers, db.tourMembers.userId.lower().equalsExp(db.users.id.lower()))
-    ])..where(db.tourMembers.tourId.lower().equals(widget.tourId.toLowerCase()) & db.tourMembers.isDeleted.equals(false)))
+    ])..where(db.tourMembers.tourId.lower().equals(widget.tourId.toLowerCase()) & 
+              db.tourMembers.status.equals('active') &
+              db.tourMembers.isDeleted.equals(false)))
     .map((row) => row.readTable(db.users))
     .watch();
 
@@ -120,21 +119,17 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
       stream: (db.select(db.programIncomes)..where((t) => t.tourId.lower().equals(widget.tourId.toLowerCase()) & t.isDeleted.equals(false))).watch(), 
       builder: (context, incomeSnap) {
         final incomes = incomeSnap.data ?? [];
-
         return StreamBuilder<List<Expense>>(
           stream: (db.select(db.expenses)..where((t) => t.tourId.lower().equals(widget.tourId.toLowerCase()) & t.isDeleted.equals(false))).watch(),
           builder: (context, expenseSnap) {
             final expenses = expenseSnap.data ?? [];
             final totalSpent = expenses.fold(0.0, (sum, item) => sum + item.amount);
-
             return StreamBuilder<List<Settlement>>(
               stream: (db.select(db.settlements)..where((t) => t.tourId.lower().equals(widget.tourId.toLowerCase()) & t.isDeleted.equals(false))).watch(),
               builder: (context, settlementSnap) {
                 final settlements = settlementSnap.data ?? [];
                 final totalCollected = incomes.fold(0.0, (sum, item) => sum + item.amount);
                 final currentBalance = totalCollected - totalSpent; 
-
-                // Fetch only payers for this tour's expenses to avoid huge data sets
                 return SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: StreamBuilder<List<ExpensePayer>>(
@@ -145,10 +140,7 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
                     .watch(),
                     builder: (context, payerSnap) {
                       final allPayers = payerSnap.data ?? [];
-
-                    return SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
+                      return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _buildSummaryCard("Total Collected", totalCollected, Colors.teal),
@@ -160,126 +152,90 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
                               Expanded(child: _buildSummaryCard("Balance", currentBalance, currentBalance >= 0 ? Colors.green : Colors.red)),
                             ],
                           ),
-                          
                           const SizedBox(height: 24),
                           const Text("Net Financial Status", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          const Text(
-                            "Who holds the money vs. Who spent from pocket",
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
-                          ),
+                          const Text("Who holds the money vs. Who spent from pocket", style: TextStyle(fontSize: 12, color: Colors.grey)),
                           const SizedBox(height: 12),
-                          
-                          // Use StreamBuilder for users instead of FutureBuilder
                           StreamBuilder<List<User>>(
                             stream: usersStream,
                             builder: (context, userSnap) {
                               if (!userSnap.hasData) return const Center(child: CircularProgressIndicator());
-                              
                               final users = userSnap.data!;
                               final userBalances = <User, double>{};
-
-                                  final expenseIds = expenses.map((e) => e.id.toLowerCase()).toSet();
                               for (final user in users) {
                                 final uid = user.id.toLowerCase();
                                 final collected = incomes.where((i) => i.collectedBy.toLowerCase() == uid).fold(0.0, (sum, i) => sum + i.amount);
                                 final received = settlements.where((s) => s.toId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
                                 final given = settlements.where((s) => s.fromId.toLowerCase() == uid).fold(0.0, (sum, s) => sum + s.amount);
-                                
-                                // Correct Spent Calculation: Avoid double counting
                                 double spent = 0.0;
-                                
                                 for (final e in expenses) {
                                   final eId = e.id.toLowerCase();
                                   final expensePayers = allPayers.where((p) => p.expenseId.toLowerCase() == eId).toList();
-                                  
                                   if (expensePayers.isNotEmpty) {
-                                    spent += expensePayers
-                                        .where((p) => p.userId.toLowerCase() == uid)
-                                        .fold(0.0, (sum, p) => sum + p.amount);
+                                    spent += expensePayers.where((p) => p.userId.toLowerCase() == uid).fold(0.0, (sum, p) => sum + p.amount);
                                   } else {
-                                    if (e.payerId?.toLowerCase() == uid) {
-                                      spent += e.amount;
-                                    }
+                                    if (e.payerId?.toLowerCase() == uid) spent += e.amount;
                                   }
                                 }
-                                
                                 userBalances[user] = (collected + received) - (given + spent);
                               }
-
-                          // Sort: Most positive (Cash in hand) first, then most negative (Reimbursable)
-                          users.sort((a, b) => (userBalances[b] ?? 0).compareTo(userBalances[a] ?? 0));
-
-                          return Column(
-                            children: users.map((user) {
-                              final balance = userBalances[user] ?? 0.0;
-                              if (balance.abs() < 1) return const SizedBox.shrink(); // Hide nearly zero balances
-
-                              final isPositive = balance > 0;
-                              
-                              return Card(
-                                elevation: 2,
-                                margin: const EdgeInsets.only(bottom: 8),
-                                shape: RoundedRectangleBorder(
-                                  side: BorderSide(color: isPositive ? Colors.green.withValues(alpha: 0.5) : Colors.red.withValues(alpha: 0.5)),
-                                  borderRadius: BorderRadius.circular(12)
-                                ),
-                                child: ListTile(
-                                  leading: CircleAvatar(
-                                    backgroundColor: isPositive ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
-                                    child: Text(
-                                      user.name.isNotEmpty ? user.name[0].toUpperCase() : '?',
-                                      style: TextStyle(color: isPositive ? Colors.green : Colors.red, fontWeight: FontWeight.bold),
+                              users.sort((a, b) => (userBalances[b] ?? 0).compareTo(userBalances[a] ?? 0));
+                              return Column(
+                                children: users.map((user) {
+                                  final balance = userBalances[user] ?? 0.0;
+                                  if (balance.abs() < 1) return const SizedBox.shrink();
+                                  final isPositive = balance > 0;
+                                  return Card(
+                                    elevation: 2,
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    shape: RoundedRectangleBorder(
+                                      side: BorderSide(color: isPositive ? Colors.green.withOpacity(0.5) : Colors.red.withOpacity(0.5)),
+                                      borderRadius: BorderRadius.circular(12)
                                     ),
-                                  ),
-                                  title: Text(user.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                  subtitle: Text(isPositive 
-                                    ? "Has Program Money" 
-                                    : "Spent Personal Money (Needs Refund)"),
-                                  trailing: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: isPositive ? Colors.green : Colors.red,
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Text(
-                                      "${isPositive ? 'Cash In Hand' : 'Claimable'}: ${isPositive ? '৳' : '-৳'}${balance.abs().toStringAsFixed(0)}",
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                        fontSize: 12
+                                    child: ListTile(
+                                      leading: CircleAvatar(
+                                        backgroundColor: isPositive ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+                                        child: Text(user.name.isNotEmpty ? user.name[0].toUpperCase() : '?', style: TextStyle(color: isPositive ? Colors.green : Colors.red, fontWeight: FontWeight.bold)),
+                                      ),
+                                      title: Text(user.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                      subtitle: Text(isPositive ? "Has Program Money" : "Spent Personal Money (Needs Refund)"),
+                                      trailing: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(color: isPositive ? Colors.green : Colors.red, borderRadius: BorderRadius.circular(20)),
+                                        child: Text("${isPositive ? 'Cash In Hand' : 'Claimable'}: ${isPositive ? '৳' : '-৳'}${balance.abs().toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 12)),
                                       ),
                                     ),
-                                  ),
-                                ),
+                                  );
+                                }).toList(),
                               );
-                            }).toList(),
-                          );
-                        }
-                      )
-                    ],
+                            },
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 );
-              }
+              },
             );
-          }
+          },
         );
       },
     );
   }
-  
+
   Widget _buildSummaryCard(String title, double amount, Color color) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 14)),
+          Text(title, style: TextStyle(color: color.withOpacity(0.8), fontSize: 14)),
           const SizedBox(height: 4),
           Text(
             NumberFormat.currency(symbol: '৳', decimalDigits: 0).format(amount),
@@ -297,11 +253,7 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final incomes = snapshot.data!;
-        
-        if (incomes.isEmpty) {
-          return const Center(child: Text("No funds collected yet."));
-        }
-
+        if (incomes.isEmpty) return const Center(child: Text("No funds collected yet."));
         return ListView.builder(
           padding: const EdgeInsets.all(16),
           itemCount: incomes.length,
@@ -315,10 +267,7 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
                   future: db.getUserById(income.collectedBy),
                   builder: (context, snap) => Text("Collected by: ${snap.data?.name ?? 'Unknown'}\n${DateFormat.yMMMd().format(income.date)}"),
                 ),
-                trailing: Text(
-                  "+৳${income.amount.toStringAsFixed(0)}",
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 16),
-                ),
+                trailing: Text("+৳${income.amount.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 16)),
                 isThreeLine: true,
               ),
             );
@@ -335,11 +284,7 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
         final settlements = snapshot.data!;
-        
-        if (settlements.isEmpty) {
-          return const Center(child: Text("No funds allocated/distributed yet."));
-        }
-
+        if (settlements.isEmpty) return const Center(child: Text("No funds allocated/distributed yet."));
         return ListView.builder(
           padding: const EdgeInsets.all(16),
           itemCount: settlements.length,
@@ -356,10 +301,7 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
                   future: db.getUserById(s.fromId),
                   builder: (context, snap) => Text("From: ${snap.data?.name ?? 'Unknown'}\n${DateFormat.yMMMd().format(s.date)}"),
                 ),
-                trailing: Text(
-                  "৳${s.amount.toStringAsFixed(0)}",
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
+                trailing: Text("৳${s.amount.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 isThreeLine: true,
               ),
             );
@@ -369,4 +311,3 @@ class _ProgramDashboardScreenState extends ConsumerState<ProgramDashboardScreen>
     );
   }
 }
-

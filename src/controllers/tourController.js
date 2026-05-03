@@ -30,6 +30,9 @@ exports.createTour = async (req, res) => {
       invite_code,
       start_date,
       end_date,
+      purpose: req.body.purpose || 'tour',
+      is_manager_led: req.body.is_manager_led || req.body.isManagerLed || false,
+      manager_id: (req.body.manager_id || req.body.managerId || null)?.toString().toLowerCase(),
       created_at: now,
       updated_at: now
     });
@@ -117,7 +120,7 @@ exports.findTourByCode = async (req, res) => {
       where: {
         invite_code: code
       },
-      attributes: ['id', 'name', 'purpose', 'created_by'] 
+      attributes: ['id', 'name', 'purpose', 'created_by', 'is_manager_led', 'manager_id'] 
     });
     if (!tour) return res.status(404).json({ error: 'Tour not found' });
     res.status(200).json(tour);

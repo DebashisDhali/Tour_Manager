@@ -31,6 +31,8 @@ class Tours extends Table {
   TextColumn get createdBy => text()(); // User ID
   TextColumn get purpose => text().withDefault(
       const Constant('tour'))(); // 'tour', 'event', 'project', etc.
+  BoolColumn get isManagerLed => boolean().withDefault(const Constant(false))();
+  TextColumn get managerId => text().nullable()();
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
   BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
   DateTimeColumn get updatedAt => dateTime().nullable()();
@@ -179,7 +181,7 @@ class AppDatabase extends _$AppDatabase {
   static const String _localOnlyTourKeyPrefix = 'local_only_tour_';
 
   @override
-  int get schemaVersion => 20;
+  int get schemaVersion => 21;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -363,6 +365,10 @@ class AppDatabase extends _$AppDatabase {
             await customStatement(
                 'UPDATE expenses SET is_deleted = 0 WHERE is_deleted IS NULL');
           }
+          if (from < 21) {
+            await addColumnSafe(tours, tours.isManagerLed);
+            await addColumnSafe(tours, tours.managerId);
+          }
         },
       );
 
@@ -378,6 +384,17 @@ class AppDatabase extends _$AppDatabase {
       innerJoin(tourMembers, tourMembers.userId.equalsExp(users.id)),
     ])
       ..where(tourMembers.tourId.equals(tourId) & 
+              tourMembers.isDeleted.equals(false) & 
+              users.isDeleted.equals(false));
+    return query.map((row) => row.readTable(users)).get();
+  }
+
+  Future<List<User>> getTourActiveUsers(String tourId) {
+    final query = select(users).join([
+      innerJoin(tourMembers, tourMembers.userId.equalsExp(users.id)),
+    ])
+      ..where(tourMembers.tourId.equals(tourId) & 
+              tourMembers.status.equals('active') &
               tourMembers.isDeleted.equals(false) & 
               users.isDeleted.equals(false));
     return query.map((row) => row.readTable(users)).get();
@@ -762,6 +779,13 @@ class AppDatabase extends _$AppDatabase {
     final row = await (select(syncMetadata)..where((m) => m.key.equals(key)))
         .getSingleOrNull();
     return row?.value == '1';
+  }
+
+  Stream<bool> watchTourLocalOnly(String tourId) {
+    final key = '$_localOnlyTourKeyPrefix$tourId';
+    return (select(syncMetadata)..where((m) => m.key.equals(key)))
+        .watchSingleOrNull()
+        .map((row) => row?.value == '1');
   }
 
   Future<Set<String>> getLocalOnlyTourIds() async {

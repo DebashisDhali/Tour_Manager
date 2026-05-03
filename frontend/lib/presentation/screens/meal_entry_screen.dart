@@ -73,7 +73,11 @@ class _MealEntryScreenState extends ConsumerState<MealEntryScreen> {
             elevation: 0,
           ),
           body: membersAsync.when(
-            data: (members) {
+            data: (allMembers) {
+              final members = allMembers
+                  .where((m) => m.status.toLowerCase().trim() == 'active')
+                  .toList();
+
               for (var m in members) {
                 _controllers.putIfAbsent(
                     m.user.id, () => TextEditingController(text: "0.0"));
