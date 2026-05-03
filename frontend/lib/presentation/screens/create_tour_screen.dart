@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -131,7 +131,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
     if (_selectedProfiles.isEmpty) return;
 
     debugPrint(
-        'â‰¡Æ’Ã¶Ã¤ Inviting ${_selectedProfiles.length} selected profiles to tour $tourId');
+        '🔄 Inviting ${_selectedProfiles.length} selected profiles to tour $tourId');
     final syncService = ref.read(syncServiceProvider);
     int successCount = 0;
     final failedUsers = <String>[];
@@ -150,32 +150,32 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
         try {
           await syncService.addMemberToTour(tourId, userId);
           debugPrint(
-              'Î“Â£Ã  Invited user $userName ($userId) on attempt $attemptCount');
+              '✅ Invited user $userName ($userId) on attempt $attemptCount');
           successCount++;
           succeeded = true;
         } catch (e) {
           final errorMsg = e.toString().toLowerCase();
-          debugPrint('Î“Â¥Ã® Attempt $attemptCount: Failed to invite $userName: $e');
+          debugPrint('❌ Attempt $attemptCount: Failed to invite $userName: $e');
 
           // If we get "not a member" 403 error, try syncing and retrying
           if (errorMsg.contains('http 403') &&
               errorMsg.contains('not a member') &&
               attemptCount < 3) {
             debugPrint(
-                'Î“ÃœÃ¡âˆ©â••Ã… Creator not recognized on server - triggering sync...');
+                '⚠️ Creator not recognized on server - triggering sync...');
             try {
               final currentUser = await ref.read(currentUserProvider.future);
               if (currentUser != null && mounted) {
                 await syncService.startSync(currentUser.id);
-                debugPrint('Î“Â£Ã  Sync completed, retrying invitation...');
+                debugPrint('✅ Sync completed, retrying invitation...');
               }
             } catch (syncErr) {
-              debugPrint('Î“ÃœÃ¡âˆ©â••Ã… Sync failed during 403 recovery: $syncErr');
+              debugPrint('⚠️ Sync failed during 403 recovery: $syncErr');
             }
-            debugPrint('Î“Ã…â”‚ Waiting 3 seconds before retry...');
+            debugPrint('⏳ Waiting 3 seconds before retry...');
             await Future.delayed(const Duration(seconds: 3));
           } else if (attemptCount < 3) {
-            debugPrint('Î“Ã…â”‚ Waiting 2 seconds before retry...');
+            debugPrint('⏳ Waiting 2 seconds before retry...');
             await Future.delayed(const Duration(seconds: 2));
           } else {
             failedUsers.add(userName);
@@ -189,7 +189,7 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                'Î“Â£Ã  Invitation sent to $successCount ${successCount == 1 ? 'profile' : 'profiles'}.'),
+                '✅ Invitation sent to $successCount ${successCount == 1 ? 'profile' : 'profiles'}.'),
             duration: const Duration(seconds: 3),
           ),
         );
@@ -198,19 +198,19 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                'Î“ÃœÃ¡âˆ©â••Ã… Failed to invite: ${failedUsers.join(", ")}. Try again after a moment.'),
+                '⚠️ Failed to invite: ${failedUsers.join(", ")}. Try again after a moment.'),
             backgroundColor: Colors.orange,
             duration: const Duration(seconds: 5),
           ),
         );
       }
       if (successCount == 0 && _selectedProfiles.isNotEmpty) {
-        debugPrint('Î“ÃœÃ¡âˆ©â••Ã… No profiles were invited - all attempts failed');
+        debugPrint('⚠️ No profiles were invited - all attempts failed');
       }
     }
 
     debugPrint(
-        'â‰¡Æ’Ã´Ã¨ Invitation summary: $successCount/${_selectedProfiles.length} succeeded');
+        '📊 Invitation summary: $successCount/${_selectedProfiles.length} succeeded');
   }
 
   Future<void> _selectDateRange() async {
@@ -305,9 +305,9 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
       if (currentUser == null) throw Exception("Profile not found.");
 
       debugPrint(
-          'â‰¡Æ’Ã„Â¼ Creating tour in ${_isLocalOnly ? 'LOCAL' : 'GLOBAL'} mode');
+          '🎬 Creating tour in ${_isLocalOnly ? 'LOCAL' : 'GLOBAL'} mode');
       debugPrint(
-          'â‰¡Æ’Ã´Ã¯ Selected profiles: ${_selectedProfiles.length}, Additional members: ${_additionalMembers.length}');
+          '📋 Selected profiles: ${_selectedProfiles.length}, Additional members: ${_additionalMembers.length}');
 
       final String finalTourId;
 
@@ -421,33 +421,33 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
             try {
               await ref.read(syncServiceProvider).startSync(currentUser.id);
               synced = true;
-              debugPrint("Î“Â£Ã  Tour synced on attempt $attempt");
+              debugPrint("✅ Tour synced on attempt $attempt");
               break;
             } catch (syncErr) {
-              debugPrint("Î“ÃœÃ¡âˆ©â••Ã… Sync attempt $attempt failed: $syncErr");
+              debugPrint("⚠️ Sync attempt $attempt failed: $syncErr");
               if (attempt < 3) {
                 await Future.delayed(const Duration(seconds: 2));
               }
             }
           }
           debugPrint(
-              'â‰¡Æ’Ã¶Ã¬ After sync: synced=$synced, selectedProfiles=${_selectedProfiles.length}');
+              '🔍 After sync: synced=$synced, selectedProfiles=${_selectedProfiles.length}');
           if (synced && _selectedProfiles.isNotEmpty) {
             debugPrint(
-                'Î“Ã…â”‚ Waiting 3 seconds for server state to fully settle after sync...');
+                '⏳ Waiting 3 seconds for server state to fully settle after sync...');
             await Future.delayed(const Duration(seconds: 3));
-            debugPrint('â‰¡Æ’Ã¶Ã¤ Attempting to invite selected profiles to tour...');
+            debugPrint('🔄 Attempting to invite selected profiles to tour...');
             await _inviteSelectedProfiles(finalTourId);
           } else if (!synced) {
-            debugPrint('Î“ÃœÃ¡âˆ©â••Ã… Skipping invites - sync failed');
+            debugPrint('⚠️ Skipping invites - sync failed');
           } else if (_selectedProfiles.isEmpty) {
-            debugPrint('Î“Ã¤â•£âˆ©â••Ã… No profiles selected for invitation');
+            debugPrint('ℹ️ No profiles selected for invitation');
           }
           if (!synced && mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(
-                    "Saved locally. Sync pending Î“Ã‡Ã¶ share code when online."),
+                    "Saved locally. Sync pending — share code when online."),
                 backgroundColor: Colors.orange,
                 duration: Duration(seconds: 4),
               ),
@@ -883,4 +883,3 @@ class _CreateTourScreenState extends ConsumerState<CreateTourScreen> {
     );
   }
 }
-

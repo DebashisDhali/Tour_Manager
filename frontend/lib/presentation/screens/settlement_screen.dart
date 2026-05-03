@@ -320,7 +320,7 @@ class SettlementScreen extends ConsumerWidget {
                       child: _buildSummaryItem(
                         context,
                         "Total Deposits",
-                        "৳${totalDeposits.toStringAsFixed(0)}",
+                        "\u09F3${totalDeposits.toStringAsFixed(0)}",
                         Icons.account_balance_rounded,
                         Colors.indigo,
                       ),
@@ -330,7 +330,7 @@ class SettlementScreen extends ConsumerWidget {
                       child: _buildSummaryItem(
                         context,
                         "Cash in Hand",
-                        "৳${cashInHand.toStringAsFixed(0)}",
+                        "\u09F3${cashInHand.toStringAsFixed(0)}",
                         Icons.account_balance_wallet_rounded,
                         cashInHand >= 0 ? Colors.green : Colors.red,
                       ),
@@ -348,7 +348,7 @@ class SettlementScreen extends ConsumerWidget {
                         child: _buildSummaryItem(
                           context,
                           "Total Bazar",
-                          "৳${totalMealCost.toStringAsFixed(0)}",
+                          "\u09F3${totalMealCost.toStringAsFixed(0)}",
                           Icons.shopping_basket_rounded,
                           Colors.orange,
                         ),
@@ -372,7 +372,7 @@ class SettlementScreen extends ConsumerWidget {
                         child: _buildSummaryItem(
                           context,
                           "Meal Charge",
-                          "৳${mealRate.toStringAsFixed(2)}/meal",
+                          "\u09F3${mealRate.toStringAsFixed(2)}/meal",
                           Icons.calculate_rounded,
                           Colors.purple,
                         ),
@@ -382,7 +382,7 @@ class SettlementScreen extends ConsumerWidget {
                         child: _buildSummaryItem(
                           context,
                           "Total Rent",
-                          "৳${totalFixedCost.toStringAsFixed(0)}",
+                          "\u09F3${totalFixedCost.toStringAsFixed(0)}",
                           Icons.home_work_rounded,
                           Colors.teal,
                         ),
@@ -396,7 +396,7 @@ class SettlementScreen extends ConsumerWidget {
                         child: _buildSummaryItem(
                           context,
                           "Total Fund",
-                          "৳${totalFundCollected.toStringAsFixed(0)}",
+                          "\u09F3${totalFundCollected.toStringAsFixed(0)}",
                           Icons.account_balance_wallet_rounded,
                           Colors.green,
                         ),
@@ -406,7 +406,7 @@ class SettlementScreen extends ConsumerWidget {
                         child: _buildSummaryItem(
                           context,
                           "Total Expenses",
-                          "৳${totalCost.toStringAsFixed(0)}",
+                          "\u09F3${totalCost.toStringAsFixed(0)}",
                           Icons.shopping_cart_rounded,
                           Colors.red,
                         ),
@@ -420,7 +420,7 @@ class SettlementScreen extends ConsumerWidget {
                         child: _buildSummaryItem(
                           context,
                           surplusOrDeficit >= 0 ? "Surplus" : "Deficit",
-                          "৳${surplusOrDeficit.abs().toStringAsFixed(0)}",
+                          "\u09F3${surplusOrDeficit.abs().toStringAsFixed(0)}",
                           surplusOrDeficit >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
                           surplusOrDeficit >= 0 ? Colors.blue : Colors.orange,
                         ),
@@ -444,7 +444,7 @@ class SettlementScreen extends ConsumerWidget {
                         child: _buildSummaryItem(
                           context,
                           "Total Cost",
-                          "৳${totalCost.toStringAsFixed(0)}",
+                          "\u09F3${totalCost.toStringAsFixed(0)}",
                           Icons.payments_rounded,
                           config.color,
                         ),
@@ -454,7 +454,7 @@ class SettlementScreen extends ConsumerWidget {
                         child: _buildSummaryItem(
                           context,
                           "Your Share",
-                          "৳${(balanceDetailsMap[myId]?.share ?? 0).toStringAsFixed(0)}",
+                          "\u09F3${(balanceDetailsMap[myId]?.share ?? 0).toStringAsFixed(0)}",
                           Icons.person_outline_rounded,
                           Colors.blue,
                         ),
@@ -479,7 +479,7 @@ class SettlementScreen extends ConsumerWidget {
                           size: 13, color: config.color.withValues(alpha: 0.7)),
                       const SizedBox(width: 6),
                       Text(
-                        "Equal split = ৳${equalShare.toStringAsFixed(0)} per person",
+                        "Equal split = \u09F3${equalShare.toStringAsFixed(0)} per person",
                         style: TextStyle(
                             fontSize: 11,
                             color: config.color.withValues(alpha: 0.8),
@@ -506,8 +506,8 @@ class SettlementScreen extends ConsumerWidget {
                       const SizedBox(width: 6),
                       Text(
                         surplusOrDeficit >= 0 
-                          ? "Leftover ৳${surplusOrDeficit.abs().toStringAsFixed(0)} will be shared equally"
-                          : "Deficit of ৳${surplusOrDeficit.abs().toStringAsFixed(0)} must be covered by all",
+                          ? "Leftover \u09F3${surplusOrDeficit.abs().toStringAsFixed(0)} will be shared equally"
+                          : "Deficit of \u09F3${surplusOrDeficit.abs().toStringAsFixed(0)} must be covered by all",
                         style: TextStyle(
                             fontSize: 11,
                             color: config.color.withValues(alpha: 0.8),
@@ -692,7 +692,7 @@ class SettlementScreen extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              "${isCreditor ? '+' : ''}${balance.toStringAsFixed(0)} ৳",
+                              "${isCreditor ? '+' : ''}${balance.toStringAsFixed(0)} \u09F3",
                               style: TextStyle(
                                   fontWeight: FontWeight.w900,
                                   fontSize: 16,
@@ -702,7 +702,7 @@ class SettlementScreen extends ConsumerWidget {
                               isSettled
                                   ? "সেটেলড"
                                   : (isEvent 
-                                      ? (isCreditor ? "পাবে ৳${balance.toStringAsFixed(0)}" : "দিতে হবে ৳${balance.abs().toStringAsFixed(0)}")
+                                      ? (isCreditor ? "পাবে \u09F3${balance.toStringAsFixed(0)}" : "দিতে হবে \u09F3${balance.abs().toStringAsFixed(0)}")
                                       : (isCreditor ? "Surplus (Receive)" : "Due (Pay)")),
                               style: TextStyle(
                                   fontSize: 10,
@@ -773,7 +773,7 @@ class SettlementScreen extends ConsumerWidget {
                                     _buildBreakdownRow(
                                       context,
                                       nid == managerId ? "Total Fund Received" : "Total Deposited",
-                                      "৳${details.settled.abs().toStringAsFixed(0)}",
+                                      "\u09F3${details.settled.abs().toStringAsFixed(0)}",
                                       Icons.account_balance_wallet_rounded,
                                       Colors.indigo,
                                       isDebit: nid != managerId,
@@ -784,7 +784,7 @@ class SettlementScreen extends ConsumerWidget {
                                     _buildBreakdownRow(
                                       context,
                                       "Meal Charge (${userMeals.toStringAsFixed(1)} meals)",
-                                      "৳${standardBazar.toStringAsFixed(2)}",
+                                      "\u09F3${standardBazar.toStringAsFixed(2)}",
                                       Icons.restaurant_rounded,
                                       Colors.orange,
                                       isDebit: true,
@@ -794,7 +794,7 @@ class SettlementScreen extends ConsumerWidget {
                                     _buildBreakdownRow(
                                       context,
                                       "Bazar (Custom Split)",
-                                      "৳${customBazar.toStringAsFixed(2)}",
+                                      "\u09F3${customBazar.toStringAsFixed(2)}",
                                       Icons.shopping_basket_rounded,
                                       Colors.orangeAccent,
                                       isDebit: true,
@@ -805,7 +805,7 @@ class SettlementScreen extends ConsumerWidget {
                                     _buildBreakdownRow(
                                       context,
                                       "Rent Share",
-                                      "৳${standardRent.toStringAsFixed(2)}",
+                                      "\u09F3${standardRent.toStringAsFixed(2)}",
                                       Icons.home_work_rounded,
                                       Colors.teal,
                                       isDebit: true,
@@ -816,7 +816,7 @@ class SettlementScreen extends ConsumerWidget {
                                     _buildBreakdownRow(
                                       context,
                                       "Rent (Custom Split)",
-                                      "৳${customRent.toStringAsFixed(2)}",
+                                      "\u09F3${customRent.toStringAsFixed(2)}",
                                       Icons.home_rounded,
                                       Colors.tealAccent,
                                       isDebit: true,
@@ -827,7 +827,7 @@ class SettlementScreen extends ConsumerWidget {
                                     _buildBreakdownRow(
                                       context,
                                       "Other Splits",
-                                      "৳${otherSplits.toStringAsFixed(2)}",
+                                      "\u09F3${otherSplits.toStringAsFixed(2)}",
                                       Icons.extension_rounded,
                                       Colors.blueGrey,
                                       isDebit: true,
@@ -838,7 +838,7 @@ class SettlementScreen extends ConsumerWidget {
                                     _buildBreakdownRow(
                                       context,
                                       "Income Credit",
-                                      "-৳${incomeReduc.abs().toStringAsFixed(2)}",
+                                      "-\u09F3${incomeReduc.abs().toStringAsFixed(2)}",
                                       Icons.account_balance_wallet_rounded,
                                       Colors.green,
                                       isDebit: false,
@@ -854,7 +854,7 @@ class SettlementScreen extends ConsumerWidget {
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
                                         const Text("Total Share", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                                        Text("৳${details.share.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                        Text("\u09F3${details.share.toStringAsFixed(2)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                                       ],
                                     ),
                                   ),
@@ -904,16 +904,16 @@ class SettlementScreen extends ConsumerWidget {
 
                           return Column(
                             children: [
-                              _buildBreakdownRow(context, "Collected Funds", "৳${collected.toStringAsFixed(2)}", Icons.account_balance_wallet_rounded, Colors.redAccent, isDebit: true),
+                              _buildBreakdownRow(context, "Collected Funds", "\u09F3${collected.toStringAsFixed(2)}", Icons.account_balance_wallet_rounded, Colors.redAccent, isDebit: true),
                               const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
-                              _buildBreakdownRow(context, "Out-of-pocket Spent", "৳${spent.toStringAsFixed(2)}", Icons.payments_rounded, Colors.green, isDebit: false),
+                              _buildBreakdownRow(context, "Out-of-pocket Spent", "\u09F3${spent.toStringAsFixed(2)}", Icons.payments_rounded, Colors.green, isDebit: false),
                               const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
-                              _buildBreakdownRow(context, "Expense Share", "৳${expenseShare.toStringAsFixed(2)}", Icons.person_outline_rounded, Colors.orange, isDebit: true),
+                              _buildBreakdownRow(context, "Expense Share", "\u09F3${expenseShare.toStringAsFixed(2)}", Icons.person_outline_rounded, Colors.orange, isDebit: true),
                               const Padding(padding: EdgeInsets.symmetric(vertical: 4), child: Divider(height: 1)),
                               _buildBreakdownRow(
                                 context, 
                                 surplusOrDeficit >= 0 ? "Surplus Share" : "Deficit Share", 
-                                "৳${(surplusOrDeficit.abs() / settlementUsers.length).toStringAsFixed(2)}", 
+                                "\u09F3${(surplusOrDeficit.abs() / settlementUsers.length).toStringAsFixed(2)}", 
                                 Icons.pie_chart_rounded, 
                                 surplusOrDeficit >= 0 ? Colors.green : Colors.redAccent,
                                 isDebit: surplusOrDeficit < 0
@@ -929,7 +929,7 @@ class SettlementScreen extends ConsumerWidget {
                                   children: [
                                     const Text("Net Position", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                                     Text(
-                                      isSettled ? "Settled" : (balance < 0 ? "Receive ৳${balance.abs().toStringAsFixed(2)}" : "Pay ৳${balance.toStringAsFixed(2)}"),
+                                      isSettled ? "Settled" : (balance < 0 ? "Receive \u09F3${balance.abs().toStringAsFixed(2)}" : "Pay \u09F3${balance.toStringAsFixed(2)}"),
                                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: netColor)
                                     ),
                                   ],
@@ -957,7 +957,7 @@ class SettlementScreen extends ConsumerWidget {
                               color: Colors.green.shade700)),
                       const Spacer(),
                       Text(
-                        '৳${details.paid.toStringAsFixed(0)}',
+                        '\u09F3${details.paid.toStringAsFixed(0)}',
                         style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w900,
@@ -999,7 +999,7 @@ class SettlementScreen extends ConsumerWidget {
                       ),
                       const Spacer(),
                       Text(
-                        '৳${details.share.toStringAsFixed(0)}',
+                        '\u09F3${details.share.toStringAsFixed(0)}',
                         style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w900,
@@ -1064,7 +1064,7 @@ class SettlementScreen extends ConsumerWidget {
                                   ),
                                 ),
                                 Text(
-                                  "${isPos ? '+' : '-'}৳${item.amount.toStringAsFixed(0)}",
+                                  "${isPos ? '+' : '-'}\u09F3${item.amount.toStringAsFixed(0)}",
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.bold,
@@ -1156,7 +1156,7 @@ class SettlementScreen extends ConsumerWidget {
                             .onSurface
                             .withValues(alpha: 0.5),
                         fontWeight: FontWeight.w500)),
-                trailing: Text("৳${s.amount.toStringAsFixed(0)}",
+                trailing: Text("\u09F3${s.amount.toStringAsFixed(0)}",
                     style: const TextStyle(
                         fontWeight: FontWeight.w900, fontSize: 15)),
                 onLongPress: isAdminOrEditor
@@ -1390,7 +1390,7 @@ class SettlementScreen extends ConsumerWidget {
                         ),
                         child: Row(
                           children: [
-                            Text("৳${r.amount.toStringAsFixed(0)}",
+                            Text("\u09F3${r.amount.toStringAsFixed(0)}",
                                 style: TextStyle(
                                     fontWeight: FontWeight.w900,
                                     fontSize: 18,
@@ -1444,7 +1444,7 @@ class SettlementScreen extends ConsumerWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text("Confirm Payment"),
         content: Text(
-            "Confirm that ${r.payerName} paid ৳${r.amount.toStringAsFixed(0)} to ${r.receiverName}?"),
+            "Confirm that ${r.payerName} paid \u09F3${r.amount.toStringAsFixed(0)} to ${r.receiverName}?"),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),

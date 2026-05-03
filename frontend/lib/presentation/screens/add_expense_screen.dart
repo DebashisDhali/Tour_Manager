@@ -262,7 +262,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                   hint: "0",
                                   icon: Icons.payments_rounded,
                                   color: config.color,
-                                  prefix: "৳ "),
+                                  prefix: "\u09F3 "),
                               keyboardType: TextInputType.number,
                               onChanged: (v) {
                                 setState(() {});
@@ -361,7 +361,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                                           fontWeight:
                                                               FontWeight.bold)),
                                                   Text(
-                                                    "Balance: ৳${(userBalances[m.user.id.toLowerCase()] ?? 0.0).toStringAsFixed(0)}",
+                                                    "Balance: \u09F3${(userBalances[m.user.id.toLowerCase()] ?? 0.0).toStringAsFixed(0)}",
                                                     style: const TextStyle(
                                                         fontSize: 10,
                                                         color: Colors.grey),
@@ -382,7 +382,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                                           hint: "0",
                                                           icon: Icons.add,
                                                           color: config.color,
-                                                          prefix: "৳ ",
+                                                          prefix: "\u09F3 ",
                                                           dense: true,
                                                           iconSize: 0),
                                                   keyboardType:
@@ -431,7 +431,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                         Text(m.user.name),
                                         if (isEventCategory)
                                           Text(
-                                            " ৳${bal.toStringAsFixed(0)}",
+                                            " \u09F3${bal.toStringAsFixed(0)}",
                                             style: TextStyle(
                                                 fontSize: 12,
                                                 color: bal > 0
@@ -546,7 +546,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                                     hint: "0",
                                                     icon: Icons.add,
                                                     color: config.color,
-                                                    prefix: "৳ ",
+                                                    prefix: "\u09F3 ",
                                                     dense: true,
                                                     iconSize: 0),
                                                 keyboardType:
@@ -741,7 +741,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "You only have ৳${currentBalance.toStringAsFixed(0)} in hand from the program fund.",
+                  "You only have \u09F3${currentBalance.toStringAsFixed(0)} in hand from the program fund.",
                   style: const TextStyle(fontSize: 16),
                 ),
                 const SizedBox(height: 12),
@@ -754,7 +754,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         Border.all(color: Colors.orange.withValues(alpha: 0.2)),
                   ),
                   child: Text(
-                    "Do you want to pay the remaining ৳${(totalAmount - currentBalance).toStringAsFixed(0)} from your own pocket?",
+                    "Do you want to pay the remaining \u09F3${(totalAmount - currentBalance).toStringAsFixed(0)} from your own pocket?",
                     style: const TextStyle(
                         fontWeight: FontWeight.w600, color: Colors.orange),
                   ),
@@ -909,7 +909,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         final paidSum = _payerAmounts.values.fold(0.0, (sum, v) => sum + v);
         if ((paidSum - totalAmount).abs() > 0.01) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text("Payment sum ($paidSum৳) != $totalAmount৳")));
+              content: Text("Payment sum ($paidSum\u09F3) != $totalAmount\u09F3")));
           return;
         }
 
@@ -917,7 +917,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           final splitSum = _splitAmounts.values.fold(0.0, (sum, v) => sum + v);
           if ((splitSum - totalAmount).abs() > 0.1) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text("Split sum ($splitSum৳) != $totalAmount৳")));
+                content: Text("Split sum ($splitSum\u09F3) != $totalAmount\u09F3")));
             return;
           }
         }

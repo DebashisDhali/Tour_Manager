@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:drift/drift.dart' as drift;
@@ -570,13 +570,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
     final isEditor =
         me?.id == tour.createdBy || myRole == 'admin' || myRole == 'editor';
 
-    bool canManage = isEditor;
-    if (tour.purpose == 'mess' && tour.isManagerLed) {
-      // In a manager-led mess, only the assigned manager or tour creator can perform actions
-      canManage = me?.id == tour.createdBy || me?.id == tour.managerId;
-    }
-
-    if (!canManage) return null;
+    if (!isEditor) return null;
 
     IconData icon = Icons.add;
     String label = "Add Expense";
@@ -1067,7 +1061,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                 children: [
                   const Text("Total Spent:",
                       style: TextStyle(fontWeight: FontWeight.bold)),
-                  Text("\u09F3${total.toStringAsFixed(0)}",
+                  Text("αº│${total.toStringAsFixed(0)}",
                       style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -1143,7 +1137,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                                       letterSpacing: -0.2)),
                               const SizedBox(height: 2),
                               Text(
-                                  "Paid by: $payerText • ${DateFormat('MMM dd, hh:mm a').format(exp.createdAt)}",
+                                  "Paid by: $payerText ΓÇó ${DateFormat('MMM dd, hh:mm a').format(exp.createdAt)}",
                                   style: TextStyle(
                                       fontSize: 10,
                                       color: Theme.of(context)
@@ -1159,7 +1153,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                                "\u09F3${(() {
+                                "αº│${(() {
                                   if (_selectedFilterMemberId == null) {
                                     return exp.amount;
                                   }
@@ -1179,7 +1173,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                                     fontSize: 14,
                                     color: Colors.redAccent)),
                             if (_selectedFilterMemberId != null)
-                              Text("of \u09F3${exp.amount.toStringAsFixed(0)}",
+                              Text("of αº│${exp.amount.toStringAsFixed(0)}",
                                   style: TextStyle(
                                       fontSize: 9,
                                       color: Theme.of(context)
@@ -1233,19 +1227,15 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
   Widget _buildJoinRequests(Tour tour) {
     final me = ref.watch(currentUserProvider).value;
     final membersAsync = ref.watch(tourMembersProvider(widget.tourId));
-    bool isEditor = me?.id == tour.createdBy ||
+    final isEditor = me?.id == tour.createdBy ||
         (membersAsync.value?.any((m) =>
-                m.user.id.toLowerCase() == me?.id?.toLowerCase() &&
+                m.user.id.toLowerCase() == me?.id.toLowerCase() &&
                 (m.role == 'admin' || m.role == 'editor')) ??
             false);
     final isAdmin = me?.id == tour.createdBy ||
         (membersAsync.value?.any((m) =>
-                m.user.id.toLowerCase() == me?.id?.toLowerCase() && (m.role == 'admin')) ??
+                m.user.id.toLowerCase() == me?.id.toLowerCase() && (m.role == 'admin')) ??
             false);
-
-    if (tour.purpose == 'mess' && tour.isManagerLed) {
-      isEditor = me?.id == tour.createdBy || me?.id == tour.managerId;
-    }
 
     if (!isEditor) return const SizedBox.shrink();
 
@@ -1381,20 +1371,20 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
             textColor = Colors.amber.shade800;
             icon = Icons.hourglass_top_rounded;
             message =
-                'আপনার join request পাঠানো হয়েছে এবং অনুমোদনের অপেক্ষায় আছে।'
-                ' Admin অনুমোদন করলে আপনি সক্রিয় সদস্য হবেন।';
+                'αªåαª¬αª¿αª╛αª░ join request αª¬αª╛αªáαª╛αª¿αºï αª╣αª»αª╝αºçαª¢αºç αªÅαª¼αªé αªàαª¿αºüαª«αºïαªªαª¿αºçαª░ αªàαª¬αºçαªòαºìαª╖αª╛αª»αª╝ αªåαª¢αºçαÑñ'
+                ' Admin αªàαª¿αºüαª«αºïαªªαª¿ αªòαª░αª▓αºç αªåαª¬αª¿αª┐ αª╕αªòαºìαª░αª┐αª»αª╝ αª╕αªªαª╕αºìαª» αª╣αª¼αºçαª¿αÑñ';
           case 'approved':
             bgColor = Colors.green.shade50;
             borderColor = Colors.green.shade300;
             textColor = Colors.green.shade800;
             icon = Icons.check_circle_rounded;
-            message = 'আপনার join request অনুমোদিত হয়েছে! আপনি এখন সক্রিয় সদস্য।';
+            message = 'αªåαª¬αª¿αª╛αª░ join request αªàαª¿αºüαª«αºïαªªαª┐αªñ αª╣αª»αª╝αºçαª¢αºç! αªåαª¬αª¿αª┐ αªÅαªûαª¿ αª╕αªòαºìαª░αª┐αª»αª╝ αª╕αªªαª╕αºìαª»αÑñ';
           case 'rejected':
             bgColor = Colors.red.shade50;
             borderColor = Colors.red.shade300;
             textColor = Colors.red.shade800;
             icon = Icons.cancel_rounded;
-            message = 'দুঃখিত, আপনার join request প্রত্যাখ্যাত হয়েছে।';
+            message = 'αªªαºüαªâαªûαª┐αªñ, αªåαª¬αª¿αª╛αª░ join request αª¬αºìαª░αªñαºìαª»αª╛αªûαºìαª»αª╛αªñ αª╣αª»αª╝αºçαª¢αºçαÑñ';
           default:
             return const SizedBox.shrink();
         }
@@ -1416,7 +1406,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'আপনার Join Request',
+                      'αªåαª¬αª¿αª╛αª░ Join Request',
                       style: TextStyle(
                         color: textColor,
                         fontSize: 12,
@@ -1528,10 +1518,8 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                   final isRemoved = statusNormalized == 'removed';
                   final isPending = statusNormalized == 'pending';
                   final roleNormalized = m.role.toLowerCase().trim();
-                  String effectiveRole = m.user.id == tour.createdBy ? 'admin' : roleNormalized;
-                  if (tour.purpose == 'mess' && tour.isManagerLed && tour.managerId == m.user.id) {
-                    effectiveRole = 'manager';
-                  }
+                  final effectiveRole =
+                      m.user.id == tour.createdBy ? 'admin' : roleNormalized;
 
                   final isEditor = me?.id == tour.createdBy ||
                       members.any((x) =>
@@ -1624,21 +1612,13 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                              color: isPending 
-                                  ? Colors.orange.withValues(alpha: 0.1) 
-                                  : effectiveRole == 'manager' 
-                                      ? Colors.teal.withValues(alpha: 0.1) 
-                                      : Colors.grey.withValues(alpha: 0.1),
+                              color: Colors.grey.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8)),
                           child: Text(isPending ? 'PENDING' : effectiveRole.toUpperCase(),
                               style: TextStyle(
                                   fontSize: 9,
                                   fontWeight: FontWeight.bold,
-                                  color: isPending 
-                                      ? Colors.orange 
-                                      : effectiveRole == 'manager' 
-                                          ? Colors.teal 
-                                          : Colors.grey)));
+                                  color: isPending ? Colors.orange : Colors.grey)));
                     }
                   }
 
@@ -1869,7 +1849,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text("\u09F3${balance.toStringAsFixed(0)}",
+                Text("αº│${balance.toStringAsFixed(0)}",
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 36,
@@ -1888,7 +1868,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                                   fontSize: 9,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 1)),
-                          Text("\u09F3${totalCollected.toStringAsFixed(0)}",
+                          Text("αº│${totalCollected.toStringAsFixed(0)}",
                               style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 16,
@@ -1906,7 +1886,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                                   fontSize: 9,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 1)),
-                          Text("\u09F3${totalSpent.toStringAsFixed(0)}",
+                          Text("αº│${totalSpent.toStringAsFixed(0)}",
                               style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 16,
@@ -1998,7 +1978,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                 Text(
                   bal.abs() < 1
                       ? "Settled"
-                      : (isNeg ? "-\u09F3${bal.abs().toStringAsFixed(0)}" : "\u09F3${bal.toStringAsFixed(0)}"),
+                      : (isNeg ? "-αº│${bal.abs().toStringAsFixed(0)}" : "αº│${bal.toStringAsFixed(0)}"),
                   style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
@@ -2117,7 +2097,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                         ],
                       ),
                       const SizedBox(height: 8),
-                      Text("\u09F3${amount.toStringAsFixed(0)}",
+                      Text("αº│${amount.toStringAsFixed(0)}",
                           style: TextStyle(
                             color: color,
                             fontSize: 26,
@@ -2194,7 +2174,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                             child: Text(u.name[0],
                                 style: const TextStyle(color: Colors.green))),
                         title: Text(u.name),
-                        trailing: Text("\u09F3${amount.toStringAsFixed(0)}",
+                        trailing: Text("αº│${amount.toStringAsFixed(0)}",
                             style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.green)),
@@ -2219,7 +2199,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                                 size: 20),
                             title: Text(i.source),
                             subtitle: Text(DateFormat('MMM dd').format(i.date)),
-                            trailing: Text("+\u09F3${i.amount.toStringAsFixed(0)}",
+                            trailing: Text("+αº│${i.amount.toStringAsFixed(0)}",
                                 style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     color: Colors.green)),
@@ -2248,7 +2228,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                             child: Text(u.name[0],
                                 style: const TextStyle(color: Colors.orange))),
                         title: Text(u.name),
-                        trailing: Text("\u09F3${amount.toStringAsFixed(0)}",
+                        trailing: Text("αº│${amount.toStringAsFixed(0)}",
                             style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.orange)),
@@ -2284,7 +2264,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                               ),
                               title: Text(entry.key),
                               trailing: Text(
-                                  "-\u09F3${entry.value.toStringAsFixed(0)}",
+                                  "-αº│${entry.value.toStringAsFixed(0)}",
                                   style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       color: Colors.red)),
@@ -2324,7 +2304,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                                 style: const TextStyle(color: Colors.blue))),
                         title: Text(u.name),
                         subtitle: Text(bal > 0 ? "Holding" : "Owed"),
-                        trailing: Text("\u09F3${bal.toStringAsFixed(0)}",
+                        trailing: Text("αº│${bal.toStringAsFixed(0)}",
                             style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: bal >= 0 ? Colors.green : Colors.red)),
@@ -2380,7 +2360,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
           Text(label,
               style: TextStyle(
                   fontWeight: isBold ? FontWeight.bold : FontWeight.normal)),
-          Text("\u09F3${amount.toStringAsFixed(0)}",
+          Text("αº│${amount.toStringAsFixed(0)}",
               style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: color,
@@ -2422,7 +2402,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
               text: to.name,
               style: const TextStyle(fontWeight: FontWeight.bold)),
         ])),
-        trailing: Text("\u09F3${settlement.toStringAsFixed(0)}",
+        trailing: Text("αº│${settlement.toStringAsFixed(0)}",
             style: TextStyle(fontWeight: FontWeight.bold, color: config.color)),
       ));
 
@@ -2474,7 +2454,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                     backgroundColor: Colors.greenAccent,
                     child: Icon(Icons.arrow_downward, color: Colors.green)),
                 title: Text(inc.source),
-                trailing: Text("+\u09F3${inc.amount.toStringAsFixed(0)}",
+                trailing: Text("+αº│${inc.amount.toStringAsFixed(0)}",
                     style: const TextStyle(
                         fontWeight: FontWeight.bold, color: Colors.green)),
               ),
@@ -2511,7 +2491,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                     backgroundColor: Colors.blueAccent,
                     child: Icon(Icons.swap_horiz, color: Colors.white)),
                 title: const Text("Transfer"),
-                trailing: Text("\u09F3${s.amount.toStringAsFixed(0)}",
+                trailing: Text("αº│${s.amount.toStringAsFixed(0)}",
                     style: const TextStyle(fontWeight: FontWeight.bold)),
               ),
             );
@@ -2632,7 +2612,7 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
           title: Text(tx['title'], style: const TextStyle(fontSize: 14)),
           subtitle: Text(DateFormat('MMM dd, hh:mm a').format(tx['date'])),
           trailing: Text(
-            "${isIncome ? '+' : (isExpense ? '-' : '')}\u09F3${tx['amount'].toStringAsFixed(0)}",
+            "${isIncome ? '+' : (isExpense ? '-' : '')}αº│${tx['amount'].toStringAsFixed(0)}",
             style: TextStyle(
               fontWeight: FontWeight.bold,
               color: isIncome
@@ -2972,17 +2952,17 @@ class _TourDetailsScreenState extends ConsumerState<TourDetailsScreen>
                   style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Text(
-                  "• The Creator (Admin) can add ${config.memberLabel.toLowerCase()}, manage all data, and remove others."),
+                  "ΓÇó The Creator (Admin) can add ${config.memberLabel.toLowerCase()}, manage all data, and remove others."),
               Text(
-                  "• Joined ${config.memberLabel} can only see data and edit their own meal records."),
+                  "ΓÇó Joined ${config.memberLabel} can only see data and edit their own meal records."),
               const SizedBox(height: 16),
               const Text("Removing Member:",
                   style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Text(
-                  "• Removing someone revokes their access to the ${config.label.toLowerCase()} immediately."),
+                  "ΓÇó Removing someone revokes their access to the ${config.label.toLowerCase()} immediately."),
               const Text(
-                  "• Their financial history is kept for group balance correctness."),
+                  "ΓÇó Their financial history is kept for group balance correctness."),
             ],
           ),
         ),
